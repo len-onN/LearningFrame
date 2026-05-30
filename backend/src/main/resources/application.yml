@@ -1,0 +1,27 @@
+server:
+  port: 8081
+
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:learningframe}?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${DB_USER:learningframe}
+    password: ${DB_PASSWORD:learningframe}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+
+learningframe:
+  jwt:
+    secret: ${JWT_SECRET:change-this-dev-secret-at-least-32-chars}
+    ttl-seconds: ${JWT_TTL_SECONDS:604800}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8080,http://localhost:5173}
+  uploads:
+    max-apkg-bytes: ${MAX_APKG_BYTES:52428800}
