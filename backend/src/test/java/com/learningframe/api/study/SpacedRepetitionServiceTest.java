@@ -2,17 +2,20 @@ package com.learningframe.api.study;
 
 import com.learningframe.api.model.ReviewRating;
 import com.learningframe.api.study.StudyDtos.ReviewSchedule;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@DisplayName("algoritmo de repeticao espacada")
 class SpacedRepetitionServiceTest {
     private final SpacedRepetitionService service = new SpacedRepetitionService();
 
     @Test
-    void schedulesGoodNewCardForTomorrow() {
+    @DisplayName("agenda uma boa resposta nova para amanha")
+    void agendaBoaRespostaNovaParaAmanha() {
         Instant now = Instant.parse("2026-05-30T10:00:00Z");
 
         ReviewSchedule schedule = service.next(ReviewRating.GOOD, 0, 0, 2.5, now);
@@ -24,7 +27,8 @@ class SpacedRepetitionServiceTest {
     }
 
     @Test
-    void resetsAgainToShortReview() {
+    @DisplayName("reinicia as repeticoes ao marcar de novo")
+    void reiniciaRepeticoesAoMarcarDeNovo() {
         Instant now = Instant.parse("2026-05-30T10:00:00Z");
 
         ReviewSchedule schedule = service.next(ReviewRating.AGAIN, 6, 2, 2.5, now);

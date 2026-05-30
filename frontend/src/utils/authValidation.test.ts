@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { validateAuthForm } from './authValidation'
 
-describe('validateAuthForm', () => {
-  it('requires email and password for login', () => {
+describe('validacao do formulario de autenticacao', () => {
+  it('exige e-mail e senha para login', () => {
     expect(validateAuthForm({ displayName: '', email: '', password: '' }, 'login')).toEqual({
       email: 'Informe seu e-mail.',
       password: 'Informe sua senha.'
     })
   })
 
-  it('validates registration name, email format and password policy', () => {
+  it('valida nome, formato de e-mail e politica de senha no cadastro', () => {
     expect(validateAuthForm({ displayName: '', email: 'sem-arroba', password: '123' }, 'register')).toEqual({
       displayName: 'Informe seu nome.',
       email: 'Informe um e-mail valido.',
@@ -17,7 +17,7 @@ describe('validateAuthForm', () => {
     })
   })
 
-  it('lists missing password requirements after minimum length is satisfied', () => {
+  it('lista requisitos ausentes de senha depois do tamanho minimo', () => {
     expect(validateAuthForm({
       displayName: 'Ada Lovelace',
       email: 'ada@example.com',
@@ -27,7 +27,7 @@ describe('validateAuthForm', () => {
     })
   })
 
-  it('does not count whitespace as a password symbol', () => {
+  it('nao conta espaco em branco como simbolo de senha', () => {
     expect(validateAuthForm({
       displayName: 'Ada Lovelace',
       email: 'ada@example.com',
@@ -37,7 +37,7 @@ describe('validateAuthForm', () => {
     })
   })
 
-  it('accepts a complete registration form', () => {
+  it('aceita um formulario de cadastro completo', () => {
     expect(validateAuthForm({
       displayName: 'Ada Lovelace',
       email: 'ada@example.com',

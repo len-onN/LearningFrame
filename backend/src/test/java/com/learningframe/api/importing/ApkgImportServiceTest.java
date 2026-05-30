@@ -2,6 +2,7 @@ package com.learningframe.api.importing;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.learningframe.api.importing.ApkgDtos.ApkgPreviewResponse;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 
@@ -16,9 +17,11 @@ import java.util.zip.ZipOutputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@DisplayName("importacao de arquivos apkg")
 class ApkgImportServiceTest {
     @Test
-    void previewsBasicApkgNotes() throws Exception {
+    @DisplayName("previsualiza notas basicas de um arquivo apkg")
+    void previsualizaNotasBasicasDeArquivoApkg() throws Exception {
         byte[] apkg = createApkg();
         ApkgImportService service = new ApkgImportService(
                 new ObjectMapper(),
