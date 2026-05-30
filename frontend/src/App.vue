@@ -38,9 +38,9 @@ import {
 import { nextReview } from './utils/srs'
 import { safeStudyHtml } from './utils/html'
 import { formatDueIn, nextDueLabel } from './utils/dueTime'
+import { validateAuthForm, type AuthErrors, type AuthField, type AuthMode } from './utils/authValidation'
 
 type Tab = 'library' | 'study' | 'import' | 'create' | 'progress' | 'auth'
-type AuthMode = 'login' | 'register'
 
 const tab = ref<Tab>('library')
 const authMode = ref<AuthMode>('login')
@@ -59,6 +59,12 @@ const authForm = ref({
   email: '',
   password: ''
 })
+const authTouched = ref<Record<AuthField, boolean>>({
+  displayName: false,
+  email: false,
+  password: false
+})
+const authSubmitted = ref(false)
 
 const deckForm = ref({
   title: '',
@@ -87,6 +93,7 @@ const currentCard = computed(() => studyQueue.value[0])
 const frontHtml = computed(() => currentCard.value ? safeStudyHtml(currentCard.value.frontHtml, currentCard.value.deckId) : '')
 const backHtml = computed(() => currentCard.value ? safeStudyHtml(currentCard.value.backHtml, currentCard.value.deckId) : '')
 const currentDueLabel = computed(() => currentCard.value ? formatDueIn(currentCard.value.dueAt) : '')
+const authErrors = computed<AuthErrors>(() => validateAuthForm(authForm.value, authMode.value))
 const navTabs = [
   { id: 'library' as const, label: 'Biblioteca', icon: BookOpen },
   { id: 'study' as const, label: 'Estudo', icon: Brain },
@@ -115,6 +122,11 @@ async function refreshAll() {
 }
 
 async function submitAuth() {
+  markAuthSubmitted()
+  if (hasAuthErrors()) {
+    return
+  }
+
   await withFeedback(async () => {
     const response = authMode.value === 'login'
       ? await api.login(authForm.value.email, authForm.value.password)
@@ -125,9 +137,44 @@ async function submitAuth() {
     localStorage.setItem('learningframe.user', JSON.stringify(response.user))
     notice.value = `Sessao iniciada como ${response.user.displayName}.`
     authForm.value.password = ''
+    resetAuthValidation()
     await refreshAll()
     tab.value = 'library'
   })
+}
+
+function markAuthSubmitted() {
+  authSubmitted.value = true
+  authTouched.value.email = true
+  authTouched.value.password = true
+  if (authMode.value === 'register') {
+    authTouched.value.displayName = true
+  }
+}
+
+function hasAuthErrors() {
+  return Object.keys(authErrors.value).length > 0
+}
+
+function touchAuthField(field: AuthField) {
+  authTouched.value[field] = true
+}
+
+function shouldShowAuthError(field: AuthField) {
+  return authSubmitted.value || authTouched.value[field]
+}
+
+function authFieldError(field: AuthField) {
+  return shouldShowAuthError(field) ? authErrors.value[field] ?? '' : ''
+}
+
+function resetAuthValidation() {
+  authSubmitted.value = false
+  authTouched.value = {
+    displayName: false,
+    email: false,
+    password: false
+  }
 }
 
 function logout() {
@@ -143,6 +190,7 @@ function logout() {
 function goHome() {
   tab.value = 'library'
   error.value = ''
+  resetAuthValidation()
 }
 
 function openAuth(mode: AuthMode = 'login') {
@@ -150,10 +198,13 @@ function openAuth(mode: AuthMode = 'login') {
   tab.value = 'auth'
   error.value = ''
   notice.value = ''
+  resetAuthValidation()
 }
 
 function toggleAuthMode() {
   authMode.value = authMode.value === 'login' ? 'register' : 'login'
+  error.value = ''
+  resetAuthValidation()
 }
 
 async function startDeck(deck: DeckSummary) {
@@ -441,7 +492,7 @@ function loadStoredUser() {
       <div v-if="error" class="status error">{{ error }}</div>
 
       <section v-if="tab === 'auth'" class="auth-page">
-        <form class="auth-card" @submit.prevent="submitAuth">
+        <form class="auth-card" novalidate @submit.prevent="submitAuth">
           <button class="auth-close" type="button" title="Continuar sem login" aria-label="Continuar sem login" @click="goHome">
             ×
           </button>
@@ -454,16 +505,62 @@ function loadStoredUser() {
             </p>
           </div>
 
-          <input
-            v-if="authMode === 'register'"
-            v-model="authForm.displayName"
-            required
-            type="text"
-            autocomplete="name"
-            placeholder="Nome"
-          />
-          <input v-model="authForm.email" required type="email" autocomplete="email" placeholder="E-mail" />
-          <input v-model="authForm.password" required type="password" autocomplete="current-password" placeholder="Senha" />
+          <div v-if="authMode === 'register'" class="form-field">
+            <label class="field-label" for="auth-display-name">Nome</label>
+            <input
+              id="auth-display-name"
+              v-model.trim="authForm.displayName"
+              class="field-control"
+              :class="{ invalid: Boolean(authFieldError('displayName')) }"
+              type="text"
+              autocomplete="name"
+              placeholder="Seu nome"
+              :aria-invalid="Boolean(authFieldError('displayName'))"
+              :aria-describedby="authFieldError('displayName') ? 'auth-display-name-error' : undefined"
+              @blur="touchAuthField('displayName')"
+            />
+            <p v-if="authFieldError('displayName')" id="auth-display-name-error" class="field-error">
+              {{ authFieldError('displayName') }}
+            </p>
+          </div>
+
+          <div class="form-field">
+            <label class="field-label" for="auth-email">E-mail</label>
+            <input
+              id="auth-email"
+              v-model.trim="authForm.email"
+              class="field-control"
+              :class="{ invalid: Boolean(authFieldError('email')) }"
+              type="email"
+              autocomplete="email"
+              placeholder="voce@email.com"
+              :aria-invalid="Boolean(authFieldError('email'))"
+              :aria-describedby="authFieldError('email') ? 'auth-email-error' : undefined"
+              @blur="touchAuthField('email')"
+            />
+            <p v-if="authFieldError('email')" id="auth-email-error" class="field-error">
+              {{ authFieldError('email') }}
+            </p>
+          </div>
+
+          <div class="form-field">
+            <label class="field-label" for="auth-password">Senha</label>
+            <input
+              id="auth-password"
+              v-model="authForm.password"
+              class="field-control"
+              :class="{ invalid: Boolean(authFieldError('password')) }"
+              type="password"
+              :autocomplete="authMode === 'login' ? 'current-password' : 'new-password'"
+              placeholder="Sua senha"
+              :aria-invalid="Boolean(authFieldError('password'))"
+              :aria-describedby="authFieldError('password') ? 'auth-password-error' : undefined"
+              @blur="touchAuthField('password')"
+            />
+            <p v-if="authFieldError('password')" id="auth-password-error" class="field-error">
+              {{ authFieldError('password') }}
+            </p>
+          </div>
 
           <button class="primary full" type="submit">
             <User :size="16" aria-hidden="true" />

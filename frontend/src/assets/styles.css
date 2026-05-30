@@ -222,6 +222,42 @@ select {
   background: #ffffff;
 }
 
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: #0f766e;
+  outline: 3px solid #d9f3ef;
+}
+
+.form-field {
+  display: grid;
+  gap: 6px;
+}
+
+.field-label {
+  color: #314158;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.field-control.invalid {
+  border-color: #dc6f5f;
+  background: #fff8f6;
+}
+
+.field-control.invalid:focus {
+  border-color: #c24132;
+  outline-color: #ffe0dc;
+}
+
+.field-error {
+  margin: 0;
+  color: #b23b2c;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 textarea {
   resize: vertical;
 }
