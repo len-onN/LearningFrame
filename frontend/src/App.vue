@@ -12,6 +12,7 @@ import {
   Moon,
   Plus,
   RotateCcw,
+  Search,
   Shuffle,
   Sun,
   Upload,
@@ -46,10 +47,13 @@ import { formatDueIn, nextDueLabel } from './utils/dueTime'
 import { validateAuthForm, type AuthErrors, type AuthField, type AuthMode } from './utils/authValidation'
 
 type Tab = 'library' | 'study' | 'import' | 'create' | 'progress' | 'auth'
+type LibrarySection = 'public' | 'mine' | 'local'
 type ThemePreference = 'light' | 'dark'
 const DECK_PAGE_SIZE = 8
 
 const tab = ref<Tab>('library')
+const librarySection = ref<LibrarySection>('public')
+const librarySearch = ref('')
 const authMode = ref<AuthMode>('login')
 const themePreference = ref<ThemePreference>(loadStoredThemePreference())
 const sidebarCollapsed = ref(false)
@@ -112,6 +116,36 @@ const publicDecksHasMore = computed(() => publicDeckPage.value ? !publicDeckPage
 const myDecksHasMore = computed(() => myDeckPage.value ? !myDeckPage.value.last : false)
 const publicDecksCountLabel = computed(() => deckPageCountLabel(publicDecks.value.length, publicDeckPage.value))
 const myDecksCountLabel = computed(() => deckPageCountLabel(myDecks.value.length, myDeckPage.value))
+const filteredPublicDecks = computed(() => publicDecks.value.filter((deck) => matchesSearch(deck.title, deck.description)))
+const filteredMyDecks = computed(() => myDecks.value.filter((deck) => matchesSearch(deck.title, deck.description)))
+const filteredLocalDecks = computed(() => localDecks.value.filter((deck) => {
+  const cardText = deck.cards.flatMap((card) => [htmlToText(card.frontHtml), htmlToText(card.backHtml)])
+  return matchesSearch(deck.title, deck.description, ...cardText)
+}))
+const activeLibraryResultCount = computed(() => {
+  if (librarySection.value === 'public') {
+    return filteredPublicDecks.value.length
+  }
+  if (librarySection.value === 'mine') {
+    return filteredMyDecks.value.length
+  }
+  return filteredLocalDecks.value.length
+})
+const activeLibraryCountLabel = computed(() => {
+  const searching = normalizeSearch(librarySearch.value).length > 0
+  if (searching) {
+    const count = activeLibraryResultCount.value
+    return `${count} ${count === 1 ? 'resultado' : 'resultados'}`
+  }
+  if (librarySection.value === 'public') {
+    return publicDecksCountLabel.value
+  }
+  if (librarySection.value === 'mine') {
+    return user.value ? myDecksCountLabel.value : ''
+  }
+  const count = localDecks.value.length
+  return `${count} ${count === 1 ? 'baralho local' : 'baralhos locais'}`
+})
 const navTabs = [
   { id: 'library' as const, label: 'Biblioteca', icon: BookOpen },
   { id: 'study' as const, label: 'Estudo', icon: Brain },
@@ -436,6 +470,28 @@ function cardCountLabel(count: number) {
   return `${count} ${count === 1 ? 'carta' : 'cartas'}`
 }
 
+function normalizeSearch(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+}
+
+function matchesSearch(...values: Array<string | null | undefined>) {
+  const query = normalizeSearch(librarySearch.value)
+  if (!query) {
+    return true
+  }
+  return values.some((value) => normalizeSearch(value ?? '').includes(query))
+}
+
+function htmlToText(html: string) {
+  const template = document.createElement('template')
+  template.innerHTML = html
+  return template.content.textContent ?? ''
+}
+
 function deckDueLabel(deck: DeckSummary) {
   if (!user.value && deck.dueCount == null) {
     return 'disponivel agora'
@@ -696,12 +752,48 @@ function loadStoredThemePreference(): ThemePreference {
         </form>
       </section>
 
-      <section v-if="tab === 'library'" class="content-grid library-grid">
-        <div class="panel wide">
-          <div class="section-title">
-            <h2>Baralhos públicos</h2>
+      <section v-if="tab === 'library'" class="library-grid">
+        <div class="library-shell">
+          <div class="library-tabs" role="tablist" aria-label="Tipos de baralho">
+            <button
+              class="library-tab"
+              :class="{ active: librarySection === 'public' }"
+              type="button"
+              role="tab"
+              :aria-selected="librarySection === 'public'"
+              @click="librarySection = 'public'"
+            >
+              Baralhos públicos
+            </button>
+            <button
+              class="library-tab"
+              :class="{ active: librarySection === 'mine' }"
+              type="button"
+              role="tab"
+              :aria-selected="librarySection === 'mine'"
+              @click="librarySection = 'mine'"
+            >
+              Meus baralhos
+            </button>
+            <button
+              class="library-tab"
+              :class="{ active: librarySection === 'local' }"
+              type="button"
+              role="tab"
+              :aria-selected="librarySection === 'local'"
+              @click="librarySection = 'local'"
+            >
+              Baralhos locais
+            </button>
+          </div>
+
+          <div class="library-toolbar">
+            <label class="library-search">
+              <Search :size="17" aria-hidden="true" />
+              <input v-model="librarySearch" type="search" placeholder="Buscar baralhos e cartas" />
+            </label>
             <div class="row-actions">
-              <span v-if="publicDecksCountLabel" class="muted">{{ publicDecksCountLabel }}</span>
+              <span v-if="activeLibraryCountLabel" class="muted">{{ activeLibraryCountLabel }}</span>
               <button class="ghost compact" type="button" @click="refreshAll">
                 <RotateCcw :size="16" aria-hidden="true" />
                 Atualizar
@@ -709,84 +801,91 @@ function loadStoredThemePreference(): ThemePreference {
             </div>
           </div>
 
-          <div class="deck-list">
-            <article v-for="deck in publicDecks" :key="deck.id" class="deck-card">
-              <div>
-                <h3>{{ deck.title }}</h3>
-                <p>{{ deck.description }}</p>
-                <span>{{ cardCountLabel(deck.cardCount) }} · {{ deckDueLabel(deck) }}</span>
+          <div class="library-content">
+            <div v-if="librarySection === 'public'" class="panel wide">
+              <div v-if="filteredPublicDecks.length" class="deck-list">
+                <article v-for="deck in filteredPublicDecks" :key="deck.id" class="deck-card">
+                  <div>
+                    <h3>{{ deck.title }}</h3>
+                    <p>{{ deck.description }}</p>
+                    <span>{{ cardCountLabel(deck.cardCount) }} · {{ deckDueLabel(deck) }}</span>
+                  </div>
+                  <div class="row-actions">
+                    <button class="primary compact" type="button" @click="startDeck(deck)">
+                      <Brain :size="16" aria-hidden="true" />
+                      Estudar
+                    </button>
+                  </div>
+                </article>
               </div>
-              <div class="row-actions">
-                <button class="primary compact" type="button" @click="startDeck(deck)">
-                  <Brain :size="16" aria-hidden="true" />
-                  Estudar
-                </button>
-              </div>
-            </article>
-          </div>
-          <a
-            v-if="publicDecksHasMore"
-            class="load-more-link"
-            href="#"
-            @click.prevent="loadMorePublicDecks"
-          >
-            Carregar mais baralhos...
-          </a>
-        </div>
+              <p v-else class="muted empty-copy">Nenhum baralho público encontrado.</p>
+              <a
+                v-if="publicDecksHasMore"
+                class="load-more-link"
+                href="#"
+                @click.prevent="loadMorePublicDecks"
+              >
+                Carregar mais baralhos...
+              </a>
+            </div>
 
-        <div v-if="user" class="panel">
-          <div class="section-title">
-            <h2>Meus baralhos</h2>
-            <span v-if="myDecksCountLabel" class="muted">{{ myDecksCountLabel }}</span>
-          </div>
-          <div class="deck-list">
-            <article v-for="deck in myDecks" :key="deck.id" class="deck-card">
-              <div>
-                <h3>{{ deck.title }}</h3>
-                <p>{{ deck.description }}</p>
-                <span>{{ cardCountLabel(deck.cardCount) }} · {{ deckDueLabel(deck) }}</span>
+            <div v-if="librarySection === 'mine'" class="panel wide">
+              <div v-if="user && filteredMyDecks.length" class="deck-list">
+                <article v-for="deck in filteredMyDecks" :key="deck.id" class="deck-card">
+                  <div>
+                    <h3>{{ deck.title }}</h3>
+                    <p>{{ deck.description }}</p>
+                    <span>{{ cardCountLabel(deck.cardCount) }} · {{ deckDueLabel(deck) }}</span>
+                  </div>
+                  <div class="row-actions">
+                    <button class="primary compact" type="button" @click="startDeck(deck)">
+                      <Brain :size="16" aria-hidden="true" />
+                      Estudar
+                    </button>
+                  </div>
+                </article>
               </div>
-              <div class="row-actions">
-                <button class="primary compact" type="button" @click="startDeck(deck)">
-                  <Brain :size="16" aria-hidden="true" />
-                  Estudar
+              <div v-else-if="!user" class="empty-state compact-empty">
+                <h2>Entre para ver seus baralhos</h2>
+                <p>Baralhos criados, importados e publicados pela sua conta aparecem aqui.</p>
+                <button class="primary compact" type="button" @click="openAuth('login')">
+                  <User :size="16" aria-hidden="true" />
+                  Entrar
                 </button>
               </div>
-            </article>
-          </div>
-          <a
-            v-if="myDecksHasMore"
-            class="load-more-link"
-            href="#"
-            @click.prevent="loadMoreMyDecks"
-          >
-            Carregar mais baralhos...
-          </a>
-        </div>
+              <p v-else class="muted empty-copy">Nenhum baralho seu encontrado.</p>
+              <a
+                v-if="user && myDecksHasMore"
+                class="load-more-link"
+                href="#"
+                @click.prevent="loadMoreMyDecks"
+              >
+                Carregar mais baralhos...
+              </a>
+            </div>
 
-        <div class="panel">
-          <div class="section-title">
-            <h2>Baralhos locais</h2>
-          </div>
-          <div v-if="localDecks.length" class="deck-list">
-            <article v-for="deck in localDecks" :key="deck.id" class="deck-card">
-              <div>
-                <h3>{{ deck.title }}</h3>
-                <p>{{ deck.description }}</p>
-                <span>{{ cardCountLabel(deck.cards.length) }} · {{ localDeckDueLabel(deck.id) }}</span>
+            <div v-if="librarySection === 'local'" class="panel wide">
+              <div v-if="filteredLocalDecks.length" class="deck-list">
+                <article v-for="deck in filteredLocalDecks" :key="deck.id" class="deck-card">
+                  <div>
+                    <h3>{{ deck.title }}</h3>
+                    <p>{{ deck.description }}</p>
+                    <span>{{ cardCountLabel(deck.cards.length) }} · {{ localDeckDueLabel(deck.id) }}</span>
+                  </div>
+                  <div class="row-actions">
+                    <button class="primary compact" type="button" @click="startLocalDeck(deck.id)">
+                      <Brain :size="16" aria-hidden="true" />
+                      Estudar
+                    </button>
+                    <button class="ghost compact" type="button" @click="removeLocalDeck(deck.id)">
+                      Remover
+                    </button>
+                  </div>
+                </article>
               </div>
-              <div class="row-actions">
-                <button class="primary compact" type="button" @click="startLocalDeck(deck.id)">
-                  <Brain :size="16" aria-hidden="true" />
-                  Estudar
-                </button>
-                <button class="ghost compact" type="button" @click="removeLocalDeck(deck.id)">
-                  Remover
-                </button>
-              </div>
-            </article>
+              <p v-else class="muted empty-copy">Importe um `.apkg` ou abra um baralho público para estudar sem login.</p>
+            </div>
           </div>
-          <p v-else class="muted">Importe um `.apkg` ou abra um baralho público para estudar sem login.</p>
         </div>
       </section>
 
