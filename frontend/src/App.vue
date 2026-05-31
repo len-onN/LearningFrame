@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   BarChart3,
   BookOpen,
@@ -16,7 +16,8 @@ import {
   Shuffle,
   Sun,
   Upload,
-  User
+  User,
+  X
 } from '@lucide/vue'
 import { api, clearAuthToken, setAuthToken } from './services/api'
 import type {
@@ -24,6 +25,7 @@ import type {
   ApkgPreviewResponse,
   DeckSummary,
   DeckVisibility,
+  LocalDeck,
   PageResponse,
   ReviewRating,
   StatsSummary,
@@ -32,23 +34,21 @@ import type {
   UserResponse
 } from './types/api'
 import {
-  apkgPreviewToLocal,
   deckDetailToLocal,
-  loadLocalDecks,
   loadLocalStates,
   localDeckToStudyCards,
-  mixedLocalStudyCards,
-  saveLocalDecks,
   saveLocalStates
 } from './utils/localStudy'
 import { nextReview } from './utils/srs'
-import { safeStudyHtml } from './utils/html'
+import { extractRelativeMediaSources, safePreviewHtml, safeStudyHtml } from './utils/html'
+import { createApkgMediaIndex, normalizeMediaName, type ApkgMediaIndex } from './utils/apkgMedia'
 import { formatDueIn, nextDueLabel } from './utils/dueTime'
 import { validateAuthForm, type AuthErrors, type AuthField, type AuthMode } from './utils/authValidation'
 
 type Tab = 'library' | 'study' | 'import' | 'create' | 'progress' | 'auth'
-type LibrarySection = 'public' | 'mine' | 'local'
+type LibrarySection = 'public' | 'mine'
 type ThemePreference = 'light' | 'dark'
+type PreviewFace = 'front' | 'back'
 const DECK_PAGE_SIZE = 8
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -65,7 +65,7 @@ const publicDeckPage = ref<PageResponse<DeckSummary> | null>(null)
 const myDeckPage = ref<PageResponse<DeckSummary> | null>(null)
 const publicDeckQuery = ref('')
 const myDeckQuery = ref('')
-const localDecks = ref(loadLocalDecks())
+const publicStudyDeckCache = ref<LocalDeck[]>([])
 const localStates = ref(loadLocalStates())
 const stats = ref<StatsSummary | null>(null)
 const notice = ref('')
@@ -102,6 +102,15 @@ const importVisibility = ref<DeckVisibility>('PRIVATE')
 const importTitle = ref('')
 const importPreview = ref<ApkgPreviewResponse | null>(null)
 const importResult = ref<ApkgImportResponse | null>(null)
+const returnToImportAfterAuth = ref(false)
+const previewCardIndex = ref(0)
+const previewFace = ref<PreviewFace>('front')
+const previewPickerOpen = ref(false)
+const previewCardSearch = ref('')
+const previewMediaIndex = ref<ApkgMediaIndex | null>(null)
+const previewMediaUrls = ref<Record<string, string>>({})
+const highlightedDeckId = ref<number | null>(null)
+const importSaving = ref(false)
 
 const studyQueue = ref<StudyCard[]>([])
 const sessionTitle = ref('Selecione um baralho ou inicie a prática intercalada.')
@@ -121,18 +130,28 @@ const publicDecksCountLabel = computed(() => deckPageCountLabel(publicDecks.valu
 const myDecksCountLabel = computed(() => deckPageCountLabel(myDecks.value.length, myDeckPage.value))
 const filteredPublicDecks = computed(() => publicDecks.value)
 const filteredMyDecks = computed(() => myDecks.value)
-const filteredLocalDecks = computed(() => localDecks.value.filter((deck) => {
-  const cardText = deck.cards.flatMap((card) => [htmlToText(card.frontHtml), htmlToText(card.backHtml)])
-  return matchesSearch(deck.title, deck.description, ...cardText)
-}))
-const activeLibraryResultCount = computed(() => {
-  if (librarySection.value === 'public') {
-    return filteredPublicDecks.value.length
+const loadingMessage = computed(() => importSaving.value ? 'Preparando seu baralho com mídia...' : 'Carregando...')
+const currentPreviewCard = computed(() => importPreview.value?.cards[previewCardIndex.value] ?? null)
+const currentPreviewHtml = computed(() => {
+  const card = currentPreviewCard.value
+  if (!card) {
+    return ''
   }
-  if (librarySection.value === 'mine') {
-    return filteredMyDecks.value.length
-  }
-  return filteredLocalDecks.value.length
+  const html = previewFace.value === 'front' ? card.frontHtml : card.backHtml
+  return safePreviewHtml(html, {
+    resolveMediaUrl: (fileName) => previewMediaUrls.value[normalizeMediaName(fileName)] ?? null
+  })
+})
+const previewCardOptions = computed(() => {
+  const query = normalizeSearch(previewCardSearch.value)
+  const cards = importPreview.value?.cards ?? []
+  return cards
+    .map((card, index) => ({
+      index,
+      label: previewCardOptionLabel(card, index),
+      searchText: previewCardSearchText(card, index)
+    }))
+    .filter((card) => !query || card.searchText.includes(query))
 })
 const activeLibraryCountLabel = computed(() => {
   const searching = normalizeSearch(librarySearch.value).length > 0
@@ -140,20 +159,12 @@ const activeLibraryCountLabel = computed(() => {
     if (librarySection.value === 'public') {
       return publicDecksCountLabel.value
     }
-    if (librarySection.value === 'mine') {
-      return user.value ? myDecksCountLabel.value : ''
-    }
-    const count = activeLibraryResultCount.value
-    return `${count} ${count === 1 ? 'resultado' : 'resultados'}`
+    return user.value ? myDecksCountLabel.value : ''
   }
   if (librarySection.value === 'public') {
     return publicDecksCountLabel.value
   }
-  if (librarySection.value === 'mine') {
-    return user.value ? myDecksCountLabel.value : ''
-  }
-  const count = localDecks.value.length
-  return `${count} ${count === 1 ? 'baralho local' : 'baralhos locais'}`
+  return user.value ? myDecksCountLabel.value : ''
 })
 const navTabs = [
   { id: 'library' as const, label: 'Biblioteca', icon: BookOpen },
@@ -197,6 +208,11 @@ watch(librarySection, (section) => {
   if (section === 'mine' && user.value && (!myDeckPage.value || myDeckQuery.value !== query)) {
     void withFeedback(async () => loadMyDecks(true), false)
   }
+})
+
+onBeforeUnmount(() => {
+  revokePreviewMediaUrls()
+  window.clearTimeout(highlightDeckTimer)
 })
 
 function toggleThemePreference() {
@@ -275,7 +291,12 @@ async function submitAuth() {
     authForm.value.password = ''
     resetAuthValidation()
     await refreshAll()
-    tab.value = 'library'
+    if (returnToImportAfterAuth.value && importPreview.value) {
+      tab.value = 'import'
+      returnToImportAfterAuth.value = false
+    } else {
+      tab.value = 'library'
+    }
   })
 }
 
@@ -364,20 +385,6 @@ async function startDeck(deck: DeckSummary) {
   })
 }
 
-async function startLocalDeck(deckId: string) {
-  const deck = localDecks.value.find((item) => item.id === deckId)
-  if (!deck) {
-    return
-  }
-  tab.value = 'study'
-  sessionTitle.value = deck.title
-  answerVisible.value = false
-  studyQueue.value = localDeckToStudyCards(deck, localStates.value)
-  if (studyQueue.value.length === 0) {
-    notice.value = 'Nenhum card vencido agora neste baralho local.'
-  }
-}
-
 async function startInterleavedPractice() {
   tab.value = 'study'
   sessionTitle.value = 'Prática intercalada'
@@ -388,12 +395,11 @@ async function startInterleavedPractice() {
       const due = await api.due('MIXED_DUE')
       studyQueue.value = due.cards.map(serverCardToStudyCard)
     } else {
-      if (localDecks.value.length === 0) {
-        for (const deck of publicDecks.value.slice(0, 4)) {
-          await ensurePublicDeck(deck.id)
-        }
+      studyQueue.value = []
+      for (const deck of publicDecks.value.slice(0, 4)) {
+        const localDeck = await ensurePublicDeck(deck.id)
+        studyQueue.value.push(...localDeckToStudyCards(localDeck, localStates.value))
       }
-      studyQueue.value = mixedLocalStudyCards(localDecks.value, localStates.value)
     }
     if (studyQueue.value.length === 0) {
       notice.value = 'Prática intercalada sem cards vencidos agora.'
@@ -427,35 +433,222 @@ async function reviewCurrent(rating: ReviewRating) {
 
 async function handleApkgChange(event: Event) {
   const input = event.target as HTMLInputElement
-  selectedFile.value = input.files?.[0] ?? null
-  importPreview.value = null
-  importResult.value = null
+  const file = input.files?.[0] ?? null
+  resetImportPreviewState()
+  selectedFile.value = file
 
-  if (!selectedFile.value) {
+  if (!file) {
     return
   }
 
   await withFeedback(async () => {
-    const preview = await api.previewApkg(selectedFile.value as File)
-    importPreview.value = preview
-    importTitle.value = preview.title
-    const localDeck = apkgPreviewToLocal(preview)
-    localDecks.value = [localDeck, ...localDecks.value.filter((deck) => deck.title !== preview.title)]
-    saveLocalDecks(localDecks.value)
-    notice.value = 'APKG importado localmente para estudo anonimo.'
+    try {
+      const [preview, mediaIndex] = await Promise.all([
+        api.previewApkg(file),
+        createApkgMediaIndex(file).catch(() => null)
+      ])
+      previewMediaIndex.value = mediaIndex
+      const requestId = ++previewMediaRequest
+      const urls = preview.cards[0] ? await readPreviewMediaUrls(preview.cards[0], 'front') : {}
+      if (requestId !== previewMediaRequest) {
+        revokePreviewMediaUrls(urls)
+        return
+      }
+      previewMediaUrls.value = urls
+      previewCardIndex.value = 0
+      previewFace.value = 'front'
+      importPreview.value = preview
+      importTitle.value = preview.title
+      notice.value = preview.mediaFound > 0
+        ? 'APKG analisado. A midia sera exibida na previa enquanto este arquivo estiver selecionado.'
+        : 'APKG analisado. Revise a previa e salve em Meus baralhos.'
+    } finally {
+      input.value = ''
+    }
   })
 }
 
 async function persistImport() {
-  if (!selectedFile.value || !user.value) {
+  if (!selectedFile.value) {
+    error.value = 'Selecione o arquivo .apkg novamente.'
     return
   }
 
-  await withFeedback(async () => {
-    importResult.value = await api.importApkg(selectedFile.value as File, importTitle.value, importVisibility.value)
-    notice.value = 'Baralho APKG salvo no modo logado.'
-    await refreshAll()
+  if (!user.value) {
+    returnToImportAfterAuth.value = true
+    openAuth('login')
+    notice.value = 'Entre para salvar o APKG com midia em Meus baralhos.'
+    return
+  }
+
+  importSaving.value = true
+  try {
+    await withFeedback(async () => {
+      const result = await api.importApkg(selectedFile.value as File, importTitle.value, importVisibility.value)
+      importResult.value = result
+      notice.value = result.mediaImported > 0
+        ? `Baralho APKG salvo com ${result.cardsImported} cartas e ${result.mediaImported} midias.`
+        : 'Baralho APKG salvo em Meus baralhos.'
+      resetImportPreviewState()
+      selectedFile.value = null
+      await loadMyDecks(true)
+      if (user.value) {
+        stats.value = await api.stats()
+      }
+      librarySection.value = 'mine'
+      tab.value = 'library'
+      await highlightDeck(result.deckId)
+    })
+  } finally {
+    importSaving.value = false
+  }
+}
+
+function resetImportPreviewState() {
+  previewMediaRequest++
+  revokePreviewMediaUrls()
+  importPreview.value = null
+  importResult.value = null
+  importTitle.value = ''
+  previewCardIndex.value = 0
+  previewFace.value = 'front'
+  previewPickerOpen.value = false
+  previewCardSearch.value = ''
+  previewMediaIndex.value = null
+}
+
+let highlightDeckTimer: number | undefined
+
+async function highlightDeck(deckId: number) {
+  highlightedDeckId.value = null
+  window.clearTimeout(highlightDeckTimer)
+  await nextTick()
+  document.querySelector(`[data-deck-id="${deckId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  window.requestAnimationFrame(() => {
+    highlightedDeckId.value = deckId
+    highlightDeckTimer = window.setTimeout(() => {
+      if (highlightedDeckId.value === deckId) {
+        highlightedDeckId.value = null
+      }
+    }, 10000)
   })
+}
+
+async function selectPreviewCard(index: number) {
+  await showPreviewCard(index, 'front')
+  previewPickerOpen.value = false
+}
+
+async function movePreviewCard(direction: -1 | 1) {
+  const total = importPreview.value?.cards.length ?? 0
+  if (!total) {
+    return
+  }
+  const nextIndex = Math.min(Math.max(previewCardIndex.value + direction, 0), total - 1)
+  await showPreviewCard(nextIndex, 'front')
+}
+
+async function togglePreviewFace() {
+  await showPreviewCard(previewCardIndex.value, previewFace.value === 'front' ? 'back' : 'front')
+}
+
+function previewCardTitle(index: number) {
+  const total = importPreview.value?.cards.length ?? 0
+  return total ? `Carta ${index + 1} de ${total}` : `Carta ${index + 1}`
+}
+
+function previewCardOptionLabel(card: { frontHtml: string; backHtml: string }, index: number) {
+  const text = htmlSummary(card.frontHtml) || htmlSummary(card.backHtml)
+  if (!text) {
+    return `Carta ${index + 1}`
+  }
+  return `${index + 1} - ${text}`
+}
+
+function previewCardSearchText(card: { frontHtml: string; backHtml: string; tags: string[] }, index: number) {
+  const mediaSources = [
+    ...extractRelativeMediaSources(card.frontHtml),
+    ...extractRelativeMediaSources(card.backHtml)
+  ]
+  return normalizeSearch([
+    index + 1,
+    `carta ${index + 1}`,
+    card.frontHtml,
+    card.backHtml,
+    card.tags.join(' '),
+    mediaSources.join(' ')
+  ].join(' '))
+}
+
+function htmlSummary(html: string) {
+  const text = html
+    .replace(/\[sound:[^\]]+]/gi, 'audio')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return text.length > 64 ? `${text.slice(0, 61)}...` : text
+}
+
+let previewMediaRequest = 0
+
+async function showPreviewCard(index: number, face: PreviewFace) {
+  const card = importPreview.value?.cards[index]
+  if (!card) {
+    return
+  }
+
+  const requestId = ++previewMediaRequest
+  const urls = await readPreviewMediaUrls(card, face)
+  if (requestId !== previewMediaRequest) {
+    revokePreviewMediaUrls(urls)
+    return
+  }
+
+  const previousUrls = previewMediaUrls.value
+  previewMediaUrls.value = urls
+  previewCardIndex.value = index
+  previewFace.value = face
+  revokePreviewMediaUrls(previousUrls)
+}
+
+async function readPreviewMediaUrls(card: { frontHtml: string; backHtml: string }, face: PreviewFace) {
+  const mediaIndex = previewMediaIndex.value
+  if (!card || !mediaIndex) {
+    return {}
+  }
+
+  const html = face === 'front' ? card.frontHtml : card.backHtml
+  const references = extractRelativeMediaSources(html)
+  if (references.length === 0) {
+    return {}
+  }
+
+  const urls: Record<string, string> = {}
+  for (const reference of references) {
+    const normalized = normalizeMediaName(reference)
+    const blob = await mediaIndex.readBlob(reference).catch(() => null)
+    if (blob) {
+      const url = URL.createObjectURL(blob)
+      urls[normalized] = url
+      if (blob.type.startsWith('image/')) {
+        await decodeImage(url).catch(() => undefined)
+      }
+    }
+  }
+  return urls
+}
+
+function decodeImage(url: string) {
+  const image = new Image()
+  image.src = url
+  return image.decode()
+}
+
+function revokePreviewMediaUrls(urls = previewMediaUrls.value) {
+  Object.values(urls).forEach((url) => URL.revokeObjectURL(url))
+  if (urls === previewMediaUrls.value) {
+    previewMediaUrls.value = {}
+  }
 }
 
 async function createDeck() {
@@ -482,11 +675,6 @@ async function createCard() {
     notice.value = 'Card adicionado.'
     await refreshAll()
   })
-}
-
-function removeLocalDeck(deckId: string) {
-  localDecks.value = localDecks.value.filter((deck) => deck.id !== deckId)
-  saveLocalDecks(localDecks.value)
 }
 
 function mergeDeckPages(current: DeckSummary[], incoming: DeckSummary[]) {
@@ -520,20 +708,6 @@ function currentLibraryQuery() {
   return librarySearch.value.trim()
 }
 
-function matchesSearch(...values: Array<string | null | undefined>) {
-  const query = normalizeSearch(librarySearch.value)
-  if (!query) {
-    return true
-  }
-  return values.some((value) => normalizeSearch(value ?? '').includes(query))
-}
-
-function htmlToText(html: string) {
-  const template = document.createElement('template')
-  template.innerHTML = html
-  return template.content.textContent ?? ''
-}
-
 function deckDueLabel(deck: DeckSummary) {
   if (!user.value && deck.dueCount == null) {
     return 'disponivel agora'
@@ -541,35 +715,16 @@ function deckDueLabel(deck: DeckSummary) {
   return nextDueLabel(deck.dueCount, deck.nextDueAt)
 }
 
-function localDeckDueLabel(deckId: string) {
-  const deck = localDecks.value.find((item) => item.id === deckId)
-  if (!deck) {
-    return 'sem previsao'
-  }
-  const dueCards = localDeckToStudyCards(deck, localStates.value)
-  if (dueCards.length > 0) {
-    return `${dueCards.length} vencidos agora`
-  }
-
-  const nextDueAt = deck.cards
-    .map((card) => localStates.value[card.clientId]?.dueAt)
-    .filter((dueAt): dueAt is string => Boolean(dueAt))
-    .sort((left, right) => new Date(left).getTime() - new Date(right).getTime())[0]
-
-  return `proximo ${formatDueIn(nextDueAt)}`
-}
-
 async function ensurePublicDeck(deckId: number) {
   const localId = `public:${deckId}`
-  const existing = localDecks.value.find((deck) => deck.id === localId)
+  const existing = publicStudyDeckCache.value.find((deck) => deck.id === localId)
   if (existing) {
     return existing
   }
 
   const detail = await api.deck(deckId)
   const localDeck = deckDetailToLocal(detail)
-  localDecks.value = [localDeck, ...localDecks.value]
-  saveLocalDecks(localDecks.value)
+  publicStudyDeckCache.value = [localDeck, ...publicStudyDeckCache.value]
   return localDeck
 }
 
@@ -602,11 +757,19 @@ async function withFeedback(task: () => Promise<void>, showLoading = true) {
   } catch (caught) {
     const message = caught instanceof Error ? caught.message : 'Erro inesperado.'
     error.value = message === 'Failed to fetch'
-      ? 'Backend indisponivel. Suba a stack com Docker Compose para carregar biblioteca, login e progresso.'
+      ? 'Backend indisponivel. Verifique se o Docker Compose esta ativo e tente novamente.'
       : message
   } finally {
     loading.value = false
   }
+}
+
+function dismissNotice() {
+  notice.value = ''
+}
+
+function dismissError() {
+  error.value = ''
 }
 
 function loadStoredUser() {
@@ -706,9 +869,22 @@ function loadStoredThemePreference(): ThemePreference {
         </div>
       </header>
 
-      <div v-if="loading" class="status">Carregando...</div>
-      <div v-if="notice" class="status success">{{ notice }}</div>
-      <div v-if="error" class="status error">{{ error }}</div>
+      <div v-if="loading" class="status loading-status">
+        <RotateCcw :size="16" aria-hidden="true" />
+        <span>{{ loadingMessage }}</span>
+      </div>
+      <div v-if="notice" class="status success dismissible">
+        <span>{{ notice }}</span>
+        <button class="status-close" type="button" title="Fechar notificacao" aria-label="Fechar notificacao" @click="dismissNotice">
+          <X :size="15" aria-hidden="true" />
+        </button>
+      </div>
+      <div v-if="error" class="status error dismissible">
+        <span>{{ error }}</span>
+        <button class="status-close" type="button" title="Fechar notificacao" aria-label="Fechar notificacao" @click="dismissError">
+          <X :size="15" aria-hidden="true" />
+        </button>
+      </div>
 
       <section v-if="tab === 'auth'" class="auth-page">
         <form class="auth-card" novalidate @submit.prevent="submitAuth">
@@ -817,16 +993,6 @@ function loadStoredThemePreference(): ThemePreference {
             >
               Meus baralhos
             </button>
-            <button
-              class="library-tab"
-              :class="{ active: librarySection === 'local' }"
-              type="button"
-              role="tab"
-              :aria-selected="librarySection === 'local'"
-              @click="librarySection = 'local'"
-            >
-              Importações locais
-            </button>
           </div>
 
           <div class="library-toolbar">
@@ -873,7 +1039,13 @@ function loadStoredThemePreference(): ThemePreference {
 
             <div v-if="librarySection === 'mine'" class="panel wide">
               <div v-if="user && filteredMyDecks.length" class="deck-list">
-                <article v-for="deck in filteredMyDecks" :key="deck.id" class="deck-card">
+                <article
+                  v-for="deck in filteredMyDecks"
+                  :key="deck.id"
+                  :data-deck-id="deck.id"
+                  class="deck-card"
+                  :class="{ highlighted: highlightedDeckId === deck.id }"
+                >
                   <div>
                     <h3>{{ deck.title }}</h3>
                     <p>{{ deck.description }}</p>
@@ -904,28 +1076,6 @@ function loadStoredThemePreference(): ThemePreference {
               >
                 Carregar mais baralhos...
               </a>
-            </div>
-
-            <div v-if="librarySection === 'local'" class="panel wide">
-              <div v-if="filteredLocalDecks.length" class="deck-list">
-                <article v-for="deck in filteredLocalDecks" :key="deck.id" class="deck-card">
-                  <div>
-                    <h3>{{ deck.title }}</h3>
-                    <p>{{ deck.description }}</p>
-                    <span>{{ cardCountLabel(deck.cards.length) }} · {{ localDeckDueLabel(deck.id) }}</span>
-                  </div>
-                  <div class="row-actions">
-                    <button class="primary compact" type="button" @click="startLocalDeck(deck.id)">
-                      <Brain :size="16" aria-hidden="true" />
-                      Estudar
-                    </button>
-                    <button class="ghost compact" type="button" @click="removeLocalDeck(deck.id)">
-                      Remover
-                    </button>
-                  </div>
-                </article>
-              </div>
-              <p v-else class="muted empty-copy">Importe um `.apkg` ou abra um baralho público para revisar antes de salvar.</p>
             </div>
           </div>
         </div>
@@ -969,43 +1119,126 @@ function loadStoredThemePreference(): ThemePreference {
         <div v-else class="empty-state">
           <Brain :size="36" aria-hidden="true" />
           <h2>Nenhuma sessao ativa</h2>
-          <p>Escolha um baralho na biblioteca, importe um APKG ou use a prática intercalada.</p>
+          <p>Escolha um baralho publico, um baralho salvo ou use a pratica intercalada.</p>
         </div>
       </section>
 
-      <section v-if="tab === 'import'" class="content-grid">
-        <div class="panel wide">
-          <div class="section-title">
+      <section v-if="tab === 'import'" class="import-page">
+        <div class="import-header">
+          <div>
+            <p class="eyebrow">Pacote Anki</p>
             <h2>Importar APKG</h2>
           </div>
-          <label class="file-drop">
-            <Upload :size="22" aria-hidden="true" />
-            <span>{{ selectedFile?.name ?? 'Selecionar arquivo .apkg' }}</span>
-            <input type="file" accept=".apkg" @change="handleApkgChange" />
-          </label>
-
-          <div v-if="importPreview" class="import-summary">
-            <strong>{{ importPreview.title }}</strong>
-            <span>{{ importPreview.cardsReady }} cards prontos · {{ importPreview.cardsSkipped }} ignorados · {{ importPreview.mediaFound }} midias</span>
-            <p v-for="warning in importPreview.warnings" :key="warning">{{ warning }}</p>
-          </div>
+          <span v-if="selectedFile" class="muted">{{ selectedFile.name }}</span>
         </div>
 
-        <form v-if="user && importPreview" class="panel" @submit.prevent="persistImport">
-          <div class="section-title">
-            <h2>Salvar no servidor</h2>
+        <div class="import-workspace">
+          <div class="panel wide">
+            <label class="file-drop">
+              <Upload :size="22" aria-hidden="true" />
+              <span>{{ selectedFile?.name ?? 'Selecionar arquivo .apkg' }}</span>
+              <input type="file" accept=".apkg" @change="handleApkgChange" />
+            </label>
+
+            <div v-if="loading && selectedFile && !importPreview" class="pending-card import-loading">
+              Lendo pacote e preparando previa...
+            </div>
+
+            <div v-if="importPreview" class="import-summary">
+              <div>
+                <strong>{{ importPreview.title }}</strong>
+                <span>{{ importPreview.notesFound }} notas encontradas · {{ importPreview.cardsReady }} cartas prontas · {{ importPreview.cardsSkipped }} ignoradas · {{ importPreview.mediaFound }} midias</span>
+              </div>
+              <p v-if="importPreview.mediaFound > 0" class="inline-alert">
+                Este pacote contem midia. A previa mostra marcadores; o estudo com imagens fica disponivel depois de salvar em Meus baralhos.
+              </p>
+              <p v-for="warning in importPreview.warnings" :key="warning" class="muted">{{ warning }}</p>
+            </div>
+
+            <div v-if="importPreview && currentPreviewCard" class="preview-section">
+              <div class="preview-toolbar">
+                <div class="preview-picker">
+                  <label class="field-label" for="preview-card-search">Carta</label>
+                  <button class="preview-picker-trigger" type="button" @click="previewPickerOpen = !previewPickerOpen">
+                    <span>{{ previewCardTitle(previewCardIndex) }}</span>
+                    <span>{{ previewFace === 'front' ? 'Frente' : 'Verso' }}</span>
+                  </button>
+                  <div v-if="previewPickerOpen" class="preview-picker-menu">
+                    <label class="library-search preview-search">
+                      <Search :size="16" aria-hidden="true" />
+                      <input
+                        id="preview-card-search"
+                        v-model="previewCardSearch"
+                        type="search"
+                        placeholder="Buscar carta"
+                        @keydown.esc="previewPickerOpen = false"
+                      />
+                    </label>
+                    <div class="preview-picker-list">
+                      <button
+                        v-for="option in previewCardOptions"
+                        :key="option.index"
+                        class="preview-picker-option"
+                        :class="{ active: option.index === previewCardIndex }"
+                        type="button"
+                        @click="selectPreviewCard(option.index)"
+                      >
+                        {{ option.label }}
+                      </button>
+                      <p v-if="previewCardOptions.length === 0" class="muted empty-copy">Nenhuma carta encontrada.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="preview-actions">
+                  <button class="ghost compact" type="button" :disabled="previewCardIndex === 0" @click="movePreviewCard(-1)">
+                    <ChevronsLeft :size="16" aria-hidden="true" />
+                    Anterior
+                  </button>
+                  <button class="ghost compact" type="button" @click="togglePreviewFace">
+                    <RotateCcw :size="16" aria-hidden="true" />
+                    {{ previewFace === 'front' ? 'Ver verso' : 'Ver frente' }}
+                  </button>
+                  <button
+                    class="ghost compact"
+                    type="button"
+                    :disabled="previewCardIndex >= importPreview.cards.length - 1"
+                    @click="movePreviewCard(1)"
+                  >
+                    Proxima
+                    <ChevronsRight :size="16" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+
+              <article class="preview-study-card" role="button" tabindex="0" @click="togglePreviewFace" @keydown.enter.prevent="togglePreviewFace" @keydown.space.prevent="togglePreviewFace">
+                <div class="card-meta">
+                  <span>{{ previewFace === 'front' ? 'Frente' : 'Verso' }}</span>
+                  <span>{{ currentPreviewCard.tags.length ? currentPreviewCard.tags.join(', ') : 'sem tags' }}</span>
+                </div>
+                <div class="preview-study-face" v-html="currentPreviewHtml"></div>
+              </article>
+            </div>
           </div>
-          <input v-model="importTitle" type="text" placeholder="Titulo do baralho" />
-          <select v-model="importVisibility">
-            <option value="PRIVATE">Privado</option>
-            <option value="PUBLIC">Publico</option>
-          </select>
-          <button class="primary full" type="submit">
-            <Check :size="16" aria-hidden="true" />
-            Persistir APKG
-          </button>
-          <p v-if="importResult" class="muted">{{ importResult.cardsImported }} cards salvos em {{ importResult.title }}.</p>
-        </form>
+
+          <form v-if="importPreview" class="panel import-save-panel" @submit.prevent="persistImport">
+            <div class="section-title">
+              <h2>{{ user ? 'Salvar em Meus baralhos' : 'Entrar para salvar' }}</h2>
+            </div>
+            <input v-model="importTitle" type="text" placeholder="Titulo do baralho" />
+            <select v-model="importVisibility" :disabled="!user">
+              <option value="PRIVATE">Privado</option>
+              <option value="PUBLIC">Publico</option>
+            </select>
+            <button class="primary full" type="submit">
+              <Check :size="16" aria-hidden="true" />
+              {{ user ? 'Salvar APKG' : 'Entrar para salvar' }}
+            </button>
+            <p class="muted">
+              {{ user ? 'O arquivo original sera enviado para preservar cartas e midias.' : 'A previa continua nesta tela enquanto voce entra na conta.' }}
+            </p>
+          </form>
+        </div>
       </section>
 
       <section v-if="tab === 'create'" class="content-grid">
@@ -1071,7 +1304,7 @@ function loadStoredThemePreference(): ThemePreference {
         <div v-else class="empty-state">
           <BarChart3 :size="36" aria-hidden="true" />
           <h2>Progresso persistente exige login</h2>
-          <p>No modo anonimo, a agenda local continua funcionando neste navegador.</p>
+          <p>Entre para manter agenda, revisoes e estatisticas entre dispositivos.</p>
         </div>
       </section>
     </main>

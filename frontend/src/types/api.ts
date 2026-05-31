@@ -120,7 +120,7 @@ export interface LocalDeck {
   id: string
   title: string
   description: string
-  source: 'PUBLIC' | 'APKG'
+  source: 'PUBLIC'
   cards: LocalCard[]
 }
 

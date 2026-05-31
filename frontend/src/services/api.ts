@@ -13,18 +13,26 @@ import type {
   StudyMode
 } from '../types/api'
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8081'
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8081'
 
-let authToken = localStorage.getItem('learningframe.token') ?? ''
+let authToken = readStoredToken()
 
 export function setAuthToken(token: string) {
   authToken = token
-  localStorage.setItem('learningframe.token', token)
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('learningframe.token', token)
+  }
 }
 
 export function clearAuthToken() {
   authToken = ''
-  localStorage.removeItem('learningframe.token')
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem('learningframe.token')
+  }
+}
+
+export function getAuthToken() {
+  return authToken
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -137,4 +145,10 @@ export const api = {
       body: formData
     })
   }
+}
+
+function readStoredToken() {
+  return typeof localStorage === 'undefined'
+    ? ''
+    : localStorage.getItem('learningframe.token') ?? ''
 }

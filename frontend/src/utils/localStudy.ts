@@ -1,16 +1,7 @@
-import type { ApkgPreviewResponse, DeckDetail, LocalDeck, LocalReviewState, StudyCard } from '../types/api'
+import type { DeckDetail, LocalDeck, LocalReviewState, StudyCard } from '../types/api'
 import { isDue } from './srs'
 
-const DECKS_KEY = 'learningframe.localDecks'
 const STATES_KEY = 'learningframe.localStates'
-
-export function loadLocalDecks(): LocalDeck[] {
-  return readJson<LocalDeck[]>(DECKS_KEY, [])
-}
-
-export function saveLocalDecks(decks: LocalDeck[]) {
-  localStorage.setItem(DECKS_KEY, JSON.stringify(decks))
-}
 
 export function loadLocalStates(): Record<string, LocalReviewState> {
   return readJson<Record<string, LocalReviewState>>(STATES_KEY, {})
@@ -38,24 +29,6 @@ export function deckDetailToLocal(deck: DeckDetail): LocalDeck {
   }
 }
 
-export function apkgPreviewToLocal(preview: ApkgPreviewResponse): LocalDeck {
-  const deckId = `apkg:${crypto.randomUUID()}`
-  return {
-    id: deckId,
-    title: preview.title,
-    description: `${preview.cardsReady} cards importados localmente.`,
-    source: 'APKG',
-    cards: preview.cards.map((card, index) => ({
-      clientId: `${deckId}:card:${index}`,
-      deckId,
-      deckTitle: preview.title,
-      frontHtml: card.frontHtml,
-      backHtml: card.backHtml,
-      tags: card.tags
-    }))
-  }
-}
-
 export function localDeckToStudyCards(deck: LocalDeck, states: Record<string, LocalReviewState>): StudyCard[] {
   return deck.cards
     .filter((card) => isDue(states[card.clientId]))
@@ -76,26 +49,6 @@ export function localDeckToStudyCards(deck: LocalDeck, states: Record<string, Lo
         local: true
       }
     })
-}
-
-export function mixedLocalStudyCards(decks: LocalDeck[], states: Record<string, LocalReviewState>, limit = 24): StudyCard[] {
-  const groups = decks.map((deck) => localDeckToStudyCards(deck, states))
-  const mixed: StudyCard[] = []
-  let added = true
-  while (added && mixed.length < limit) {
-    added = false
-    for (const group of groups) {
-      const next = group.shift()
-      if (next) {
-        mixed.push(next)
-        added = true
-      }
-      if (mixed.length >= limit) {
-        break
-      }
-    }
-  }
-  return mixed
 }
 
 function readJson<T>(key: string, fallback: T): T {
