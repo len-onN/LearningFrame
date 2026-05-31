@@ -537,9 +537,71 @@ textarea {
 }
 
 .library-grid {
+  display: grid;
   grid-template-columns: 1fr;
-  gap: 28px;
   padding-inline: 10px;
+}
+
+.library-shell {
+  display: grid;
+  gap: 14px;
+}
+
+.library-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 10px;
+}
+
+.library-tab {
+  min-height: 38px;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--color-muted);
+  background: transparent;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.library-tab:hover {
+  color: var(--color-text-strong);
+  background: var(--color-surface-muted);
+}
+
+.library-tab.active {
+  color: var(--color-primary-strong);
+  background: var(--color-nav-active-bg);
+}
+
+.library-toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 420px) 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.library-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.library-search svg {
+  position: absolute;
+  left: 12px;
+  color: var(--color-subtle);
+  pointer-events: none;
+}
+
+.library-search input {
+  padding-left: 38px;
+}
+
+.library-content {
+  display: grid;
+  gap: 16px;
 }
 
 .panel,
@@ -626,6 +688,15 @@ textarea {
 .import-summary span {
   color: var(--color-subtle);
   font-size: 0.86rem;
+}
+
+.empty-copy {
+  margin: 0;
+  padding: 18px 4px;
+}
+
+.compact-empty {
+  min-height: 220px;
 }
 
 .study-layout {
@@ -880,6 +951,10 @@ textarea {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .library-toolbar {
+    grid-template-columns: 1fr;
+  }
+
   .ratings {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -911,6 +986,11 @@ textarea {
   }
 
   .library-grid .deck-list {
+    grid-template-columns: 1fr;
+  }
+
+  .library-tabs {
+    display: grid;
     grid-template-columns: 1fr;
   }
 
