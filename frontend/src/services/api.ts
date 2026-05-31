@@ -5,6 +5,7 @@ import type {
   DeckDetail,
   DeckSummary,
   DeckVisibility,
+  PageResponse,
   DueResponse,
   ReviewRating,
   ReviewResult,
@@ -65,11 +66,13 @@ export const api = {
       body: JSON.stringify({ email, password })
     })
   },
-  publicDecks() {
-    return request<DeckSummary[]>('/api/decks/public')
+  publicDecks(page = 0, size = 8) {
+    const params = new URLSearchParams({ page: String(page), size: String(size) })
+    return request<PageResponse<DeckSummary>>(`/api/decks/public?${params.toString()}`)
   },
-  myDecks() {
-    return request<DeckSummary[]>('/api/decks/mine')
+  myDecks(page = 0, size = 8) {
+    const params = new URLSearchParams({ page: String(page), size: String(size) })
+    return request<PageResponse<DeckSummary>>(`/api/decks/mine?${params.toString()}`)
   },
   deck(deckId: number) {
     return request<DeckDetail>(`/api/decks/${deckId}`)

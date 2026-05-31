@@ -23,6 +23,7 @@ import type {
   ApkgPreviewResponse,
   DeckSummary,
   DeckVisibility,
+  PageResponse,
   ReviewRating,
   StatsSummary,
   StudyCard,
@@ -46,6 +47,7 @@ import { validateAuthForm, type AuthErrors, type AuthField, type AuthMode } from
 
 type Tab = 'library' | 'study' | 'import' | 'create' | 'progress' | 'auth'
 type ThemePreference = 'light' | 'dark'
+const DECK_PAGE_SIZE = 8
 
 const tab = ref<Tab>('library')
 const authMode = ref<AuthMode>('login')
@@ -54,6 +56,8 @@ const sidebarCollapsed = ref(false)
 const user = ref<UserResponse | null>(loadStoredUser())
 const publicDecks = ref<DeckSummary[]>([])
 const myDecks = ref<DeckSummary[]>([])
+const publicDeckPage = ref<PageResponse<DeckSummary> | null>(null)
+const myDeckPage = ref<PageResponse<DeckSummary> | null>(null)
 const localDecks = ref(loadLocalDecks())
 const localStates = ref(loadLocalStates())
 const stats = ref<StatsSummary | null>(null)
@@ -104,6 +108,10 @@ const authErrors = computed<AuthErrors>(() => validateAuthForm(authForm.value, a
 const nextThemeLabel = computed(() => themePreference.value === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro')
 const sidebarToggleLabel = computed(() => sidebarCollapsed.value ? 'Expandir menu' : 'Recolher menu')
 const userDisplayName = computed(() => user.value?.displayName ?? 'Visitante')
+const publicDecksHasMore = computed(() => publicDeckPage.value ? !publicDeckPage.value.last : false)
+const myDecksHasMore = computed(() => myDeckPage.value ? !myDeckPage.value.last : false)
+const publicDecksCountLabel = computed(() => deckPageCountLabel(publicDecks.value.length, publicDeckPage.value))
+const myDecksCountLabel = computed(() => deckPageCountLabel(myDecks.value.length, myDeckPage.value))
 const navTabs = [
   { id: 'library' as const, label: 'Biblioteca', icon: BookOpen },
   { id: 'study' as const, label: 'Estudo', icon: Brain },
@@ -141,11 +149,40 @@ function applyThemePreference() {
 
 async function refreshAll() {
   await withFeedback(async () => {
-    publicDecks.value = await api.publicDecks()
+    await loadPublicDecks(true)
     if (user.value) {
-      myDecks.value = await api.myDecks()
+      await loadMyDecks(true)
       stats.value = await api.stats()
     }
+  }, false)
+}
+
+async function loadPublicDecks(reset = false) {
+  const page = reset ? 0 : (publicDeckPage.value?.page ?? -1) + 1
+  const response = await api.publicDecks(page, DECK_PAGE_SIZE)
+  publicDecks.value = reset ? response.content : mergeDeckPages(publicDecks.value, response.content)
+  publicDeckPage.value = response
+}
+
+async function loadMyDecks(reset = false) {
+  if (!user.value) {
+    return
+  }
+  const page = reset ? 0 : (myDeckPage.value?.page ?? -1) + 1
+  const response = await api.myDecks(page, DECK_PAGE_SIZE)
+  myDecks.value = reset ? response.content : mergeDeckPages(myDecks.value, response.content)
+  myDeckPage.value = response
+}
+
+async function loadMorePublicDecks() {
+  await withFeedback(async () => {
+    await loadPublicDecks()
+  }, false)
+}
+
+async function loadMoreMyDecks() {
+  await withFeedback(async () => {
+    await loadMyDecks()
   }, false)
 }
 
@@ -209,6 +246,7 @@ function logout() {
   user.value = null
   stats.value = null
   myDecks.value = []
+  myDeckPage.value = null
   clearAuthToken()
   localStorage.removeItem('learningframe.user')
   notice.value = 'Modo anonimo ativado.'
@@ -377,6 +415,25 @@ async function createCard() {
 function removeLocalDeck(deckId: string) {
   localDecks.value = localDecks.value.filter((deck) => deck.id !== deckId)
   saveLocalDecks(localDecks.value)
+}
+
+function mergeDeckPages(current: DeckSummary[], incoming: DeckSummary[]) {
+  const merged = new Map<number, DeckSummary>()
+  for (const deck of [...current, ...incoming]) {
+    merged.set(deck.id, deck)
+  }
+  return [...merged.values()]
+}
+
+function deckPageCountLabel(loaded: number, page: PageResponse<DeckSummary> | null) {
+  if (!page) {
+    return ''
+  }
+  return `${loaded} de ${page.totalElements} baralhos`
+}
+
+function cardCountLabel(count: number) {
+  return `${count} ${count === 1 ? 'carta' : 'cartas'}`
 }
 
 function deckDueLabel(deck: DeckSummary) {
@@ -639,71 +696,97 @@ function loadStoredThemePreference(): ThemePreference {
         </form>
       </section>
 
-      <section v-if="tab === 'library'" class="content-grid">
+      <section v-if="tab === 'library'" class="content-grid library-grid">
         <div class="panel wide">
           <div class="section-title">
-            <h2>Baralhos publicos</h2>
-            <button class="ghost compact" type="button" @click="refreshAll">
-              <RotateCcw :size="16" aria-hidden="true" />
-              Atualizar
-            </button>
+            <h2>Baralhos públicos</h2>
+            <div class="row-actions">
+              <span v-if="publicDecksCountLabel" class="muted">{{ publicDecksCountLabel }}</span>
+              <button class="ghost compact" type="button" @click="refreshAll">
+                <RotateCcw :size="16" aria-hidden="true" />
+                Atualizar
+              </button>
+            </div>
           </div>
 
           <div class="deck-list">
-            <article v-for="deck in publicDecks" :key="deck.id" class="deck-row">
+            <article v-for="deck in publicDecks" :key="deck.id" class="deck-card">
               <div>
                 <h3>{{ deck.title }}</h3>
                 <p>{{ deck.description }}</p>
-                <span>{{ deck.cardCount }} cards · {{ deck.ownerName }} · {{ deckDueLabel(deck) }}</span>
+                <span>{{ cardCountLabel(deck.cardCount) }} · {{ deckDueLabel(deck) }}</span>
               </div>
-              <button class="primary compact" type="button" @click="startDeck(deck)">
-                <Brain :size="16" aria-hidden="true" />
-                Estudar
-              </button>
+              <div class="row-actions">
+                <button class="primary compact" type="button" @click="startDeck(deck)">
+                  <Brain :size="16" aria-hidden="true" />
+                  Estudar
+                </button>
+              </div>
             </article>
           </div>
+          <a
+            v-if="publicDecksHasMore"
+            class="load-more-link"
+            href="#"
+            @click.prevent="loadMorePublicDecks"
+          >
+            Carregar mais baralhos...
+          </a>
+        </div>
+
+        <div v-if="user" class="panel">
+          <div class="section-title">
+            <h2>Meus baralhos</h2>
+            <span v-if="myDecksCountLabel" class="muted">{{ myDecksCountLabel }}</span>
+          </div>
+          <div class="deck-list">
+            <article v-for="deck in myDecks" :key="deck.id" class="deck-card">
+              <div>
+                <h3>{{ deck.title }}</h3>
+                <p>{{ deck.description }}</p>
+                <span>{{ cardCountLabel(deck.cardCount) }} · {{ deckDueLabel(deck) }}</span>
+              </div>
+              <div class="row-actions">
+                <button class="primary compact" type="button" @click="startDeck(deck)">
+                  <Brain :size="16" aria-hidden="true" />
+                  Estudar
+                </button>
+              </div>
+            </article>
+          </div>
+          <a
+            v-if="myDecksHasMore"
+            class="load-more-link"
+            href="#"
+            @click.prevent="loadMoreMyDecks"
+          >
+            Carregar mais baralhos...
+          </a>
         </div>
 
         <div class="panel">
           <div class="section-title">
             <h2>Baralhos locais</h2>
           </div>
-          <div v-if="localDecks.length" class="deck-list compact-list">
-            <article v-for="deck in localDecks" :key="deck.id" class="deck-row">
+          <div v-if="localDecks.length" class="deck-list">
+            <article v-for="deck in localDecks" :key="deck.id" class="deck-card">
               <div>
                 <h3>{{ deck.title }}</h3>
                 <p>{{ deck.description }}</p>
-                <span>{{ deck.cards.length }} cards · {{ deck.source }} · {{ localDeckDueLabel(deck.id) }}</span>
+                <span>{{ cardCountLabel(deck.cards.length) }} · {{ localDeckDueLabel(deck.id) }}</span>
               </div>
               <div class="row-actions">
-                <button class="ghost icon-only" type="button" title="Estudar" @click="startLocalDeck(deck.id)">
+                <button class="primary compact" type="button" @click="startLocalDeck(deck.id)">
                   <Brain :size="16" aria-hidden="true" />
+                  Estudar
                 </button>
-                <button class="ghost icon-only" type="button" title="Remover local" @click="removeLocalDeck(deck.id)">
-                  ×
+                <button class="ghost compact" type="button" @click="removeLocalDeck(deck.id)">
+                  Remover
                 </button>
               </div>
             </article>
           </div>
-          <p v-else class="muted">Importe um `.apkg` ou abra um baralho publico para estudar sem login.</p>
-        </div>
-
-        <div v-if="user" class="panel">
-          <div class="section-title">
-            <h2>Meus baralhos</h2>
-          </div>
-          <div class="deck-list compact-list">
-            <article v-for="deck in myDecks" :key="deck.id" class="deck-row">
-              <div>
-                <h3>{{ deck.title }}</h3>
-                <p>{{ deck.visibility }}</p>
-                <span>{{ deck.cardCount }} cards · {{ deckDueLabel(deck) }}</span>
-              </div>
-              <button class="ghost icon-only" type="button" title="Estudar" @click="startDeck(deck)">
-                <Brain :size="16" aria-hidden="true" />
-              </button>
-            </article>
-          </div>
+          <p v-else class="muted">Importe um `.apkg` ou abra um baralho público para estudar sem login.</p>
         </div>
       </section>
 
