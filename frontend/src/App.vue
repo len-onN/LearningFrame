@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import {
   BarChart3,
   BookOpen,
@@ -50,6 +50,7 @@ type Tab = 'library' | 'study' | 'import' | 'create' | 'progress' | 'auth'
 type LibrarySection = 'public' | 'mine' | 'local'
 type ThemePreference = 'light' | 'dark'
 const DECK_PAGE_SIZE = 8
+const SEARCH_DEBOUNCE_MS = 300
 
 const tab = ref<Tab>('library')
 const librarySection = ref<LibrarySection>('public')
@@ -62,6 +63,8 @@ const publicDecks = ref<DeckSummary[]>([])
 const myDecks = ref<DeckSummary[]>([])
 const publicDeckPage = ref<PageResponse<DeckSummary> | null>(null)
 const myDeckPage = ref<PageResponse<DeckSummary> | null>(null)
+const publicDeckQuery = ref('')
+const myDeckQuery = ref('')
 const localDecks = ref(loadLocalDecks())
 const localStates = ref(loadLocalStates())
 const stats = ref<StatsSummary | null>(null)
@@ -116,8 +119,8 @@ const publicDecksHasMore = computed(() => publicDeckPage.value ? !publicDeckPage
 const myDecksHasMore = computed(() => myDeckPage.value ? !myDeckPage.value.last : false)
 const publicDecksCountLabel = computed(() => deckPageCountLabel(publicDecks.value.length, publicDeckPage.value))
 const myDecksCountLabel = computed(() => deckPageCountLabel(myDecks.value.length, myDeckPage.value))
-const filteredPublicDecks = computed(() => publicDecks.value.filter((deck) => matchesSearch(deck.title, deck.description)))
-const filteredMyDecks = computed(() => myDecks.value.filter((deck) => matchesSearch(deck.title, deck.description)))
+const filteredPublicDecks = computed(() => publicDecks.value)
+const filteredMyDecks = computed(() => myDecks.value)
 const filteredLocalDecks = computed(() => localDecks.value.filter((deck) => {
   const cardText = deck.cards.flatMap((card) => [htmlToText(card.frontHtml), htmlToText(card.backHtml)])
   return matchesSearch(deck.title, deck.description, ...cardText)
@@ -134,6 +137,12 @@ const activeLibraryResultCount = computed(() => {
 const activeLibraryCountLabel = computed(() => {
   const searching = normalizeSearch(librarySearch.value).length > 0
   if (searching) {
+    if (librarySection.value === 'public') {
+      return publicDecksCountLabel.value
+    }
+    if (librarySection.value === 'mine') {
+      return user.value ? myDecksCountLabel.value : ''
+    }
     const count = activeLibraryResultCount.value
     return `${count} ${count === 1 ? 'resultado' : 'resultados'}`
   }
@@ -166,6 +175,30 @@ onMounted(() => {
   refreshAll()
 })
 
+let librarySearchTimer: number | undefined
+
+watch(librarySearch, () => {
+  window.clearTimeout(librarySearchTimer)
+  librarySearchTimer = window.setTimeout(() => {
+    if (librarySection.value === 'public') {
+      void withFeedback(async () => loadPublicDecks(true), false)
+    }
+    if (librarySection.value === 'mine' && user.value) {
+      void withFeedback(async () => loadMyDecks(true), false)
+    }
+  }, SEARCH_DEBOUNCE_MS)
+})
+
+watch(librarySection, (section) => {
+  const query = currentLibraryQuery()
+  if (section === 'public' && (!publicDeckPage.value || publicDeckQuery.value !== query)) {
+    void withFeedback(async () => loadPublicDecks(true), false)
+  }
+  if (section === 'mine' && user.value && (!myDeckPage.value || myDeckQuery.value !== query)) {
+    void withFeedback(async () => loadMyDecks(true), false)
+  }
+})
+
 function toggleThemePreference() {
   themePreference.value = themePreference.value === 'dark' ? 'light' : 'dark'
   localStorage.setItem('learningframe.theme', themePreference.value)
@@ -193,9 +226,11 @@ async function refreshAll() {
 
 async function loadPublicDecks(reset = false) {
   const page = reset ? 0 : (publicDeckPage.value?.page ?? -1) + 1
-  const response = await api.publicDecks(page, DECK_PAGE_SIZE)
+  const query = currentLibraryQuery()
+  const response = await api.publicDecks(page, DECK_PAGE_SIZE, query)
   publicDecks.value = reset ? response.content : mergeDeckPages(publicDecks.value, response.content)
   publicDeckPage.value = response
+  publicDeckQuery.value = query
 }
 
 async function loadMyDecks(reset = false) {
@@ -203,9 +238,11 @@ async function loadMyDecks(reset = false) {
     return
   }
   const page = reset ? 0 : (myDeckPage.value?.page ?? -1) + 1
-  const response = await api.myDecks(page, DECK_PAGE_SIZE)
+  const query = currentLibraryQuery()
+  const response = await api.myDecks(page, DECK_PAGE_SIZE, query)
   myDecks.value = reset ? response.content : mergeDeckPages(myDecks.value, response.content)
   myDeckPage.value = response
+  myDeckQuery.value = query
 }
 
 async function loadMorePublicDecks() {
@@ -281,6 +318,7 @@ function logout() {
   stats.value = null
   myDecks.value = []
   myDeckPage.value = null
+  myDeckQuery.value = ''
   clearAuthToken()
   localStorage.removeItem('learningframe.user')
   notice.value = 'Modo anonimo ativado.'
@@ -476,6 +514,10 @@ function normalizeSearch(value: string) {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim()
+}
+
+function currentLibraryQuery() {
+  return librarySearch.value.trim()
 }
 
 function matchesSearch(...values: Array<string | null | undefined>) {
@@ -783,14 +825,14 @@ function loadStoredThemePreference(): ThemePreference {
               :aria-selected="librarySection === 'local'"
               @click="librarySection = 'local'"
             >
-              Baralhos locais
+              Importações locais
             </button>
           </div>
 
           <div class="library-toolbar">
             <label class="library-search">
               <Search :size="17" aria-hidden="true" />
-              <input v-model="librarySearch" type="search" placeholder="Buscar baralhos e cartas" />
+              <input v-model="librarySearch" type="search" placeholder="Buscar baralhos" />
             </label>
             <div class="row-actions">
               <span v-if="activeLibraryCountLabel" class="muted">{{ activeLibraryCountLabel }}</span>
@@ -883,7 +925,7 @@ function loadStoredThemePreference(): ThemePreference {
                   </div>
                 </article>
               </div>
-              <p v-else class="muted empty-copy">Importe um `.apkg` ou abra um baralho público para estudar sem login.</p>
+              <p v-else class="muted empty-copy">Importe um `.apkg` ou abra um baralho público para revisar antes de salvar.</p>
             </div>
           </div>
         </div>

@@ -17,6 +17,32 @@ public interface DeckRepository extends JpaRepository<Deck, Long> {
 
     @Query("""
             select d from Deck d
+            where d.visibility = :visibility
+                and (lower(d.title) like lower(concat('%', :query, '%'))
+                or lower(coalesce(d.description, '')) like lower(concat('%', :query, '%')))
+            order by d.updatedAt desc
+            """)
+    Page<Deck> searchByVisibility(
+            @Param("visibility") DeckVisibility visibility,
+            @Param("query") String query,
+            Pageable pageable
+    );
+
+    @Query("""
+            select d from Deck d
+            where d.owner.id = :ownerId
+                and (lower(d.title) like lower(concat('%', :query, '%'))
+                or lower(coalesce(d.description, '')) like lower(concat('%', :query, '%')))
+            order by d.updatedAt desc
+            """)
+    Page<Deck> searchByOwnerId(
+            @Param("ownerId") Long ownerId,
+            @Param("query") String query,
+            Pageable pageable
+    );
+
+    @Query("""
+            select d from Deck d
             where d.id = :deckId and (d.visibility = com.learningframe.api.model.DeckVisibility.PUBLIC
                 or (:userId is not null and d.owner.id = :userId))
             """)

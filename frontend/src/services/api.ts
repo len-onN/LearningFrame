@@ -66,12 +66,18 @@ export const api = {
       body: JSON.stringify({ email, password })
     })
   },
-  publicDecks(page = 0, size = 8) {
+  publicDecks(page = 0, size = 8, query = '') {
     const params = new URLSearchParams({ page: String(page), size: String(size) })
+    if (query.trim()) {
+      params.set('q', query.trim())
+    }
     return request<PageResponse<DeckSummary>>(`/api/decks/public?${params.toString()}`)
   },
-  myDecks(page = 0, size = 8) {
+  myDecks(page = 0, size = 8, query = '') {
     const params = new URLSearchParams({ page: String(page), size: String(size) })
+    if (query.trim()) {
+      params.set('q', query.trim())
+    }
     return request<PageResponse<DeckSummary>>(`/api/decks/mine?${params.toString()}`)
   },
   deck(deckId: number) {

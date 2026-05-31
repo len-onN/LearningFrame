@@ -51,15 +51,25 @@ public class DeckService {
     }
 
     @Transactional(readOnly = true)
-    public DeckPage publicDecks(AuthenticatedUser principal, int page, int size) {
+    public DeckPage publicDecks(AuthenticatedUser principal, int page, int size, String query) {
         Long userId = principal == null ? null : principal.id();
-        return toPage(decks.findByVisibilityOrderByUpdatedAtDesc(DeckVisibility.PUBLIC, pageRequest(page, size)), userId);
+        String normalizedQuery = normalizeSearchQuery(query);
+        PageRequest pageRequest = pageRequest(page, size);
+        Page<Deck> result = normalizedQuery == null
+                ? decks.findByVisibilityOrderByUpdatedAtDesc(DeckVisibility.PUBLIC, pageRequest)
+                : decks.searchByVisibility(DeckVisibility.PUBLIC, normalizedQuery, pageRequest);
+        return toPage(result, userId);
     }
 
     @Transactional(readOnly = true)
-    public DeckPage myDecks(AuthenticatedUser principal, int page, int size) {
+    public DeckPage myDecks(AuthenticatedUser principal, int page, int size, String query) {
         AppUser user = authService.requireUser(principal);
-        return toPage(decks.findByOwnerIdOrderByUpdatedAtDesc(user.getId(), pageRequest(page, size)), user.getId());
+        String normalizedQuery = normalizeSearchQuery(query);
+        PageRequest pageRequest = pageRequest(page, size);
+        Page<Deck> result = normalizedQuery == null
+                ? decks.findByOwnerIdOrderByUpdatedAtDesc(user.getId(), pageRequest)
+                : decks.searchByOwnerId(user.getId(), normalizedQuery, pageRequest);
+        return toPage(result, user.getId());
     }
 
     @Transactional(readOnly = true)
@@ -170,6 +180,13 @@ public class DeckService {
         int normalizedPage = Math.max(page, 0);
         int normalizedSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
         return PageRequest.of(normalizedPage, normalizedSize);
+    }
+
+    private String normalizeSearchQuery(String query) {
+        if (query == null || query.isBlank()) {
+            return null;
+        }
+        return query.trim();
     }
 
     private Instant nextDueAtForDeck(Long userId, Long deckId, Instant now, Long dueCount) {
