@@ -27,6 +27,17 @@ public final class DeckDtos {
     ) {
     }
 
+    public record DeckPage(
+            List<DeckSummary> content,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages,
+            boolean first,
+            boolean last
+    ) {
+    }
+
     public record CardResponse(
             Long id,
             Long deckId,

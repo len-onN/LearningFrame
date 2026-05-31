@@ -5,6 +5,7 @@ import com.learningframe.api.common.ApiException;
 import com.learningframe.api.deck.DeckDtos.CardResponse;
 import com.learningframe.api.deck.DeckDtos.CardUpsertRequest;
 import com.learningframe.api.deck.DeckDtos.DeckDetail;
+import com.learningframe.api.deck.DeckDtos.DeckPage;
 import com.learningframe.api.deck.DeckDtos.DeckSummary;
 import com.learningframe.api.deck.DeckDtos.DeckUpsertRequest;
 import com.learningframe.api.model.AppUser;
@@ -18,6 +19,8 @@ import com.learningframe.api.repository.DeckRepository;
 import com.learningframe.api.repository.ReviewStateRepository;
 import com.learningframe.api.repository.TagRepository;
 import com.learningframe.api.security.AuthenticatedUser;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +34,8 @@ import java.util.Set;
 
 @Service
 public class DeckService {
+    private static final int MAX_PAGE_SIZE = 24;
+
     private final DeckRepository decks;
     private final CardRepository cards;
     private final ReviewStateRepository reviewStates;
@@ -46,19 +51,25 @@ public class DeckService {
     }
 
     @Transactional(readOnly = true)
-    public List<DeckSummary> publicDecks(AuthenticatedUser principal) {
+    public DeckPage publicDecks(AuthenticatedUser principal, int page, int size, String query) {
         Long userId = principal == null ? null : principal.id();
-        return decks.findByVisibilityOrderByUpdatedAtDesc(DeckVisibility.PUBLIC).stream()
-                .map(deck -> toSummary(deck, userId))
-                .toList();
+        String normalizedQuery = normalizeSearchQuery(query);
+        PageRequest pageRequest = pageRequest(page, size);
+        Page<Deck> result = normalizedQuery == null
+                ? decks.findByVisibilityOrderByUpdatedAtDesc(DeckVisibility.PUBLIC, pageRequest)
+                : decks.searchByVisibility(DeckVisibility.PUBLIC, normalizedQuery, pageRequest);
+        return toPage(result, userId);
     }
 
     @Transactional(readOnly = true)
-    public List<DeckSummary> myDecks(AuthenticatedUser principal) {
+    public DeckPage myDecks(AuthenticatedUser principal, int page, int size, String query) {
         AppUser user = authService.requireUser(principal);
-        return decks.findByOwnerIdOrderByUpdatedAtDesc(user.getId()).stream()
-                .map(deck -> toSummary(deck, user.getId()))
-                .toList();
+        String normalizedQuery = normalizeSearchQuery(query);
+        PageRequest pageRequest = pageRequest(page, size);
+        Page<Deck> result = normalizedQuery == null
+                ? decks.findByOwnerIdOrderByUpdatedAtDesc(user.getId(), pageRequest)
+                : decks.searchByOwnerId(user.getId(), normalizedQuery, pageRequest);
+        return toPage(result, user.getId());
     }
 
     @Transactional(readOnly = true)
@@ -151,6 +162,31 @@ public class DeckService {
                 deck.getOwner() == null ? "LearningFrame" : deck.getOwner().getDisplayName(),
                 deck.getUpdatedAt()
         );
+    }
+
+    private DeckPage toPage(Page<Deck> page, Long userId) {
+        return new DeckPage(
+                page.getContent().stream().map(deck -> toSummary(deck, userId)).toList(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isFirst(),
+                page.isLast()
+        );
+    }
+
+    private PageRequest pageRequest(int page, int size) {
+        int normalizedPage = Math.max(page, 0);
+        int normalizedSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        return PageRequest.of(normalizedPage, normalizedSize);
+    }
+
+    private String normalizeSearchQuery(String query) {
+        if (query == null || query.isBlank()) {
+            return null;
+        }
+        return query.trim();
     }
 
     private Instant nextDueAtForDeck(Long userId, Long deckId, Instant now, Long dueCount) {
