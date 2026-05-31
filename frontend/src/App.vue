@@ -5,6 +5,8 @@ import {
   BookOpen,
   Brain,
   Check,
+  ChevronsLeft,
+  ChevronsRight,
   Eye,
   LogOut,
   Moon,
@@ -48,6 +50,7 @@ type ThemePreference = 'light' | 'dark'
 const tab = ref<Tab>('library')
 const authMode = ref<AuthMode>('login')
 const themePreference = ref<ThemePreference>(loadStoredThemePreference())
+const sidebarCollapsed = ref(false)
 const user = ref<UserResponse | null>(loadStoredUser())
 const publicDecks = ref<DeckSummary[]>([])
 const myDecks = ref<DeckSummary[]>([])
@@ -90,7 +93,7 @@ const importPreview = ref<ApkgPreviewResponse | null>(null)
 const importResult = ref<ApkgImportResponse | null>(null)
 
 const studyQueue = ref<StudyCard[]>([])
-const sessionTitle = ref('Selecione um baralho ou inicie o modo caos.')
+const sessionTitle = ref('Selecione um baralho ou inicie a prática intercalada.')
 const answerVisible = ref(false)
 
 const currentCard = computed(() => studyQueue.value[0])
@@ -99,6 +102,8 @@ const backHtml = computed(() => currentCard.value ? safeStudyHtml(currentCard.va
 const currentDueLabel = computed(() => currentCard.value ? formatDueIn(currentCard.value.dueAt) : '')
 const authErrors = computed<AuthErrors>(() => validateAuthForm(authForm.value, authMode.value))
 const nextThemeLabel = computed(() => themePreference.value === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro')
+const sidebarToggleLabel = computed(() => sidebarCollapsed.value ? 'Expandir menu' : 'Recolher menu')
+const userDisplayName = computed(() => user.value?.displayName ?? 'Visitante')
 const navTabs = [
   { id: 'library' as const, label: 'Biblioteca', icon: BookOpen },
   { id: 'study' as const, label: 'Estudo', icon: Brain },
@@ -123,6 +128,10 @@ function toggleThemePreference() {
   themePreference.value = themePreference.value === 'dark' ? 'light' : 'dark'
   localStorage.setItem('learningframe.theme', themePreference.value)
   applyThemePreference()
+}
+
+function toggleSidebar() {
+  sidebarCollapsed.value = !sidebarCollapsed.value
 }
 
 function applyThemePreference() {
@@ -259,9 +268,9 @@ async function startLocalDeck(deckId: string) {
   }
 }
 
-async function startChaos() {
+async function startInterleavedPractice() {
   tab.value = 'study'
-  sessionTitle.value = 'Modo caos'
+  sessionTitle.value = 'Prática intercalada'
   answerVisible.value = false
 
   await withFeedback(async () => {
@@ -277,7 +286,7 @@ async function startChaos() {
       studyQueue.value = mixedLocalStudyCards(localDecks.value, localStates.value)
     }
     if (studyQueue.value.length === 0) {
-      notice.value = 'Modo caos sem cards vencidos agora.'
+      notice.value = 'Prática intercalada sem cards vencidos agora.'
     }
   })
 }
@@ -463,11 +472,22 @@ function loadStoredThemePreference(): ThemePreference {
 </script>
 
 <template>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <button class="brand-button" type="button" @click="goHome">
+  <div class="app-shell" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
+    <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
+      <button class="brand-button" type="button" title="Pagina inicial" @click="goHome">
         <Brain :size="24" aria-hidden="true" />
         <strong>LearningFrame</strong>
+      </button>
+
+      <button
+        class="ghost icon-button sidebar-toggle"
+        type="button"
+        :title="sidebarToggleLabel"
+        :aria-label="sidebarToggleLabel"
+        @click="toggleSidebar"
+      >
+        <ChevronsRight v-if="sidebarCollapsed" :size="16" aria-hidden="true" />
+        <ChevronsLeft v-else :size="16" aria-hidden="true" />
       </button>
 
       <nav class="nav-list" aria-label="Navegacao principal">
@@ -484,46 +504,51 @@ function loadStoredThemePreference(): ThemePreference {
         </button>
       </nav>
 
-      <button class="primary full" type="button" @click="startChaos">
+      <button
+        class="primary full interleaved-button"
+        type="button"
+        @click="startInterleavedPractice"
+      >
         <Shuffle :size="18" aria-hidden="true" />
-        Modo caos
+        <span>Prática intercalada</span>
       </button>
+
+      <section class="sidebar-footer" aria-label="Conta">
+        <div v-if="user" class="sidebar-user">
+          <div class="user-summary" :title="userDisplayName">
+            <User :size="16" aria-hidden="true" />
+            <span>{{ userDisplayName }}</span>
+          </div>
+          <button class="ghost icon-button" type="button" title="Sair" aria-label="Sair" @click="logout">
+            <LogOut :size="16" aria-hidden="true" />
+          </button>
+        </div>
+
+        <button v-else class="primary compact sidebar-login" type="button" @click="openAuth('login')">
+          <User :size="16" aria-hidden="true" />
+          <span>Entrar</span>
+        </button>
+      </section>
     </aside>
 
     <main class="workspace">
       <header class="topbar">
         <div>
-          <p class="eyebrow">Recordacao ativa · Repeticao espacada · Pratica intercalada</p>
+          <p class="eyebrow concept-strip">
+            <button
+              class="icon-button theme-toggle inline-theme-toggle"
+              type="button"
+              :title="nextThemeLabel"
+              :aria-label="nextThemeLabel"
+              @click="toggleThemePreference"
+            >
+              <Sun v-if="themePreference === 'light'" :size="14" aria-hidden="true" />
+              <Moon v-else :size="14" aria-hidden="true" />
+            </button>
+            <span>Recordação ativa · Repetição espaçada · Prática intercalada</span>
+          </p>
           <h1>{{ currentTitle }}</h1>
         </div>
-
-        <section class="topbar-actions" aria-label="Acoes globais">
-          <button
-            class="icon-button theme-toggle"
-            type="button"
-            :title="nextThemeLabel"
-            :aria-label="nextThemeLabel"
-            @click="toggleThemePreference"
-          >
-            <Sun v-if="themePreference === 'light'" :size="16" aria-hidden="true" />
-            <Moon v-else :size="16" aria-hidden="true" />
-          </button>
-
-          <section class="auth-panel" aria-label="Autenticacao">
-            <div v-if="user" class="user-chip">
-              <User :size="16" aria-hidden="true" />
-              <span>{{ user.displayName }}</span>
-              <button class="icon-button" type="button" title="Sair" @click="logout">
-                <LogOut :size="16" aria-hidden="true" />
-              </button>
-            </div>
-
-            <button v-else class="primary compact" type="button" @click="openAuth('login')">
-              <User :size="16" aria-hidden="true" />
-              Entrar
-            </button>
-          </section>
-        </section>
       </header>
 
       <div v-if="loading" class="status">Carregando...</div>
@@ -688,9 +713,9 @@ function loadStoredThemePreference(): ThemePreference {
             <p class="eyebrow">{{ sessionTitle }}</p>
             <h2>{{ studyQueue.length }} cards na fila</h2>
           </div>
-          <button class="ghost compact" type="button" @click="startChaos">
+          <button class="ghost compact" type="button" @click="startInterleavedPractice">
             <Shuffle :size="16" aria-hidden="true" />
-            Misturar
+            Prática intercalada
           </button>
         </div>
 
@@ -720,7 +745,7 @@ function loadStoredThemePreference(): ThemePreference {
         <div v-else class="empty-state">
           <Brain :size="36" aria-hidden="true" />
           <h2>Nenhuma sessao ativa</h2>
-          <p>Escolha um baralho na biblioteca, importe um APKG ou use o modo caos.</p>
+          <p>Escolha um baralho na biblioteca, importe um APKG ou use a prática intercalada.</p>
         </div>
       </section>
 
