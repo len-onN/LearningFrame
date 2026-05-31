@@ -3,7 +3,6 @@ package com.learningframe.api.deck;
 import com.learningframe.api.deck.DeckDtos.CardResponse;
 import com.learningframe.api.deck.DeckDtos.CardUpsertRequest;
 import com.learningframe.api.deck.DeckDtos.DeckDetail;
-import com.learningframe.api.deck.DeckDtos.DeckPage;
 import com.learningframe.api.deck.DeckDtos.DeckSummary;
 import com.learningframe.api.deck.DeckDtos.DeckUpsertRequest;
 import com.learningframe.api.security.AuthenticatedUser;
@@ -17,9 +16,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/decks")
@@ -31,23 +31,13 @@ public class DeckController {
     }
 
     @GetMapping("/public")
-    DeckPage publicDecks(
-            @AuthenticationPrincipal AuthenticatedUser user,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "8") int size,
-            @RequestParam(required = false) String q
-    ) {
-        return deckService.publicDecks(user, page, size, q);
+    List<DeckSummary> publicDecks(@AuthenticationPrincipal AuthenticatedUser user) {
+        return deckService.publicDecks(user);
     }
 
     @GetMapping("/mine")
-    DeckPage myDecks(
-            @AuthenticationPrincipal AuthenticatedUser user,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "8") int size,
-            @RequestParam(required = false) String q
-    ) {
-        return deckService.myDecks(user, page, size, q);
+    List<DeckSummary> myDecks(@AuthenticationPrincipal AuthenticatedUser user) {
+        return deckService.myDecks(user);
     }
 
     @GetMapping("/{deckId}")
