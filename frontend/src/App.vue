@@ -16,7 +16,8 @@ import {
   Shuffle,
   Sun,
   Upload,
-  User
+  User,
+  X
 } from '@lucide/vue'
 import { api, clearAuthToken, setAuthToken } from './services/api'
 import type {
@@ -24,6 +25,8 @@ import type {
   ApkgPreviewResponse,
   DeckSummary,
   DeckVisibility,
+  LocalCard,
+  LocalDeck,
   PageResponse,
   ReviewRating,
   StatsSummary,
@@ -37,7 +40,6 @@ import {
   loadLocalDecks,
   loadLocalStates,
   localDeckToStudyCards,
-  mixedLocalStudyCards,
   saveLocalDecks,
   saveLocalStates
 } from './utils/localStudy'
@@ -66,6 +68,10 @@ const myDeckPage = ref<PageResponse<DeckSummary> | null>(null)
 const publicDeckQuery = ref('')
 const myDeckQuery = ref('')
 const localDecks = ref(loadLocalDecks())
+const selectedLocalDeckId = ref(localDecks.value[0]?.id ?? '')
+const publicStudyDeckCache = ref<LocalDeck[]>([])
+const pendingLocalImport = ref<{ id: string; fileName: string; title: string } | null>(null)
+const apkgFilesByLocalDeckId = ref<Record<string, File>>({})
 const localStates = ref(loadLocalStates())
 const stats = ref<StatsSummary | null>(null)
 const notice = ref('')
@@ -125,6 +131,10 @@ const filteredLocalDecks = computed(() => localDecks.value.filter((deck) => {
   const cardText = deck.cards.flatMap((card) => [htmlToText(card.frontHtml), htmlToText(card.backHtml)])
   return matchesSearch(deck.title, deck.description, ...cardText)
 }))
+const selectedLocalDeck = computed(() => {
+  const selected = filteredLocalDecks.value.find((deck) => deck.id === selectedLocalDeckId.value)
+  return selected ?? filteredLocalDecks.value[0] ?? null
+})
 const activeLibraryResultCount = computed(() => {
   if (librarySection.value === 'public') {
     return filteredPublicDecks.value.length
@@ -153,7 +163,7 @@ const activeLibraryCountLabel = computed(() => {
     return user.value ? myDecksCountLabel.value : ''
   }
   const count = localDecks.value.length
-  return `${count} ${count === 1 ? 'baralho local' : 'baralhos locais'}`
+  return `${count} ${count === 1 ? 'importacao local' : 'importacoes locais'}`
 })
 const navTabs = [
   { id: 'library' as const, label: 'Biblioteca', icon: BookOpen },
@@ -364,20 +374,6 @@ async function startDeck(deck: DeckSummary) {
   })
 }
 
-async function startLocalDeck(deckId: string) {
-  const deck = localDecks.value.find((item) => item.id === deckId)
-  if (!deck) {
-    return
-  }
-  tab.value = 'study'
-  sessionTitle.value = deck.title
-  answerVisible.value = false
-  studyQueue.value = localDeckToStudyCards(deck, localStates.value)
-  if (studyQueue.value.length === 0) {
-    notice.value = 'Nenhum card vencido agora neste baralho local.'
-  }
-}
-
 async function startInterleavedPractice() {
   tab.value = 'study'
   sessionTitle.value = 'Prática intercalada'
@@ -388,12 +384,11 @@ async function startInterleavedPractice() {
       const due = await api.due('MIXED_DUE')
       studyQueue.value = due.cards.map(serverCardToStudyCard)
     } else {
-      if (localDecks.value.length === 0) {
-        for (const deck of publicDecks.value.slice(0, 4)) {
-          await ensurePublicDeck(deck.id)
-        }
+      studyQueue.value = []
+      for (const deck of publicDecks.value.slice(0, 4)) {
+        const localDeck = await ensurePublicDeck(deck.id)
+        studyQueue.value.push(...localDeckToStudyCards(localDeck, localStates.value))
       }
-      studyQueue.value = mixedLocalStudyCards(localDecks.value, localStates.value)
     }
     if (studyQueue.value.length === 0) {
       notice.value = 'Prática intercalada sem cards vencidos agora.'
@@ -427,22 +422,46 @@ async function reviewCurrent(rating: ReviewRating) {
 
 async function handleApkgChange(event: Event) {
   const input = event.target as HTMLInputElement
-  selectedFile.value = input.files?.[0] ?? null
+  const file = input.files?.[0] ?? null
+  selectedFile.value = file
   importPreview.value = null
   importResult.value = null
 
-  if (!selectedFile.value) {
+  if (!file) {
     return
   }
 
+  pendingLocalImport.value = {
+    id: `pending:${crypto.randomUUID()}`,
+    fileName: file.name,
+    title: file.name.replace(/\.apkg$/i, '').replaceAll('_', ' ').trim() || 'Baralho importado'
+  }
+  librarySection.value = 'local'
+
   await withFeedback(async () => {
-    const preview = await api.previewApkg(selectedFile.value as File)
-    importPreview.value = preview
-    importTitle.value = preview.title
-    const localDeck = apkgPreviewToLocal(preview)
-    localDecks.value = [localDeck, ...localDecks.value.filter((deck) => deck.title !== preview.title)]
-    saveLocalDecks(localDecks.value)
-    notice.value = 'APKG importado localmente para estudo anonimo.'
+    try {
+      const preview = await api.previewApkg(file)
+      importPreview.value = preview
+      importTitle.value = preview.title
+      const localDeck = apkgPreviewToLocal(preview, file.name)
+      const replacedDeckIds = localDecks.value
+        .filter((deck) => deck.title === preview.title)
+        .map((deck) => deck.id)
+      localDecks.value = [localDeck, ...localDecks.value.filter((deck) => deck.title !== preview.title)]
+      const updatedFiles = { ...apkgFilesByLocalDeckId.value, [localDeck.id]: file }
+      for (const deckId of replacedDeckIds) {
+        delete updatedFiles[deckId]
+      }
+      apkgFilesByLocalDeckId.value = updatedFiles
+      selectedLocalDeckId.value = localDeck.id
+      saveLocalDecks(localDecks.value)
+      notice.value = preview.mediaFound > 0
+        ? 'APKG importado como rascunho. Este baralho contem midia; salve na sua conta para estudar com imagens.'
+        : 'APKG importado como rascunho local.'
+    } finally {
+      pendingLocalImport.value = null
+      input.value = ''
+    }
   })
 }
 
@@ -453,8 +472,15 @@ async function persistImport() {
 
   await withFeedback(async () => {
     importResult.value = await api.importApkg(selectedFile.value as File, importTitle.value, importVisibility.value)
-    notice.value = 'Baralho APKG salvo no modo logado.'
+    const draftId = localDecks.value.find((deck) => deck.title === importPreview.value?.title)?.id
+    if (draftId) {
+      removeLocalDeck(draftId)
+    }
+    notice.value = importResult.value.mediaImported > 0
+      ? `Baralho APKG salvo com ${importResult.value.cardsImported} cartas e ${importResult.value.mediaImported} midias.`
+      : 'Baralho APKG salvo em Meus baralhos.'
     await refreshAll()
+    librarySection.value = 'mine'
   })
 }
 
@@ -486,7 +512,119 @@ async function createCard() {
 
 function removeLocalDeck(deckId: string) {
   localDecks.value = localDecks.value.filter((deck) => deck.id !== deckId)
+  const updatedFiles = { ...apkgFilesByLocalDeckId.value }
+  delete updatedFiles[deckId]
+  apkgFilesByLocalDeckId.value = updatedFiles
+  if (selectedLocalDeckId.value === deckId) {
+    selectedLocalDeckId.value = localDecks.value[0]?.id ?? ''
+  }
   saveLocalDecks(localDecks.value)
+}
+
+function selectLocalDeck(deckId: string) {
+  selectedLocalDeckId.value = deckId
+}
+
+function saveLocalDrafts() {
+  saveLocalDecks(localDecks.value)
+}
+
+function updateLocalDeckTitle(deck: LocalDeck, value: string) {
+  deck.title = value
+  for (const card of deck.cards) {
+    card.deckTitle = value
+  }
+  saveLocalDrafts()
+}
+
+function updateLocalDeckTitleFromEvent(deck: LocalDeck, event: Event) {
+  updateLocalDeckTitle(deck, (event.target as HTMLInputElement).value)
+}
+
+function updateLocalDeckDescription(deck: LocalDeck, value: string) {
+  deck.description = value
+  saveLocalDrafts()
+}
+
+function updateLocalDeckDescriptionFromEvent(deck: LocalDeck, event: Event) {
+  updateLocalDeckDescription(deck, (event.target as HTMLTextAreaElement).value)
+}
+
+function updateLocalCardTags(card: LocalCard, value: string) {
+  card.tags = value.split(',').map((tag) => tag.trim()).filter(Boolean)
+  saveLocalDrafts()
+}
+
+function updateLocalCardTagsFromEvent(card: LocalCard, event: Event) {
+  updateLocalCardTags(card, (event.target as HTMLInputElement).value)
+}
+
+async function saveLocalDeckForUser(deck: LocalDeck) {
+  if (!user.value) {
+    openAuth('login')
+    notice.value = deck.requiresBackendImport
+      ? 'Entre para salvar este APKG com midia em Meus baralhos.'
+      : 'Entre para salvar a importacao em Meus baralhos.'
+    return
+  }
+
+  if (!deck.title.trim()) {
+    error.value = 'Informe um titulo para salvar a importacao.'
+    return
+  }
+
+  if (deck.requiresBackendImport) {
+    const originalFile = apkgFilesByLocalDeckId.value[deck.id]
+    if (!originalFile) {
+      error.value = 'Importe o arquivo .apkg novamente para salvar este baralho com midia.'
+      return
+    }
+
+    await withFeedback(async () => {
+      const result = await api.importApkg(originalFile, deck.title.trim(), 'PRIVATE')
+      removeLocalDeck(deck.id)
+      await loadMyDecks(true)
+      librarySection.value = 'mine'
+      notice.value = `Importacao salva com ${result.cardsImported} cartas e ${result.mediaImported} midias.`
+    })
+    return
+  }
+
+  const cardsToSave = deck.cards.filter((card) => card.frontHtml.trim() && card.backHtml.trim())
+  if (cardsToSave.length === 0) {
+    error.value = 'A importacao precisa ter pelo menos uma carta com frente e verso.'
+    return
+  }
+
+  await withFeedback(async () => {
+    const created = await api.createDeck(deck.title.trim(), deck.description.trim(), 'PRIVATE')
+    for (const card of cardsToSave) {
+      await api.createCard(created.id, card.frontHtml, card.backHtml, card.tags)
+    }
+    removeLocalDeck(deck.id)
+    await loadMyDecks(true)
+    librarySection.value = 'mine'
+    notice.value = 'Importacao salva em Meus baralhos.'
+  })
+}
+
+function localDeckStatusLabel(deck: LocalDeck) {
+  const labels = [cardCountLabel(deck.cards.length)]
+  if (deck.mediaFound && deck.mediaFound > 0) {
+    labels.push(`${deck.mediaFound} midias`)
+  }
+  labels.push(deck.requiresBackendImport ? 'estudo completo apos salvar' : 'rascunho local')
+  return labels.join(' · ')
+}
+
+function localDeckMediaNotice(deck: LocalDeck) {
+  if (!deck.requiresBackendImport) {
+    return ''
+  }
+  if (apkgFilesByLocalDeckId.value[deck.id]) {
+    return 'Este rascunho referencia midia do APKG. Para estudar com imagens, salve o baralho na sua conta.'
+  }
+  return 'Este rascunho referencia midia do APKG. Importe o arquivo novamente para salvar e estudar com imagens.'
 }
 
 function mergeDeckPages(current: DeckSummary[], incoming: DeckSummary[]) {
@@ -541,35 +679,16 @@ function deckDueLabel(deck: DeckSummary) {
   return nextDueLabel(deck.dueCount, deck.nextDueAt)
 }
 
-function localDeckDueLabel(deckId: string) {
-  const deck = localDecks.value.find((item) => item.id === deckId)
-  if (!deck) {
-    return 'sem previsao'
-  }
-  const dueCards = localDeckToStudyCards(deck, localStates.value)
-  if (dueCards.length > 0) {
-    return `${dueCards.length} vencidos agora`
-  }
-
-  const nextDueAt = deck.cards
-    .map((card) => localStates.value[card.clientId]?.dueAt)
-    .filter((dueAt): dueAt is string => Boolean(dueAt))
-    .sort((left, right) => new Date(left).getTime() - new Date(right).getTime())[0]
-
-  return `proximo ${formatDueIn(nextDueAt)}`
-}
-
 async function ensurePublicDeck(deckId: number) {
   const localId = `public:${deckId}`
-  const existing = localDecks.value.find((deck) => deck.id === localId)
+  const existing = publicStudyDeckCache.value.find((deck) => deck.id === localId)
   if (existing) {
     return existing
   }
 
   const detail = await api.deck(deckId)
   const localDeck = deckDetailToLocal(detail)
-  localDecks.value = [localDeck, ...localDecks.value]
-  saveLocalDecks(localDecks.value)
+  publicStudyDeckCache.value = [localDeck, ...publicStudyDeckCache.value]
   return localDeck
 }
 
@@ -602,11 +721,19 @@ async function withFeedback(task: () => Promise<void>, showLoading = true) {
   } catch (caught) {
     const message = caught instanceof Error ? caught.message : 'Erro inesperado.'
     error.value = message === 'Failed to fetch'
-      ? 'Backend indisponivel. Suba a stack com Docker Compose para carregar biblioteca, login e progresso.'
+      ? 'Backend indisponivel. Verifique se o Docker Compose esta ativo e tente novamente.'
       : message
   } finally {
     loading.value = false
   }
+}
+
+function dismissNotice() {
+  notice.value = ''
+}
+
+function dismissError() {
+  error.value = ''
 }
 
 function loadStoredUser() {
@@ -707,8 +834,18 @@ function loadStoredThemePreference(): ThemePreference {
       </header>
 
       <div v-if="loading" class="status">Carregando...</div>
-      <div v-if="notice" class="status success">{{ notice }}</div>
-      <div v-if="error" class="status error">{{ error }}</div>
+      <div v-if="notice" class="status success dismissible">
+        <span>{{ notice }}</span>
+        <button class="status-close" type="button" title="Fechar notificacao" aria-label="Fechar notificacao" @click="dismissNotice">
+          <X :size="15" aria-hidden="true" />
+        </button>
+      </div>
+      <div v-if="error" class="status error dismissible">
+        <span>{{ error }}</span>
+        <button class="status-close" type="button" title="Fechar notificacao" aria-label="Fechar notificacao" @click="dismissError">
+          <X :size="15" aria-hidden="true" />
+        </button>
+      </div>
 
       <section v-if="tab === 'auth'" class="auth-page">
         <form class="auth-card" novalidate @submit.prevent="submitAuth">
@@ -907,17 +1044,40 @@ function loadStoredThemePreference(): ThemePreference {
             </div>
 
             <div v-if="librarySection === 'local'" class="panel wide">
-              <div v-if="filteredLocalDecks.length" class="deck-list">
+              <div class="section-title">
+                <div>
+                  <p class="eyebrow">Rascunhos</p>
+                  <h2>Importações locais</h2>
+                </div>
+                <label class="ghost compact file-action">
+                  <Upload :size="16" aria-hidden="true" />
+                  Importar APKG
+                  <input type="file" accept=".apkg" @change="handleApkgChange" />
+                </label>
+              </div>
+
+              <div v-if="pendingLocalImport || filteredLocalDecks.length" class="deck-list">
+                <article v-if="pendingLocalImport" :key="pendingLocalImport.id" class="deck-card pending-card">
+                  <div>
+                    <h3>{{ pendingLocalImport.title }}</h3>
+                    <p>{{ pendingLocalImport.fileName }}</p>
+                    <span>Lendo arquivo .apkg e montando rascunho local...</span>
+                  </div>
+                </article>
                 <article v-for="deck in filteredLocalDecks" :key="deck.id" class="deck-card">
                   <div>
                     <h3>{{ deck.title }}</h3>
                     <p>{{ deck.description }}</p>
-                    <span>{{ cardCountLabel(deck.cards.length) }} · {{ localDeckDueLabel(deck.id) }}</span>
+                    <span>{{ localDeckStatusLabel(deck) }}</span>
                   </div>
                   <div class="row-actions">
-                    <button class="primary compact" type="button" @click="startLocalDeck(deck.id)">
-                      <Brain :size="16" aria-hidden="true" />
-                      Estudar
+                    <button class="primary compact" type="button" @click="selectLocalDeck(deck.id)">
+                      <Eye :size="16" aria-hidden="true" />
+                      Ver cartas
+                    </button>
+                    <button class="ghost compact" type="button" @click="saveLocalDeckForUser(deck)">
+                      <Check :size="16" aria-hidden="true" />
+                      Salvar para mim
                     </button>
                     <button class="ghost compact" type="button" @click="removeLocalDeck(deck.id)">
                       Remover
@@ -925,7 +1085,65 @@ function loadStoredThemePreference(): ThemePreference {
                   </div>
                 </article>
               </div>
-              <p v-else class="muted empty-copy">Importe um `.apkg` ou abra um baralho público para revisar antes de salvar.</p>
+              <div v-else class="empty-state compact-empty">
+                <Upload :size="34" aria-hidden="true" />
+                <h2>Nenhuma importação local</h2>
+                <p>Importe um `.apkg` para revisar e ajustar as cartas antes de salvar em Meus baralhos.</p>
+                <label class="primary compact file-action">
+                  <Upload :size="16" aria-hidden="true" />
+                  Importar APKG
+                  <input type="file" accept=".apkg" @change="handleApkgChange" />
+                </label>
+              </div>
+
+              <div v-if="selectedLocalDeck" class="local-draft-editor">
+                <div class="section-title">
+                  <div>
+                    <p class="eyebrow">Rascunho local</p>
+                    <h2>{{ selectedLocalDeck.title }}</h2>
+                  </div>
+                  <button class="primary compact" type="button" @click="saveLocalDeckForUser(selectedLocalDeck)">
+                    <Check :size="16" aria-hidden="true" />
+                    Salvar para mim
+                  </button>
+                </div>
+
+                <p v-if="localDeckMediaNotice(selectedLocalDeck)" class="inline-alert">
+                  {{ localDeckMediaNotice(selectedLocalDeck) }}
+                </p>
+
+                <div class="local-draft-fields">
+                  <input
+                    :value="selectedLocalDeck.title"
+                    type="text"
+                    placeholder="Titulo"
+                    @input="updateLocalDeckTitleFromEvent(selectedLocalDeck, $event)"
+                  />
+                  <textarea
+                    :value="selectedLocalDeck.description"
+                    rows="3"
+                    placeholder="Descricao"
+                    @input="updateLocalDeckDescriptionFromEvent(selectedLocalDeck, $event)"
+                  ></textarea>
+                </div>
+
+                <div class="local-card-list">
+                  <article v-for="(card, index) in selectedLocalDeck.cards" :key="card.clientId" class="local-card-editor">
+                    <div class="card-meta">
+                      <span>Carta {{ index + 1 }}</span>
+                      <span>{{ card.tags.length ? card.tags.join(', ') : 'sem tags' }}</span>
+                    </div>
+                    <textarea v-model="card.frontHtml" rows="3" placeholder="Frente" @change="saveLocalDrafts"></textarea>
+                    <textarea v-model="card.backHtml" rows="3" placeholder="Verso" @change="saveLocalDrafts"></textarea>
+                    <input
+                      :value="card.tags.join(', ')"
+                      type="text"
+                      placeholder="tags separadas por virgula"
+                      @input="updateLocalCardTagsFromEvent(card, $event)"
+                    />
+                  </article>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -969,7 +1187,7 @@ function loadStoredThemePreference(): ThemePreference {
         <div v-else class="empty-state">
           <Brain :size="36" aria-hidden="true" />
           <h2>Nenhuma sessao ativa</h2>
-          <p>Escolha um baralho na biblioteca, importe um APKG ou use a prática intercalada.</p>
+          <p>Escolha um baralho publico, um baralho salvo ou use a pratica intercalada.</p>
         </div>
       </section>
 
@@ -986,14 +1204,14 @@ function loadStoredThemePreference(): ThemePreference {
 
           <div v-if="importPreview" class="import-summary">
             <strong>{{ importPreview.title }}</strong>
-            <span>{{ importPreview.cardsReady }} cards prontos · {{ importPreview.cardsSkipped }} ignorados · {{ importPreview.mediaFound }} midias</span>
+            <span>{{ importPreview.cardsReady }} cartas prontas · {{ importPreview.cardsSkipped }} ignoradas · {{ importPreview.mediaFound }} midias</span>
             <p v-for="warning in importPreview.warnings" :key="warning">{{ warning }}</p>
           </div>
         </div>
 
         <form v-if="user && importPreview" class="panel" @submit.prevent="persistImport">
           <div class="section-title">
-            <h2>Salvar no servidor</h2>
+            <h2>Salvar para mim</h2>
           </div>
           <input v-model="importTitle" type="text" placeholder="Titulo do baralho" />
           <select v-model="importVisibility">
@@ -1002,9 +1220,9 @@ function loadStoredThemePreference(): ThemePreference {
           </select>
           <button class="primary full" type="submit">
             <Check :size="16" aria-hidden="true" />
-            Persistir APKG
+            Salvar APKG
           </button>
-          <p v-if="importResult" class="muted">{{ importResult.cardsImported }} cards salvos em {{ importResult.title }}.</p>
+          <p v-if="importResult" class="muted">{{ importResult.cardsImported }} cartas salvas em {{ importResult.title }}.</p>
         </form>
       </section>
 
@@ -1071,7 +1289,7 @@ function loadStoredThemePreference(): ThemePreference {
         <div v-else class="empty-state">
           <BarChart3 :size="36" aria-hidden="true" />
           <h2>Progresso persistente exige login</h2>
-          <p>No modo anonimo, a agenda local continua funcionando neste navegador.</p>
+          <p>Entre para manter agenda, revisoes e estatisticas entre dispositivos.</p>
         </div>
       </section>
     </main>

@@ -74,9 +74,9 @@ public class ApkgImportService {
     }
 
     public ApkgPreviewResponse preview(MultipartFile file) {
-        ParsedApkg parsed = parse(file);
+        ParsedApkg parsed = parse(file, false);
         List<String> warnings = new ArrayList<>(parsed.warnings());
-        if (!parsed.media().isEmpty()) {
+        if (parsed.mediaCount() > 0) {
             warnings.add("Midia e preservada ao salvar logado; no preview anonimo, cards com imagens podem aparecer sem arquivo associado.");
         }
         List<ApkgCard> visibleCards = parsed.cards();
@@ -89,7 +89,7 @@ public class ApkgImportService {
                 parsed.notesFound(),
                 visibleCards.size(),
                 parsed.skipped(),
-                parsed.media().size(),
+                parsed.mediaCount(),
                 warnings,
                 visibleCards
         );
@@ -98,7 +98,7 @@ public class ApkgImportService {
     @Transactional
     public ApkgImportResponse importDeck(MultipartFile file, String title, DeckVisibility visibility, AuthenticatedUser principal) {
         AppUser owner = authService.requireUser(principal);
-        ParsedApkg parsed = parse(file);
+        ParsedApkg parsed = parse(file, true);
         String resolvedTitle = title == null || title.isBlank() ? parsed.title() : title.trim();
         Deck deck = decks.save(new Deck(
                 owner,
@@ -128,7 +128,7 @@ public class ApkgImportService {
         return new ApkgImportResponse(deck.getId(), deck.getTitle(), deck.getVisibility(), importedCards, parsed.skipped(), importedMedia, parsed.warnings());
     }
 
-    private ParsedApkg parse(MultipartFile file) {
+    private ParsedApkg parse(MultipartFile file, boolean includeMediaContent) {
         validateFile(file);
         Path tempDir = null;
         try {
@@ -152,8 +152,9 @@ public class ApkgImportService {
                     throw ApiException.badRequest("Nenhum card basico foi encontrado no .apkg.");
                 }
                 Map<String, String> mediaMap = readMediaMap(zipFile, warnings);
-                List<ParsedMedia> media = readMedia(zipFile, mediaMap, warnings);
-                return new ParsedApkg(resolveTitle(file), parsedCards.cards(), warnings, media, parsedCards.notesFound(), parsedCards.skipped());
+                List<ParsedMedia> media = includeMediaContent ? readMedia(zipFile, mediaMap, warnings) : List.of();
+                int mediaCount = includeMediaContent ? media.size() : countExistingMedia(zipFile, mediaMap);
+                return new ParsedApkg(resolveTitle(file), parsedCards.cards(), warnings, media, mediaCount, parsedCards.notesFound(), parsedCards.skipped());
             }
         } catch (ApiException exception) {
             throw exception;
@@ -219,6 +220,17 @@ public class ApkgImportService {
             }
         }
         return media;
+    }
+
+    private int countExistingMedia(ZipFile zipFile, Map<String, String> mediaMap) {
+        int count = 0;
+        for (String mediaKey : mediaMap.keySet()) {
+            ZipEntry mediaEntry = zipFile.getEntry(mediaKey);
+            if (mediaEntry != null && !mediaEntry.isDirectory()) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private ZipEntry firstExisting(ZipFile zipFile, String... names) {
@@ -321,6 +333,7 @@ public class ApkgImportService {
             List<ApkgCard> cards,
             List<String> warnings,
             List<ParsedMedia> media,
+            int mediaCount,
             int notesFound,
             int skipped
     ) {

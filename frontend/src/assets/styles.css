@@ -37,6 +37,9 @@
   --color-success: #0f5f55;
   --color-success-border: #9fd7ca;
   --color-success-surface: #ecfbf8;
+  --color-warning: #7c4a03;
+  --color-warning-border: #e2b95f;
+  --color-warning-surface: #fff7e6;
   --color-rating-text: #18212f;
   --color-rating-again: #ffe4de;
   --color-rating-hard: #fff1c2;
@@ -77,6 +80,9 @@
   --color-success: #8be0d2;
   --color-success-border: #276f65;
   --color-success-surface: #12322e;
+  --color-warning: #f6d58c;
+  --color-warning-border: #8a6424;
+  --color-warning-surface: #2f2514;
   --color-rating-text: #10201e;
   --color-rating-again: #f6b8ad;
   --color-rating-hard: #f8d982;
@@ -460,6 +466,39 @@ textarea {
   background: var(--color-surface);
 }
 
+.status.dismissible {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.status.dismissible span {
+  min-width: 0;
+}
+
+.status-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: currentColor;
+  background: transparent;
+  cursor: pointer;
+}
+
+.status-close:hover {
+  background: rgb(15 23 42 / 8%);
+}
+
+[data-theme="dark"] .status-close:hover {
+  background: rgb(255 255 255 / 10%);
+}
+
 .status.success {
   border-color: var(--color-success-border);
   color: var(--color-success);
@@ -690,6 +729,48 @@ textarea {
   font-size: 0.86rem;
 }
 
+.pending-card {
+  border-style: dashed;
+  background: var(--color-surface-muted);
+}
+
+.inline-alert {
+  margin: 0;
+  border: 1px solid var(--color-warning-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--color-warning);
+  background: var(--color-warning-surface);
+  line-height: 1.45;
+}
+
+.local-draft-editor {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 16px;
+}
+
+.local-draft-fields {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(260px, 1.2fr);
+  gap: 12px;
+}
+
+.local-card-list {
+  display: grid;
+  gap: 12px;
+}
+
+.local-card-editor {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--color-surface);
+}
+
 .empty-copy {
   margin: 0;
   padding: 18px 4px;
@@ -808,6 +889,18 @@ textarea {
 
 .file-drop input {
   display: none;
+}
+
+.file-action {
+  position: relative;
+  overflow: hidden;
+}
+
+.file-action input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .import-summary {
@@ -952,6 +1045,10 @@ textarea {
   }
 
   .library-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .local-draft-fields {
     grid-template-columns: 1fr;
   }
 
