@@ -7,9 +7,11 @@ import {
   Check,
   Eye,
   LogOut,
+  Moon,
   Plus,
   RotateCcw,
   Shuffle,
+  Sun,
   Upload,
   User
 } from '@lucide/vue'
@@ -41,9 +43,11 @@ import { formatDueIn, nextDueLabel } from './utils/dueTime'
 import { validateAuthForm, type AuthErrors, type AuthField, type AuthMode } from './utils/authValidation'
 
 type Tab = 'library' | 'study' | 'import' | 'create' | 'progress' | 'auth'
+type ThemePreference = 'light' | 'dark'
 
 const tab = ref<Tab>('library')
 const authMode = ref<AuthMode>('login')
+const themePreference = ref<ThemePreference>(loadStoredThemePreference())
 const user = ref<UserResponse | null>(loadStoredUser())
 const publicDecks = ref<DeckSummary[]>([])
 const myDecks = ref<DeckSummary[]>([])
@@ -94,6 +98,7 @@ const frontHtml = computed(() => currentCard.value ? safeStudyHtml(currentCard.v
 const backHtml = computed(() => currentCard.value ? safeStudyHtml(currentCard.value.backHtml, currentCard.value.deckId) : '')
 const currentDueLabel = computed(() => currentCard.value ? formatDueIn(currentCard.value.dueAt) : '')
 const authErrors = computed<AuthErrors>(() => validateAuthForm(authForm.value, authMode.value))
+const nextThemeLabel = computed(() => themePreference.value === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro')
 const navTabs = [
   { id: 'library' as const, label: 'Biblioteca', icon: BookOpen },
   { id: 'study' as const, label: 'Estudo', icon: Brain },
@@ -109,7 +114,21 @@ const currentTitle = computed(() => {
   return navTabs.find((item) => item.id === tab.value)?.label ?? 'Biblioteca'
 })
 
-onMounted(refreshAll)
+onMounted(() => {
+  applyThemePreference()
+  refreshAll()
+})
+
+function toggleThemePreference() {
+  themePreference.value = themePreference.value === 'dark' ? 'light' : 'dark'
+  localStorage.setItem('learningframe.theme', themePreference.value)
+  applyThemePreference()
+}
+
+function applyThemePreference() {
+  document.documentElement.dataset.theme = themePreference.value
+  document.documentElement.style.colorScheme = themePreference.value
+}
 
 async function refreshAll() {
   await withFeedback(async () => {
@@ -434,6 +453,13 @@ function loadStoredUser() {
     return null
   }
 }
+
+function loadStoredThemePreference(): ThemePreference {
+  const storedTheme = localStorage.getItem('learningframe.theme')
+  return storedTheme === 'light' || storedTheme === 'dark'
+    ? storedTheme
+    : 'light'
+}
 </script>
 
 <template>
@@ -471,19 +497,32 @@ function loadStoredUser() {
           <h1>{{ currentTitle }}</h1>
         </div>
 
-        <section class="auth-panel" aria-label="Autenticacao">
-          <div v-if="user" class="user-chip">
-            <User :size="16" aria-hidden="true" />
-            <span>{{ user.displayName }}</span>
-            <button class="icon-button" type="button" title="Sair" @click="logout">
-              <LogOut :size="16" aria-hidden="true" />
-            </button>
-          </div>
-
-          <button v-else class="primary compact" type="button" @click="openAuth('login')">
-            <User :size="16" aria-hidden="true" />
-            Entrar
+        <section class="topbar-actions" aria-label="Acoes globais">
+          <button
+            class="icon-button theme-toggle"
+            type="button"
+            :title="nextThemeLabel"
+            :aria-label="nextThemeLabel"
+            @click="toggleThemePreference"
+          >
+            <Sun v-if="themePreference === 'light'" :size="16" aria-hidden="true" />
+            <Moon v-else :size="16" aria-hidden="true" />
           </button>
+
+          <section class="auth-panel" aria-label="Autenticacao">
+            <div v-if="user" class="user-chip">
+              <User :size="16" aria-hidden="true" />
+              <span>{{ user.displayName }}</span>
+              <button class="icon-button" type="button" title="Sair" @click="logout">
+                <LogOut :size="16" aria-hidden="true" />
+              </button>
+            </div>
+
+            <button v-else class="primary compact" type="button" @click="openAuth('login')">
+              <User :size="16" aria-hidden="true" />
+              Entrar
+            </button>
+          </section>
         </section>
       </header>
 
