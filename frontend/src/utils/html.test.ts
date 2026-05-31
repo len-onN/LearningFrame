@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { convertAnkiSoundReferences, mediaAssetUrl, shouldRewriteMediaSource } from './html'
+import { convertAnkiSoundReferences, extractRelativeMediaSources, mediaAssetUrl, safePreviewHtml, shouldRewriteMediaSource } from './html'
 
 describe('html seguro de estudo', () => {
   it('converte referencias de som do Anki para audio HTML', () => {
@@ -26,5 +26,36 @@ describe('html seguro de estudo', () => {
     expect(mediaAssetUrl(42, 'Screen Shot 2016-04-19.png')).toBe(
       'http://127.0.0.1:8081/api/decks/42/media/Screen%20Shot%202016-04-19.png'
     )
+  })
+
+  it('substitui imagens relativas por marcador na previa APKG', () => {
+    const html = safePreviewHtml('<p>Observe:</p><img src="Screen Shot 2016.png" onerror="alert(1)">')
+
+    expect(html).toContain('Imagem do APKG: Screen Shot 2016.png')
+    expect(html).not.toContain('<img')
+    expect(html).not.toContain('onerror')
+  })
+
+  it('substitui audio relativo por marcador na previa APKG', () => {
+    const html = safePreviewHtml('Ouça [sound:audio de teste.mp3]')
+
+    expect(html).toContain('Audio do APKG: audio de teste.mp3')
+    expect(html).not.toContain('<audio')
+  })
+
+  it('renderiza midia da previa quando existe URL temporaria', () => {
+    const html = safePreviewHtml('<img src="musculo.png">', {
+      resolveMediaUrl: () => 'blob:http://local/musculo'
+    })
+
+    expect(html).toContain('src="blob:http://local/musculo"')
+    expect(html).not.toContain('Imagem do APKG')
+  })
+
+  it('extrai fontes relativas de imagens e sons do APKG', () => {
+    expect(extractRelativeMediaSources('<img src="a.png"> [sound:b.mp3] <img src="https://exemplo.com/c.png">')).toEqual([
+      'a.png',
+      'b.mp3'
+    ])
   })
 })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   BarChart3,
   BookOpen,
@@ -25,7 +25,6 @@ import type {
   ApkgPreviewResponse,
   DeckSummary,
   DeckVisibility,
-  LocalCard,
   LocalDeck,
   PageResponse,
   ReviewRating,
@@ -35,22 +34,21 @@ import type {
   UserResponse
 } from './types/api'
 import {
-  apkgPreviewToLocal,
   deckDetailToLocal,
-  loadLocalDecks,
   loadLocalStates,
   localDeckToStudyCards,
-  saveLocalDecks,
   saveLocalStates
 } from './utils/localStudy'
 import { nextReview } from './utils/srs'
-import { safeStudyHtml } from './utils/html'
+import { extractRelativeMediaSources, safePreviewHtml, safeStudyHtml } from './utils/html'
+import { createApkgMediaIndex, normalizeMediaName, type ApkgMediaIndex } from './utils/apkgMedia'
 import { formatDueIn, nextDueLabel } from './utils/dueTime'
 import { validateAuthForm, type AuthErrors, type AuthField, type AuthMode } from './utils/authValidation'
 
 type Tab = 'library' | 'study' | 'import' | 'create' | 'progress' | 'auth'
-type LibrarySection = 'public' | 'mine' | 'local'
+type LibrarySection = 'public' | 'mine'
 type ThemePreference = 'light' | 'dark'
+type PreviewFace = 'front' | 'back'
 const DECK_PAGE_SIZE = 8
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -67,11 +65,7 @@ const publicDeckPage = ref<PageResponse<DeckSummary> | null>(null)
 const myDeckPage = ref<PageResponse<DeckSummary> | null>(null)
 const publicDeckQuery = ref('')
 const myDeckQuery = ref('')
-const localDecks = ref(loadLocalDecks())
-const selectedLocalDeckId = ref(localDecks.value[0]?.id ?? '')
 const publicStudyDeckCache = ref<LocalDeck[]>([])
-const pendingLocalImport = ref<{ id: string; fileName: string; title: string } | null>(null)
-const apkgFilesByLocalDeckId = ref<Record<string, File>>({})
 const localStates = ref(loadLocalStates())
 const stats = ref<StatsSummary | null>(null)
 const notice = ref('')
@@ -108,6 +102,15 @@ const importVisibility = ref<DeckVisibility>('PRIVATE')
 const importTitle = ref('')
 const importPreview = ref<ApkgPreviewResponse | null>(null)
 const importResult = ref<ApkgImportResponse | null>(null)
+const returnToImportAfterAuth = ref(false)
+const previewCardIndex = ref(0)
+const previewFace = ref<PreviewFace>('front')
+const previewPickerOpen = ref(false)
+const previewCardSearch = ref('')
+const previewMediaIndex = ref<ApkgMediaIndex | null>(null)
+const previewMediaUrls = ref<Record<string, string>>({})
+const highlightedDeckId = ref<number | null>(null)
+const importSaving = ref(false)
 
 const studyQueue = ref<StudyCard[]>([])
 const sessionTitle = ref('Selecione um baralho ou inicie a prática intercalada.')
@@ -127,22 +130,28 @@ const publicDecksCountLabel = computed(() => deckPageCountLabel(publicDecks.valu
 const myDecksCountLabel = computed(() => deckPageCountLabel(myDecks.value.length, myDeckPage.value))
 const filteredPublicDecks = computed(() => publicDecks.value)
 const filteredMyDecks = computed(() => myDecks.value)
-const filteredLocalDecks = computed(() => localDecks.value.filter((deck) => {
-  const cardText = deck.cards.flatMap((card) => [htmlToText(card.frontHtml), htmlToText(card.backHtml)])
-  return matchesSearch(deck.title, deck.description, ...cardText)
-}))
-const selectedLocalDeck = computed(() => {
-  const selected = filteredLocalDecks.value.find((deck) => deck.id === selectedLocalDeckId.value)
-  return selected ?? filteredLocalDecks.value[0] ?? null
+const loadingMessage = computed(() => importSaving.value ? 'Preparando seu baralho com mídia...' : 'Carregando...')
+const currentPreviewCard = computed(() => importPreview.value?.cards[previewCardIndex.value] ?? null)
+const currentPreviewHtml = computed(() => {
+  const card = currentPreviewCard.value
+  if (!card) {
+    return ''
+  }
+  const html = previewFace.value === 'front' ? card.frontHtml : card.backHtml
+  return safePreviewHtml(html, {
+    resolveMediaUrl: (fileName) => previewMediaUrls.value[normalizeMediaName(fileName)] ?? null
+  })
 })
-const activeLibraryResultCount = computed(() => {
-  if (librarySection.value === 'public') {
-    return filteredPublicDecks.value.length
-  }
-  if (librarySection.value === 'mine') {
-    return filteredMyDecks.value.length
-  }
-  return filteredLocalDecks.value.length
+const previewCardOptions = computed(() => {
+  const query = normalizeSearch(previewCardSearch.value)
+  const cards = importPreview.value?.cards ?? []
+  return cards
+    .map((card, index) => ({
+      index,
+      label: previewCardOptionLabel(card, index),
+      searchText: previewCardSearchText(card, index)
+    }))
+    .filter((card) => !query || card.searchText.includes(query))
 })
 const activeLibraryCountLabel = computed(() => {
   const searching = normalizeSearch(librarySearch.value).length > 0
@@ -150,20 +159,12 @@ const activeLibraryCountLabel = computed(() => {
     if (librarySection.value === 'public') {
       return publicDecksCountLabel.value
     }
-    if (librarySection.value === 'mine') {
-      return user.value ? myDecksCountLabel.value : ''
-    }
-    const count = activeLibraryResultCount.value
-    return `${count} ${count === 1 ? 'resultado' : 'resultados'}`
+    return user.value ? myDecksCountLabel.value : ''
   }
   if (librarySection.value === 'public') {
     return publicDecksCountLabel.value
   }
-  if (librarySection.value === 'mine') {
-    return user.value ? myDecksCountLabel.value : ''
-  }
-  const count = localDecks.value.length
-  return `${count} ${count === 1 ? 'importacao local' : 'importacoes locais'}`
+  return user.value ? myDecksCountLabel.value : ''
 })
 const navTabs = [
   { id: 'library' as const, label: 'Biblioteca', icon: BookOpen },
@@ -207,6 +208,11 @@ watch(librarySection, (section) => {
   if (section === 'mine' && user.value && (!myDeckPage.value || myDeckQuery.value !== query)) {
     void withFeedback(async () => loadMyDecks(true), false)
   }
+})
+
+onBeforeUnmount(() => {
+  revokePreviewMediaUrls()
+  window.clearTimeout(highlightDeckTimer)
 })
 
 function toggleThemePreference() {
@@ -285,7 +291,12 @@ async function submitAuth() {
     authForm.value.password = ''
     resetAuthValidation()
     await refreshAll()
-    tab.value = 'library'
+    if (returnToImportAfterAuth.value && importPreview.value) {
+      tab.value = 'import'
+      returnToImportAfterAuth.value = false
+    } else {
+      tab.value = 'library'
+    }
   })
 }
 
@@ -423,65 +434,221 @@ async function reviewCurrent(rating: ReviewRating) {
 async function handleApkgChange(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0] ?? null
+  resetImportPreviewState()
   selectedFile.value = file
-  importPreview.value = null
-  importResult.value = null
 
   if (!file) {
     return
   }
 
-  pendingLocalImport.value = {
-    id: `pending:${crypto.randomUUID()}`,
-    fileName: file.name,
-    title: file.name.replace(/\.apkg$/i, '').replaceAll('_', ' ').trim() || 'Baralho importado'
-  }
-  librarySection.value = 'local'
-
   await withFeedback(async () => {
     try {
-      const preview = await api.previewApkg(file)
+      const [preview, mediaIndex] = await Promise.all([
+        api.previewApkg(file),
+        createApkgMediaIndex(file).catch(() => null)
+      ])
+      previewMediaIndex.value = mediaIndex
+      const requestId = ++previewMediaRequest
+      const urls = preview.cards[0] ? await readPreviewMediaUrls(preview.cards[0], 'front') : {}
+      if (requestId !== previewMediaRequest) {
+        revokePreviewMediaUrls(urls)
+        return
+      }
+      previewMediaUrls.value = urls
+      previewCardIndex.value = 0
+      previewFace.value = 'front'
       importPreview.value = preview
       importTitle.value = preview.title
-      const localDeck = apkgPreviewToLocal(preview, file.name)
-      const replacedDeckIds = localDecks.value
-        .filter((deck) => deck.title === preview.title)
-        .map((deck) => deck.id)
-      localDecks.value = [localDeck, ...localDecks.value.filter((deck) => deck.title !== preview.title)]
-      const updatedFiles = { ...apkgFilesByLocalDeckId.value, [localDeck.id]: file }
-      for (const deckId of replacedDeckIds) {
-        delete updatedFiles[deckId]
-      }
-      apkgFilesByLocalDeckId.value = updatedFiles
-      selectedLocalDeckId.value = localDeck.id
-      saveLocalDecks(localDecks.value)
       notice.value = preview.mediaFound > 0
-        ? 'APKG importado como rascunho. Este baralho contem midia; salve na sua conta para estudar com imagens.'
-        : 'APKG importado como rascunho local.'
+        ? 'APKG analisado. A midia sera exibida na previa enquanto este arquivo estiver selecionado.'
+        : 'APKG analisado. Revise a previa e salve em Meus baralhos.'
     } finally {
-      pendingLocalImport.value = null
       input.value = ''
     }
   })
 }
 
 async function persistImport() {
-  if (!selectedFile.value || !user.value) {
+  if (!selectedFile.value) {
+    error.value = 'Selecione o arquivo .apkg novamente.'
     return
   }
 
-  await withFeedback(async () => {
-    importResult.value = await api.importApkg(selectedFile.value as File, importTitle.value, importVisibility.value)
-    const draftId = localDecks.value.find((deck) => deck.title === importPreview.value?.title)?.id
-    if (draftId) {
-      removeLocalDeck(draftId)
-    }
-    notice.value = importResult.value.mediaImported > 0
-      ? `Baralho APKG salvo com ${importResult.value.cardsImported} cartas e ${importResult.value.mediaImported} midias.`
-      : 'Baralho APKG salvo em Meus baralhos.'
-    await refreshAll()
-    librarySection.value = 'mine'
+  if (!user.value) {
+    returnToImportAfterAuth.value = true
+    openAuth('login')
+    notice.value = 'Entre para salvar o APKG com midia em Meus baralhos.'
+    return
+  }
+
+  importSaving.value = true
+  try {
+    await withFeedback(async () => {
+      const result = await api.importApkg(selectedFile.value as File, importTitle.value, importVisibility.value)
+      importResult.value = result
+      notice.value = result.mediaImported > 0
+        ? `Baralho APKG salvo com ${result.cardsImported} cartas e ${result.mediaImported} midias.`
+        : 'Baralho APKG salvo em Meus baralhos.'
+      resetImportPreviewState()
+      selectedFile.value = null
+      await loadMyDecks(true)
+      if (user.value) {
+        stats.value = await api.stats()
+      }
+      librarySection.value = 'mine'
+      tab.value = 'library'
+      await highlightDeck(result.deckId)
+    })
+  } finally {
+    importSaving.value = false
+  }
+}
+
+function resetImportPreviewState() {
+  previewMediaRequest++
+  revokePreviewMediaUrls()
+  importPreview.value = null
+  importResult.value = null
+  importTitle.value = ''
+  previewCardIndex.value = 0
+  previewFace.value = 'front'
+  previewPickerOpen.value = false
+  previewCardSearch.value = ''
+  previewMediaIndex.value = null
+}
+
+let highlightDeckTimer: number | undefined
+
+async function highlightDeck(deckId: number) {
+  highlightedDeckId.value = null
+  window.clearTimeout(highlightDeckTimer)
+  await nextTick()
+  document.querySelector(`[data-deck-id="${deckId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  window.requestAnimationFrame(() => {
+    highlightedDeckId.value = deckId
+    highlightDeckTimer = window.setTimeout(() => {
+      if (highlightedDeckId.value === deckId) {
+        highlightedDeckId.value = null
+      }
+    }, 10000)
   })
+}
+
+async function selectPreviewCard(index: number) {
+  await showPreviewCard(index, 'front')
+  previewPickerOpen.value = false
+}
+
+async function movePreviewCard(direction: -1 | 1) {
+  const total = importPreview.value?.cards.length ?? 0
+  if (!total) {
+    return
+  }
+  const nextIndex = Math.min(Math.max(previewCardIndex.value + direction, 0), total - 1)
+  await showPreviewCard(nextIndex, 'front')
+}
+
+async function togglePreviewFace() {
+  await showPreviewCard(previewCardIndex.value, previewFace.value === 'front' ? 'back' : 'front')
+}
+
+function previewCardTitle(index: number) {
+  const total = importPreview.value?.cards.length ?? 0
+  return total ? `Carta ${index + 1} de ${total}` : `Carta ${index + 1}`
+}
+
+function previewCardOptionLabel(card: { frontHtml: string; backHtml: string }, index: number) {
+  const text = htmlSummary(card.frontHtml) || htmlSummary(card.backHtml)
+  if (!text) {
+    return `Carta ${index + 1}`
+  }
+  return `${index + 1} - ${text}`
+}
+
+function previewCardSearchText(card: { frontHtml: string; backHtml: string; tags: string[] }, index: number) {
+  const mediaSources = [
+    ...extractRelativeMediaSources(card.frontHtml),
+    ...extractRelativeMediaSources(card.backHtml)
+  ]
+  return normalizeSearch([
+    index + 1,
+    `carta ${index + 1}`,
+    card.frontHtml,
+    card.backHtml,
+    card.tags.join(' '),
+    mediaSources.join(' ')
+  ].join(' '))
+}
+
+function htmlSummary(html: string) {
+  const text = html
+    .replace(/\[sound:[^\]]+]/gi, 'audio')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return text.length > 64 ? `${text.slice(0, 61)}...` : text
+}
+
+let previewMediaRequest = 0
+
+async function showPreviewCard(index: number, face: PreviewFace) {
+  const card = importPreview.value?.cards[index]
+  if (!card) {
+    return
+  }
+
+  const requestId = ++previewMediaRequest
+  const urls = await readPreviewMediaUrls(card, face)
+  if (requestId !== previewMediaRequest) {
+    revokePreviewMediaUrls(urls)
+    return
+  }
+
+  const previousUrls = previewMediaUrls.value
+  previewMediaUrls.value = urls
+  previewCardIndex.value = index
+  previewFace.value = face
+  revokePreviewMediaUrls(previousUrls)
+}
+
+async function readPreviewMediaUrls(card: { frontHtml: string; backHtml: string }, face: PreviewFace) {
+  const mediaIndex = previewMediaIndex.value
+  if (!card || !mediaIndex) {
+    return {}
+  }
+
+  const html = face === 'front' ? card.frontHtml : card.backHtml
+  const references = extractRelativeMediaSources(html)
+  if (references.length === 0) {
+    return {}
+  }
+
+  const urls: Record<string, string> = {}
+  for (const reference of references) {
+    const normalized = normalizeMediaName(reference)
+    const blob = await mediaIndex.readBlob(reference).catch(() => null)
+    if (blob) {
+      const url = URL.createObjectURL(blob)
+      urls[normalized] = url
+      if (blob.type.startsWith('image/')) {
+        await decodeImage(url).catch(() => undefined)
+      }
+    }
+  }
+  return urls
+}
+
+function decodeImage(url: string) {
+  const image = new Image()
+  image.src = url
+  return image.decode()
+}
+
+function revokePreviewMediaUrls(urls = previewMediaUrls.value) {
+  Object.values(urls).forEach((url) => URL.revokeObjectURL(url))
+  if (urls === previewMediaUrls.value) {
+    previewMediaUrls.value = {}
+  }
 }
 
 async function createDeck() {
@@ -508,123 +675,6 @@ async function createCard() {
     notice.value = 'Card adicionado.'
     await refreshAll()
   })
-}
-
-function removeLocalDeck(deckId: string) {
-  localDecks.value = localDecks.value.filter((deck) => deck.id !== deckId)
-  const updatedFiles = { ...apkgFilesByLocalDeckId.value }
-  delete updatedFiles[deckId]
-  apkgFilesByLocalDeckId.value = updatedFiles
-  if (selectedLocalDeckId.value === deckId) {
-    selectedLocalDeckId.value = localDecks.value[0]?.id ?? ''
-  }
-  saveLocalDecks(localDecks.value)
-}
-
-function selectLocalDeck(deckId: string) {
-  selectedLocalDeckId.value = deckId
-}
-
-function saveLocalDrafts() {
-  saveLocalDecks(localDecks.value)
-}
-
-function updateLocalDeckTitle(deck: LocalDeck, value: string) {
-  deck.title = value
-  for (const card of deck.cards) {
-    card.deckTitle = value
-  }
-  saveLocalDrafts()
-}
-
-function updateLocalDeckTitleFromEvent(deck: LocalDeck, event: Event) {
-  updateLocalDeckTitle(deck, (event.target as HTMLInputElement).value)
-}
-
-function updateLocalDeckDescription(deck: LocalDeck, value: string) {
-  deck.description = value
-  saveLocalDrafts()
-}
-
-function updateLocalDeckDescriptionFromEvent(deck: LocalDeck, event: Event) {
-  updateLocalDeckDescription(deck, (event.target as HTMLTextAreaElement).value)
-}
-
-function updateLocalCardTags(card: LocalCard, value: string) {
-  card.tags = value.split(',').map((tag) => tag.trim()).filter(Boolean)
-  saveLocalDrafts()
-}
-
-function updateLocalCardTagsFromEvent(card: LocalCard, event: Event) {
-  updateLocalCardTags(card, (event.target as HTMLInputElement).value)
-}
-
-async function saveLocalDeckForUser(deck: LocalDeck) {
-  if (!user.value) {
-    openAuth('login')
-    notice.value = deck.requiresBackendImport
-      ? 'Entre para salvar este APKG com midia em Meus baralhos.'
-      : 'Entre para salvar a importacao em Meus baralhos.'
-    return
-  }
-
-  if (!deck.title.trim()) {
-    error.value = 'Informe um titulo para salvar a importacao.'
-    return
-  }
-
-  if (deck.requiresBackendImport) {
-    const originalFile = apkgFilesByLocalDeckId.value[deck.id]
-    if (!originalFile) {
-      error.value = 'Importe o arquivo .apkg novamente para salvar este baralho com midia.'
-      return
-    }
-
-    await withFeedback(async () => {
-      const result = await api.importApkg(originalFile, deck.title.trim(), 'PRIVATE')
-      removeLocalDeck(deck.id)
-      await loadMyDecks(true)
-      librarySection.value = 'mine'
-      notice.value = `Importacao salva com ${result.cardsImported} cartas e ${result.mediaImported} midias.`
-    })
-    return
-  }
-
-  const cardsToSave = deck.cards.filter((card) => card.frontHtml.trim() && card.backHtml.trim())
-  if (cardsToSave.length === 0) {
-    error.value = 'A importacao precisa ter pelo menos uma carta com frente e verso.'
-    return
-  }
-
-  await withFeedback(async () => {
-    const created = await api.createDeck(deck.title.trim(), deck.description.trim(), 'PRIVATE')
-    for (const card of cardsToSave) {
-      await api.createCard(created.id, card.frontHtml, card.backHtml, card.tags)
-    }
-    removeLocalDeck(deck.id)
-    await loadMyDecks(true)
-    librarySection.value = 'mine'
-    notice.value = 'Importacao salva em Meus baralhos.'
-  })
-}
-
-function localDeckStatusLabel(deck: LocalDeck) {
-  const labels = [cardCountLabel(deck.cards.length)]
-  if (deck.mediaFound && deck.mediaFound > 0) {
-    labels.push(`${deck.mediaFound} midias`)
-  }
-  labels.push(deck.requiresBackendImport ? 'estudo completo apos salvar' : 'rascunho local')
-  return labels.join(' · ')
-}
-
-function localDeckMediaNotice(deck: LocalDeck) {
-  if (!deck.requiresBackendImport) {
-    return ''
-  }
-  if (apkgFilesByLocalDeckId.value[deck.id]) {
-    return 'Este rascunho referencia midia do APKG. Para estudar com imagens, salve o baralho na sua conta.'
-  }
-  return 'Este rascunho referencia midia do APKG. Importe o arquivo novamente para salvar e estudar com imagens.'
 }
 
 function mergeDeckPages(current: DeckSummary[], incoming: DeckSummary[]) {
@@ -656,20 +706,6 @@ function normalizeSearch(value: string) {
 
 function currentLibraryQuery() {
   return librarySearch.value.trim()
-}
-
-function matchesSearch(...values: Array<string | null | undefined>) {
-  const query = normalizeSearch(librarySearch.value)
-  if (!query) {
-    return true
-  }
-  return values.some((value) => normalizeSearch(value ?? '').includes(query))
-}
-
-function htmlToText(html: string) {
-  const template = document.createElement('template')
-  template.innerHTML = html
-  return template.content.textContent ?? ''
 }
 
 function deckDueLabel(deck: DeckSummary) {
@@ -833,7 +869,10 @@ function loadStoredThemePreference(): ThemePreference {
         </div>
       </header>
 
-      <div v-if="loading" class="status">Carregando...</div>
+      <div v-if="loading" class="status loading-status">
+        <RotateCcw :size="16" aria-hidden="true" />
+        <span>{{ loadingMessage }}</span>
+      </div>
       <div v-if="notice" class="status success dismissible">
         <span>{{ notice }}</span>
         <button class="status-close" type="button" title="Fechar notificacao" aria-label="Fechar notificacao" @click="dismissNotice">
@@ -954,16 +993,6 @@ function loadStoredThemePreference(): ThemePreference {
             >
               Meus baralhos
             </button>
-            <button
-              class="library-tab"
-              :class="{ active: librarySection === 'local' }"
-              type="button"
-              role="tab"
-              :aria-selected="librarySection === 'local'"
-              @click="librarySection = 'local'"
-            >
-              Importações locais
-            </button>
           </div>
 
           <div class="library-toolbar">
@@ -1010,7 +1039,13 @@ function loadStoredThemePreference(): ThemePreference {
 
             <div v-if="librarySection === 'mine'" class="panel wide">
               <div v-if="user && filteredMyDecks.length" class="deck-list">
-                <article v-for="deck in filteredMyDecks" :key="deck.id" class="deck-card">
+                <article
+                  v-for="deck in filteredMyDecks"
+                  :key="deck.id"
+                  :data-deck-id="deck.id"
+                  class="deck-card"
+                  :class="{ highlighted: highlightedDeckId === deck.id }"
+                >
                   <div>
                     <h3>{{ deck.title }}</h3>
                     <p>{{ deck.description }}</p>
@@ -1041,109 +1076,6 @@ function loadStoredThemePreference(): ThemePreference {
               >
                 Carregar mais baralhos...
               </a>
-            </div>
-
-            <div v-if="librarySection === 'local'" class="panel wide">
-              <div class="section-title">
-                <div>
-                  <p class="eyebrow">Rascunhos</p>
-                  <h2>Importações locais</h2>
-                </div>
-                <label class="ghost compact file-action">
-                  <Upload :size="16" aria-hidden="true" />
-                  Importar APKG
-                  <input type="file" accept=".apkg" @change="handleApkgChange" />
-                </label>
-              </div>
-
-              <div v-if="pendingLocalImport || filteredLocalDecks.length" class="deck-list">
-                <article v-if="pendingLocalImport" :key="pendingLocalImport.id" class="deck-card pending-card">
-                  <div>
-                    <h3>{{ pendingLocalImport.title }}</h3>
-                    <p>{{ pendingLocalImport.fileName }}</p>
-                    <span>Lendo arquivo .apkg e montando rascunho local...</span>
-                  </div>
-                </article>
-                <article v-for="deck in filteredLocalDecks" :key="deck.id" class="deck-card">
-                  <div>
-                    <h3>{{ deck.title }}</h3>
-                    <p>{{ deck.description }}</p>
-                    <span>{{ localDeckStatusLabel(deck) }}</span>
-                  </div>
-                  <div class="row-actions">
-                    <button class="primary compact" type="button" @click="selectLocalDeck(deck.id)">
-                      <Eye :size="16" aria-hidden="true" />
-                      Ver cartas
-                    </button>
-                    <button class="ghost compact" type="button" @click="saveLocalDeckForUser(deck)">
-                      <Check :size="16" aria-hidden="true" />
-                      Salvar para mim
-                    </button>
-                    <button class="ghost compact" type="button" @click="removeLocalDeck(deck.id)">
-                      Remover
-                    </button>
-                  </div>
-                </article>
-              </div>
-              <div v-else class="empty-state compact-empty">
-                <Upload :size="34" aria-hidden="true" />
-                <h2>Nenhuma importação local</h2>
-                <p>Importe um `.apkg` para revisar e ajustar as cartas antes de salvar em Meus baralhos.</p>
-                <label class="primary compact file-action">
-                  <Upload :size="16" aria-hidden="true" />
-                  Importar APKG
-                  <input type="file" accept=".apkg" @change="handleApkgChange" />
-                </label>
-              </div>
-
-              <div v-if="selectedLocalDeck" class="local-draft-editor">
-                <div class="section-title">
-                  <div>
-                    <p class="eyebrow">Rascunho local</p>
-                    <h2>{{ selectedLocalDeck.title }}</h2>
-                  </div>
-                  <button class="primary compact" type="button" @click="saveLocalDeckForUser(selectedLocalDeck)">
-                    <Check :size="16" aria-hidden="true" />
-                    Salvar para mim
-                  </button>
-                </div>
-
-                <p v-if="localDeckMediaNotice(selectedLocalDeck)" class="inline-alert">
-                  {{ localDeckMediaNotice(selectedLocalDeck) }}
-                </p>
-
-                <div class="local-draft-fields">
-                  <input
-                    :value="selectedLocalDeck.title"
-                    type="text"
-                    placeholder="Titulo"
-                    @input="updateLocalDeckTitleFromEvent(selectedLocalDeck, $event)"
-                  />
-                  <textarea
-                    :value="selectedLocalDeck.description"
-                    rows="3"
-                    placeholder="Descricao"
-                    @input="updateLocalDeckDescriptionFromEvent(selectedLocalDeck, $event)"
-                  ></textarea>
-                </div>
-
-                <div class="local-card-list">
-                  <article v-for="(card, index) in selectedLocalDeck.cards" :key="card.clientId" class="local-card-editor">
-                    <div class="card-meta">
-                      <span>Carta {{ index + 1 }}</span>
-                      <span>{{ card.tags.length ? card.tags.join(', ') : 'sem tags' }}</span>
-                    </div>
-                    <textarea v-model="card.frontHtml" rows="3" placeholder="Frente" @change="saveLocalDrafts"></textarea>
-                    <textarea v-model="card.backHtml" rows="3" placeholder="Verso" @change="saveLocalDrafts"></textarea>
-                    <input
-                      :value="card.tags.join(', ')"
-                      type="text"
-                      placeholder="tags separadas por virgula"
-                      @input="updateLocalCardTagsFromEvent(card, $event)"
-                    />
-                  </article>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -1191,39 +1123,122 @@ function loadStoredThemePreference(): ThemePreference {
         </div>
       </section>
 
-      <section v-if="tab === 'import'" class="content-grid">
-        <div class="panel wide">
-          <div class="section-title">
+      <section v-if="tab === 'import'" class="import-page">
+        <div class="import-header">
+          <div>
+            <p class="eyebrow">Pacote Anki</p>
             <h2>Importar APKG</h2>
           </div>
-          <label class="file-drop">
-            <Upload :size="22" aria-hidden="true" />
-            <span>{{ selectedFile?.name ?? 'Selecionar arquivo .apkg' }}</span>
-            <input type="file" accept=".apkg" @change="handleApkgChange" />
-          </label>
-
-          <div v-if="importPreview" class="import-summary">
-            <strong>{{ importPreview.title }}</strong>
-            <span>{{ importPreview.cardsReady }} cartas prontas · {{ importPreview.cardsSkipped }} ignoradas · {{ importPreview.mediaFound }} midias</span>
-            <p v-for="warning in importPreview.warnings" :key="warning">{{ warning }}</p>
-          </div>
+          <span v-if="selectedFile" class="muted">{{ selectedFile.name }}</span>
         </div>
 
-        <form v-if="user && importPreview" class="panel" @submit.prevent="persistImport">
-          <div class="section-title">
-            <h2>Salvar para mim</h2>
+        <div class="import-workspace">
+          <div class="panel wide">
+            <label class="file-drop">
+              <Upload :size="22" aria-hidden="true" />
+              <span>{{ selectedFile?.name ?? 'Selecionar arquivo .apkg' }}</span>
+              <input type="file" accept=".apkg" @change="handleApkgChange" />
+            </label>
+
+            <div v-if="loading && selectedFile && !importPreview" class="pending-card import-loading">
+              Lendo pacote e preparando previa...
+            </div>
+
+            <div v-if="importPreview" class="import-summary">
+              <div>
+                <strong>{{ importPreview.title }}</strong>
+                <span>{{ importPreview.notesFound }} notas encontradas · {{ importPreview.cardsReady }} cartas prontas · {{ importPreview.cardsSkipped }} ignoradas · {{ importPreview.mediaFound }} midias</span>
+              </div>
+              <p v-if="importPreview.mediaFound > 0" class="inline-alert">
+                Este pacote contem midia. A previa mostra marcadores; o estudo com imagens fica disponivel depois de salvar em Meus baralhos.
+              </p>
+              <p v-for="warning in importPreview.warnings" :key="warning" class="muted">{{ warning }}</p>
+            </div>
+
+            <div v-if="importPreview && currentPreviewCard" class="preview-section">
+              <div class="preview-toolbar">
+                <div class="preview-picker">
+                  <label class="field-label" for="preview-card-search">Carta</label>
+                  <button class="preview-picker-trigger" type="button" @click="previewPickerOpen = !previewPickerOpen">
+                    <span>{{ previewCardTitle(previewCardIndex) }}</span>
+                    <span>{{ previewFace === 'front' ? 'Frente' : 'Verso' }}</span>
+                  </button>
+                  <div v-if="previewPickerOpen" class="preview-picker-menu">
+                    <label class="library-search preview-search">
+                      <Search :size="16" aria-hidden="true" />
+                      <input
+                        id="preview-card-search"
+                        v-model="previewCardSearch"
+                        type="search"
+                        placeholder="Buscar carta"
+                        @keydown.esc="previewPickerOpen = false"
+                      />
+                    </label>
+                    <div class="preview-picker-list">
+                      <button
+                        v-for="option in previewCardOptions"
+                        :key="option.index"
+                        class="preview-picker-option"
+                        :class="{ active: option.index === previewCardIndex }"
+                        type="button"
+                        @click="selectPreviewCard(option.index)"
+                      >
+                        {{ option.label }}
+                      </button>
+                      <p v-if="previewCardOptions.length === 0" class="muted empty-copy">Nenhuma carta encontrada.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="preview-actions">
+                  <button class="ghost compact" type="button" :disabled="previewCardIndex === 0" @click="movePreviewCard(-1)">
+                    <ChevronsLeft :size="16" aria-hidden="true" />
+                    Anterior
+                  </button>
+                  <button class="ghost compact" type="button" @click="togglePreviewFace">
+                    <RotateCcw :size="16" aria-hidden="true" />
+                    {{ previewFace === 'front' ? 'Ver verso' : 'Ver frente' }}
+                  </button>
+                  <button
+                    class="ghost compact"
+                    type="button"
+                    :disabled="previewCardIndex >= importPreview.cards.length - 1"
+                    @click="movePreviewCard(1)"
+                  >
+                    Proxima
+                    <ChevronsRight :size="16" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+
+              <article class="preview-study-card" role="button" tabindex="0" @click="togglePreviewFace" @keydown.enter.prevent="togglePreviewFace" @keydown.space.prevent="togglePreviewFace">
+                <div class="card-meta">
+                  <span>{{ previewFace === 'front' ? 'Frente' : 'Verso' }}</span>
+                  <span>{{ currentPreviewCard.tags.length ? currentPreviewCard.tags.join(', ') : 'sem tags' }}</span>
+                </div>
+                <div class="preview-study-face" v-html="currentPreviewHtml"></div>
+              </article>
+            </div>
           </div>
-          <input v-model="importTitle" type="text" placeholder="Titulo do baralho" />
-          <select v-model="importVisibility">
-            <option value="PRIVATE">Privado</option>
-            <option value="PUBLIC">Publico</option>
-          </select>
-          <button class="primary full" type="submit">
-            <Check :size="16" aria-hidden="true" />
-            Salvar APKG
-          </button>
-          <p v-if="importResult" class="muted">{{ importResult.cardsImported }} cartas salvas em {{ importResult.title }}.</p>
-        </form>
+
+          <form v-if="importPreview" class="panel import-save-panel" @submit.prevent="persistImport">
+            <div class="section-title">
+              <h2>{{ user ? 'Salvar em Meus baralhos' : 'Entrar para salvar' }}</h2>
+            </div>
+            <input v-model="importTitle" type="text" placeholder="Titulo do baralho" />
+            <select v-model="importVisibility" :disabled="!user">
+              <option value="PRIVATE">Privado</option>
+              <option value="PUBLIC">Publico</option>
+            </select>
+            <button class="primary full" type="submit">
+              <Check :size="16" aria-hidden="true" />
+              {{ user ? 'Salvar APKG' : 'Entrar para salvar' }}
+            </button>
+            <p class="muted">
+              {{ user ? 'O arquivo original sera enviado para preservar cartas e midias.' : 'A previa continua nesta tela enquanto voce entra na conta.' }}
+            </p>
+          </form>
+        </div>
       </section>
 
       <section v-if="tab === 'create'" class="content-grid">

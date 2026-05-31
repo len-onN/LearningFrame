@@ -120,11 +120,7 @@ export interface LocalDeck {
   id: string
   title: string
   description: string
-  source: 'PUBLIC' | 'APKG'
-  sourceFileName?: string
-  mediaFound?: number
-  requiresBackendImport?: boolean
-  importedAt?: string
+  source: 'PUBLIC'
   cards: LocalCard[]
 }
 
