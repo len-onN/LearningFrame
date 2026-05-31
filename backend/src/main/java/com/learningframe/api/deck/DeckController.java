@@ -34,18 +34,20 @@ public class DeckController {
     DeckPage publicDecks(
             @AuthenticationPrincipal AuthenticatedUser user,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "8") int size
+            @RequestParam(defaultValue = "8") int size,
+            @RequestParam(required = false) String q
     ) {
-        return deckService.publicDecks(user, page, size);
+        return deckService.publicDecks(user, page, size, q);
     }
 
     @GetMapping("/mine")
     DeckPage myDecks(
             @AuthenticationPrincipal AuthenticatedUser user,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "8") int size
+            @RequestParam(defaultValue = "8") int size,
+            @RequestParam(required = false) String q
     ) {
-        return deckService.myDecks(user, page, size);
+        return deckService.myDecks(user, page, size, q);
     }
 
     @GetMapping("/{deckId}")
