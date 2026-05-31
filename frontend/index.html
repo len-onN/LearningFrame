@@ -3,6 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (() => {
+        try {
+          const storedTheme = localStorage.getItem('learningframe.theme')
+          const themePreference = storedTheme === 'dark' ? 'dark' : 'light'
+          document.documentElement.dataset.theme = themePreference
+          document.documentElement.style.colorScheme = themePreference
+        } catch {
+          document.documentElement.dataset.theme = 'light'
+        }
+      })()
+    </script>
     <title>LearningFrame</title>
   </head>
   <body>
