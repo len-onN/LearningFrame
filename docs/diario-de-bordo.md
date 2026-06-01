@@ -699,3 +699,33 @@ Decisao:
 Validacoes:
 - testes frontend em container Node com Vitest: 16 testes passando;
 - build frontend em container Node com `vue-tsc` e `vite build`.
+
+## 34. Planejamento Fino do Momento 3
+
+Apos o merge do Momento 2, a branch `frontend-refactor` foi atualizada localmente por fast-forward. Foi criada a branch `codex/frontend-page-shell-plan` apenas para investigacao e desenho do proximo passo.
+
+Estado atual:
+- o roteamento principal esta implementado e integrado;
+- `App.vue` segue com cerca de 2077 linhas;
+- `App.vue` ainda concentra shell, sidebar, topbar, status, paginas, overlays, estado, watchers e workflows;
+- `frontend/src/router/index.ts` ja fornece a fonte de verdade da navegacao;
+- ainda nao existem `layouts/`, `pages/`, `components/` ou `features/`.
+
+Conclusao:
+- nao estamos no final da refatoracao;
+- os bloqueios de contrato e roteamento foram resolvidos;
+- a proxima etapa deve separar estrutura visual sem mover regra de negocio de dominio.
+
+Foi criado o documento `docs/plano-momento-3-shell-paginas.md`, definindo:
+- objetivo do Momento 3;
+- o que extrair agora e o que adiar;
+- estrutura recomendada com `layouts/AppShell.vue` e paginas principais;
+- estrategia para reduzir props sem introduzir store global;
+- lateralidades com router, API, tipos, CSS, acessibilidade, memoria, testes e container;
+- criterios de aceite e ordem recomendada de commits.
+
+Decisao arquitetural:
+- `App.vue` deve continuar como orquestrador temporario;
+- componentes novos devem ser controlados por props/eventos;
+- chamadas API, caches, limpeza profunda de memoria e composables de dominio ficam para momentos posteriores;
+- `CardEditorOverlay` preferencialmente fica para o Momento 4, por estar acoplado ao modulo Biblioteca.
