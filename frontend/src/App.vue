@@ -5,12 +5,8 @@ import {
   BarChart3,
   BookOpen,
   Brain,
-  Image as ImageIcon,
   Plus,
-  Save,
-  Upload,
-  Volume2,
-  X
+  Upload
 } from '@lucide/vue'
 import AppShell from './layouts/AppShell.vue'
 import { api, clearAuthToken, setAuthToken } from './services/api'
@@ -40,6 +36,8 @@ import ImportPage from './pages/ImportPage.vue'
 import LibraryPage from './pages/LibraryPage.vue'
 import ProgressPage from './pages/ProgressPage.vue'
 import StudyPage from './pages/StudyPage.vue'
+import CardEditorOverlay from './features/library/CardEditorOverlay.vue'
+import type { CardEditorMediaKind, CardEditorMode } from './features/library/cardEditorTypes'
 import type { LibrarySection, LibraryView, ManagedCardsViewState } from './features/library/libraryTypes'
 import type { PreviewFace } from './features/import/importTypes'
 import { nextReview } from './utils/srs'
@@ -50,8 +48,7 @@ import { validateAuthForm, type AuthErrors, type AuthField, type AuthMode } from
 
 type Tab = 'library' | 'study' | 'import' | 'create' | 'progress' | 'auth'
 type ThemePreference = 'light' | 'dark'
-type CardEditorMode = 'create' | 'edit'
-type CardEditorFace = 'front' | 'back'
+type FeedbackLifetime = 'route' | 'next-route' | 'sticky'
 const DECK_PAGE_SIZE = 8
 const CARD_PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 300
@@ -77,6 +74,7 @@ const localStates = ref(loadLocalStates())
 const stats = ref<StatsSummary | null>(null)
 const notice = ref('')
 const error = ref('')
+const feedbackLifetime = ref<FeedbackLifetime>('route')
 const loading = ref(false)
 
 const authForm = ref({
@@ -122,11 +120,6 @@ const cardEditorInitial = ref({
   backHtml: '',
   tags: ''
 })
-const activeEditorFace = ref<CardEditorFace>('front')
-const frontEditorRef = ref<HTMLTextAreaElement | null>(null)
-const backEditorRef = ref<HTMLTextAreaElement | null>(null)
-const mediaInputRef = ref<HTMLInputElement | null>(null)
-const mediaUploadKind = ref<'image' | 'audio'>('image')
 
 const selectedFile = ref<File | null>(null)
 const importVisibility = ref<DeckVisibility>('PRIVATE')
@@ -318,6 +311,7 @@ watch(tab, (nextTab) => {
 })
 
 watch(() => route.fullPath, (_nextFullPath, previousFullPath) => {
+  clearFeedbackForRouteChange(previousFullPath)
   clearImportStateForRouteChange(previousFullPath)
   void syncRouteState()
 }, { immediate: true })
@@ -358,7 +352,7 @@ async function syncRouteState() {
       if (!publicDeckPage.value || publicDeckQuery.value !== currentLibraryQuery()) {
         await loadPublicDecks(true)
       }
-    }, false)
+    }, false, false)
     return
   }
 
@@ -367,7 +361,7 @@ async function syncRouteState() {
       if (user.value && (!myDeckPage.value || myDeckQuery.value !== currentLibraryQuery())) {
         await loadMyDecks(true)
       }
-    }, false)
+    }, false, false)
     return
   }
 
@@ -404,7 +398,7 @@ async function syncRouteState() {
   if (route.name === 'progress' && user.value) {
     await withFeedback(async () => {
       stats.value = await api.stats()
-    }, false)
+    }, false, false)
   }
 }
 
@@ -459,8 +453,8 @@ async function loadMoreMyDecks() {
 
 async function savePublicDeck(deck: DeckSummary) {
   if (!user.value) {
-    openAuth('login')
-    notice.value = 'Entre para salvar este baralho em Meus baralhos.'
+    await openAuth('login')
+    showNotice('Entre para salvar este baralho em Meus baralhos.')
     return
   }
 
@@ -470,7 +464,7 @@ async function savePublicDeck(deck: DeckSummary) {
     await loadMyDecks(true)
     stats.value = await api.stats()
     await router.push({ name: 'library-mine' })
-    notice.value = 'Baralho salvo em Meus baralhos como copia privada.'
+    showNotice('Baralho salvo em Meus baralhos como copia privada.')
     await highlightDeck(saved.id)
   })
 }
@@ -489,7 +483,6 @@ async function submitAuth() {
     user.value = response.user
     setAuthToken(response.token)
     localStorage.setItem('learningframe.user', JSON.stringify(response.user))
-    notice.value = `Sessao iniciada como ${response.user.displayName}.`
     authForm.value.password = ''
     resetAuthValidation()
     await refreshAll()
@@ -501,6 +494,7 @@ async function submitAuth() {
     } else {
       await router.replace({ name: 'library-mine' })
     }
+    showNotice(`Sessao iniciada como ${response.user.displayName}.`)
   })
 }
 
@@ -538,7 +532,7 @@ function resetAuthValidation() {
   }
 }
 
-function logout() {
+async function logout() {
   closeManagedDeck(true, false)
   user.value = null
   stats.value = null
@@ -547,35 +541,34 @@ function logout() {
   myDeckQuery.value = ''
   clearAuthToken()
   localStorage.removeItem('learningframe.user')
-  notice.value = 'Modo anonimo ativado.'
-  void router.replace({ name: 'library-public' })
+  await router.replace({ name: 'library-public' })
+  showNotice('Modo anonimo ativado.')
 }
 
-function goHome() {
+async function goHome() {
   closeManagedDeck(true, false)
-  void router.push({ name: 'library-public' })
-  error.value = ''
+  await router.push({ name: 'library-public' })
+  dismissError()
   resetAuthValidation()
 }
 
-function openAuth(mode: AuthMode = 'login') {
+async function openAuth(mode: AuthMode = 'login') {
   closeManagedDeck(true, false)
   const redirect = route.meta.requiresAuth ? route.fullPath : route.query.redirect
-  void router.push({
+  await router.push({
     name: mode === 'login' ? 'login' : 'register',
     query: typeof redirect === 'string' && redirect ? { redirect } : {}
   })
-  error.value = ''
-  notice.value = ''
+  clearFeedback()
   resetAuthValidation()
 }
 
-function toggleAuthMode() {
-  void router.push({
+async function toggleAuthMode() {
+  await router.push({
     name: authMode.value === 'login' ? 'register' : 'login',
     query: typeof route.query.redirect === 'string' ? { redirect: route.query.redirect } : {}
   })
-  error.value = ''
+  dismissError()
   resetAuthValidation()
 }
 
@@ -611,7 +604,7 @@ async function loadStudyDeck(deckId: number) {
       studyQueue.value = localDeckToStudyCards(localDeck, localStates.value)
     }
     if (studyQueue.value.length === 0) {
-      notice.value = 'Nenhum card vencido agora para esta sessao.'
+      showNotice('Nenhum card vencido agora para esta sessao.')
     }
   })
 }
@@ -635,7 +628,7 @@ async function loadInterleavedPractice() {
       }
     }
     if (studyQueue.value.length === 0) {
-      notice.value = 'Prática intercalada sem cards vencidos agora.'
+      showNotice('Prática intercalada sem cards vencidos agora.')
     }
   })
 }
@@ -665,7 +658,7 @@ async function reviewCurrent(rating: ReviewRating) {
     studyQueue.value.shift()
     answerVisible.value = false
     if (studyQueue.value.length === 0) {
-      notice.value = 'Sessao concluida.'
+      showNotice('Sessao concluida.')
     }
   }, false)
 }
@@ -698,9 +691,9 @@ async function handleApkgChange(event: Event) {
       previewFace.value = 'front'
       importPreview.value = preview
       importTitle.value = preview.title
-      notice.value = preview.mediaFound > 0
+      showNotice(preview.mediaFound > 0
         ? 'APKG analisado. A midia sera exibida na previa enquanto este arquivo estiver selecionado.'
-        : 'APKG analisado. Revise a previa e salve em Meus baralhos.'
+        : 'APKG analisado. Revise a previa e salve em Meus baralhos.')
     } finally {
       input.value = ''
     }
@@ -709,14 +702,14 @@ async function handleApkgChange(event: Event) {
 
 async function persistImport() {
   if (!selectedFile.value) {
-    error.value = 'Selecione o arquivo .apkg novamente.'
+    showError('Selecione o arquivo .apkg novamente.')
     return
   }
 
   if (!user.value) {
     returnToImportAfterAuth.value = true
-    openAuth('login')
-    notice.value = 'Entre para salvar o APKG com midia em Meus baralhos.'
+    await openAuth('login')
+    showNotice('Entre para salvar o APKG com midia em Meus baralhos.')
     return
   }
 
@@ -725,9 +718,6 @@ async function persistImport() {
     await withFeedback(async () => {
       const result = await api.importApkg(selectedFile.value as File, importTitle.value, importVisibility.value)
       importResult.value = result
-      notice.value = result.mediaImported > 0
-        ? `Baralho APKG salvo com ${result.cardsImported} cartas e ${result.mediaImported} midias.`
-        : 'Baralho APKG salvo em Meus baralhos.'
       resetImportPreviewState()
       selectedFile.value = null
       await loadMyDecks(true)
@@ -735,6 +725,9 @@ async function persistImport() {
         stats.value = await api.stats()
       }
       await router.push({ name: 'library-mine' })
+      showNotice(result.mediaImported > 0
+        ? `Baralho APKG salvo com ${result.cardsImported} cartas e ${result.mediaImported} midias.`
+        : 'Baralho APKG salvo em Meus baralhos.')
       await highlightDeck(result.deckId)
     })
   } finally {
@@ -932,13 +925,13 @@ async function createDeck() {
     await loadMyDecks(true)
     setManagedDeck(created)
     await router.push({ name: 'library-deck-manage', params: { deckId: created.id } })
-    notice.value = 'Baralho criado. Adicione as primeiras cartas.'
+    showNotice('Baralho criado. Adicione as primeiras cartas.')
   })
 }
 
 async function openManagedDeck(deck: DeckSummary, showLoading = true) {
   if (!user.value) {
-    openAuth('login')
+    await openAuth('login')
     return
   }
   await withFeedback(async () => {
@@ -957,7 +950,7 @@ async function loadManagedDeckRoute(deckId: number) {
     setManagedDeck(deck)
     librarySearch.value = ''
     await loadManagedCards(true)
-  })
+  }, true, false)
 }
 
 function setManagedDeck(deck: DeckSummary) {
@@ -973,9 +966,9 @@ function updateManagedDeckForm(nextForm: typeof managedDeckForm.value) {
   managedDeckForm.value = nextForm
 }
 
-function closeManagedDeck(force = false, navigateToList = true) {
+async function closeManagedDeck(force = false, navigateToList = true) {
   if (!force && managedDeckDirty.value && !window.confirm('Descartar alteracoes do baralho?')) {
-    return
+    return false
   }
   closeCardEditor(true)
   managedDeck.value = null
@@ -986,8 +979,9 @@ function closeManagedDeck(force = false, navigateToList = true) {
   selectedManagedCardId.value = null
   selectedManagedCardIds.value = new Set()
   if (navigateToList) {
-    void router.push({ name: 'library-mine' })
+    await router.push({ name: 'library-mine' })
   }
+  return true
 }
 
 async function loadManagedCards(reset = false) {
@@ -1020,7 +1014,7 @@ async function saveManagedDeck() {
     return
   }
   if (!managedDeckForm.value.title.trim()) {
-    error.value = 'Informe o titulo do baralho.'
+    showError('Informe o titulo do baralho.')
     return
   }
 
@@ -1033,7 +1027,7 @@ async function saveManagedDeck() {
     )
     setManagedDeck(updated)
     await loadMyDecks(true)
-    notice.value = 'Baralho atualizado.'
+    showNotice('Baralho atualizado.')
   })
 }
 
@@ -1045,13 +1039,13 @@ async function deleteManagedDeck() {
 
   await withFeedback(async () => {
     await api.deleteDeck(deck.id)
-    closeManagedDeck(true)
+    await closeManagedDeck(true)
     await loadMyDecks(true)
     if (user.value) {
       stats.value = await api.stats()
     }
     selectedManagedCardIds.value = new Set()
-    notice.value = 'Baralho excluido.'
+    showNotice('Baralho excluido.')
   })
 }
 
@@ -1075,9 +1069,7 @@ function openCardEditor(mode: CardEditorMode, card?: CardResponse) {
     tags: card ? card.tags.join(', ') : ''
   }
   cardEditorInitial.value = { ...cardEditorForm.value }
-  activeEditorFace.value = 'front'
   cardEditorOpen.value = true
-  void nextTick(() => frontEditorRef.value?.focus())
 }
 
 function closeCardEditor(force = false) {
@@ -1099,7 +1091,7 @@ async function saveCardEditor() {
     return
   }
   if (!cardEditorForm.value.frontHtml.trim() || !cardEditorForm.value.backHtml.trim()) {
-    error.value = 'Preencha frente e verso da carta.'
+    showError('Preencha frente e verso da carta.')
     return
   }
 
@@ -1108,10 +1100,10 @@ async function saveCardEditor() {
     let savedCard: CardResponse
     if (cardEditorMode.value === 'edit' && cardEditorCardId.value) {
       savedCard = await api.updateCard(deck.id, cardEditorCardId.value, cardEditorForm.value.frontHtml, cardEditorForm.value.backHtml, tags)
-      notice.value = 'Carta atualizada.'
+      showNotice('Carta atualizada.')
     } else {
       savedCard = await api.createCard(deck.id, cardEditorForm.value.frontHtml, cardEditorForm.value.backHtml, tags)
-      notice.value = 'Carta adicionada.'
+      showNotice('Carta adicionada.')
     }
     closeCardEditor(true)
     selectedManagedCardId.value = savedCard.id
@@ -1134,7 +1126,7 @@ async function deleteManagedCard(card: CardResponse) {
       loadMyDecks(true)
     ])
     selectedManagedCardIds.value = new Set([...selectedManagedCardIds.value].filter((id) => id !== card.id))
-    notice.value = 'Carta excluida.'
+    showNotice('Carta excluida.')
   })
 }
 
@@ -1156,7 +1148,7 @@ async function deleteSelectedManagedCards() {
       loadManagedCards(true),
       loadMyDecks(true)
     ])
-    notice.value = 'Cartas selecionadas excluidas.'
+    showNotice('Cartas selecionadas excluidas.')
   })
 }
 
@@ -1191,46 +1183,24 @@ function clearManagedCardSelection() {
   selectedManagedCardIds.value = new Set()
 }
 
-function triggerMediaUpload(kind: 'image' | 'audio', face: CardEditorFace) {
-  mediaUploadKind.value = kind
-  activeEditorFace.value = face
-  mediaInputRef.value?.click()
-}
-
-async function handleEditorMediaChange(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0] ?? null
-  input.value = ''
-  if (!file || !managedDeck.value) {
-    return
+async function uploadCardEditorMedia(file: File, kind: CardEditorMediaKind) {
+  const deck = managedDeck.value
+  if (!deck) {
+    throw new Error('Abra um baralho antes de inserir midia.')
   }
 
-  await withFeedback(async () => {
-    const uploaded = await api.uploadMedia(managedDeck.value!.id, file)
-    const marker = mediaUploadKind.value === 'image'
-      ? `<img src="${uploaded.fileName}" alt="">`
-      : `[sound:${uploaded.fileName}]`
-    insertIntoEditor(activeEditorFace.value, marker)
-    notice.value = mediaUploadKind.value === 'image'
-      ? 'Imagem inserida na carta.'
-      : 'Audio inserido na carta.'
-  })
+  const uploaded = await api.uploadMedia(deck.id, file)
+  showNotice(kind === 'image'
+    ? 'Imagem inserida na carta.'
+    : 'Audio inserido na carta.')
+
+  return kind === 'image'
+    ? `<img src="${uploaded.fileName}" alt="">`
+    : `[sound:${uploaded.fileName}]`
 }
 
-function insertIntoEditor(face: CardEditorFace, text: string) {
-  const field = face === 'front' ? 'frontHtml' : 'backHtml'
-  const textarea = face === 'front' ? frontEditorRef.value : backEditorRef.value
-  const current = cardEditorForm.value[field]
-  const start = textarea?.selectionStart ?? current.length
-  const end = textarea?.selectionEnd ?? current.length
-  const nextValue = `${current.slice(0, start)}${text}${current.slice(end)}`
-  cardEditorForm.value[field] = nextValue
-  void nextTick(() => {
-    const target = face === 'front' ? frontEditorRef.value : backEditorRef.value
-    target?.focus()
-    const cursor = start + text.length
-    target?.setSelectionRange(cursor, cursor)
-  })
+function handleCardEditorUploadError(message: string) {
+  showError(message)
 }
 
 function splitTags(tags: string) {
@@ -1323,9 +1293,10 @@ function serverCardToStudyCard(card: StudyCardResponse): StudyCard {
   }
 }
 
-async function withFeedback(task: () => Promise<void>, showLoading = true) {
-  error.value = ''
-  notice.value = ''
+async function withFeedback(task: () => Promise<void>, showLoading = true, clearOnStart = true) {
+  if (clearOnStart) {
+    clearFeedback()
+  }
   if (showLoading) {
     loading.value = true
   }
@@ -1333,20 +1304,61 @@ async function withFeedback(task: () => Promise<void>, showLoading = true) {
     await task()
   } catch (caught) {
     const message = caught instanceof Error ? caught.message : 'Erro inesperado.'
-    error.value = message === 'Failed to fetch'
+    showError(message === 'Failed to fetch'
       ? 'Backend indisponivel. Verifique se o Docker Compose esta ativo e tente novamente.'
-      : message
+      : message)
   } finally {
     loading.value = false
   }
 }
 
+function showNotice(message: string, lifetime: FeedbackLifetime = 'route') {
+  notice.value = message
+  error.value = ''
+  feedbackLifetime.value = lifetime
+}
+
+function showError(message: string, lifetime: FeedbackLifetime = 'route') {
+  error.value = message
+  notice.value = ''
+  feedbackLifetime.value = lifetime
+}
+
+function clearFeedback() {
+  notice.value = ''
+  error.value = ''
+  feedbackLifetime.value = 'route'
+}
+
+function clearFeedbackForRouteChange(previousFullPath?: string) {
+  if (!previousFullPath || previousFullPath === route.fullPath) {
+    return
+  }
+
+  if (feedbackLifetime.value === 'sticky') {
+    return
+  }
+
+  if (feedbackLifetime.value === 'next-route') {
+    feedbackLifetime.value = 'route'
+    return
+  }
+
+  clearFeedback()
+}
+
 function dismissNotice() {
   notice.value = ''
+  if (!error.value) {
+    feedbackLifetime.value = 'route'
+  }
 }
 
 function dismissError() {
   error.value = ''
+  if (!notice.value) {
+    feedbackLifetime.value = 'route'
+  }
 }
 
 function loadStoredUser() {
@@ -1503,100 +1515,19 @@ function loadStoredThemePreference(): ThemePreference {
         :stats="stats"
       />
 
-      <section v-if="cardEditorOpen && managedDeck" class="card-editor-overlay" aria-label="Editor de carta">
-        <div class="card-editor-shell">
-          <header class="card-editor-header">
-            <div>
-              <p class="eyebrow">{{ managedDeck.title }}</p>
-              <h2>{{ cardEditorTitle }}</h2>
-            </div>
-            <div class="row-actions">
-              <button class="primary compact" type="button" @click="saveCardEditor">
-                <Save :size="16" aria-hidden="true" />
-                Salvar carta
-              </button>
-              <button class="ghost icon-button" type="button" title="Fechar editor" aria-label="Fechar editor" @click="closeCardEditor()">
-                <X :size="16" aria-hidden="true" />
-              </button>
-            </div>
-          </header>
-
-          <div class="card-editor-body">
-            <form class="card-editor-form" @submit.prevent="saveCardEditor">
-              <section class="editor-face-block">
-                <div class="section-title compact-title">
-                  <h3>Frente</h3>
-                  <div class="row-actions">
-                    <button class="ghost icon-button" type="button" title="Inserir imagem na frente" aria-label="Inserir imagem na frente" @click="triggerMediaUpload('image', 'front')">
-                      <ImageIcon :size="16" aria-hidden="true" />
-                    </button>
-                    <button class="ghost icon-button" type="button" title="Inserir audio na frente" aria-label="Inserir audio na frente" @click="triggerMediaUpload('audio', 'front')">
-                      <Volume2 :size="16" aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
-                <textarea
-                  ref="frontEditorRef"
-                  v-model="cardEditorForm.frontHtml"
-                  rows="10"
-                  maxlength="12000"
-                  required
-                  @focus="activeEditorFace = 'front'"
-                ></textarea>
-              </section>
-
-              <section class="editor-face-block">
-                <div class="section-title compact-title">
-                  <h3>Verso</h3>
-                  <div class="row-actions">
-                    <button class="ghost icon-button" type="button" title="Inserir imagem no verso" aria-label="Inserir imagem no verso" @click="triggerMediaUpload('image', 'back')">
-                      <ImageIcon :size="16" aria-hidden="true" />
-                    </button>
-                    <button class="ghost icon-button" type="button" title="Inserir audio no verso" aria-label="Inserir audio no verso" @click="triggerMediaUpload('audio', 'back')">
-                      <Volume2 :size="16" aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
-                <textarea
-                  ref="backEditorRef"
-                  v-model="cardEditorForm.backHtml"
-                  rows="10"
-                  maxlength="12000"
-                  required
-                  @focus="activeEditorFace = 'back'"
-                ></textarea>
-              </section>
-
-              <label class="form-field">
-                <span class="field-label">Tags</span>
-                <input v-model="cardEditorForm.tags" type="text" maxlength="400" placeholder="separadas por virgula" />
-              </label>
-            </form>
-
-            <section class="card-editor-preview">
-              <article class="preview-pane">
-                <div class="card-meta">
-                  <span>Frente</span>
-                </div>
-                <div class="preview-study-face" v-html="cardEditorFrontPreview"></div>
-              </article>
-              <article class="preview-pane">
-                <div class="card-meta">
-                  <span>Verso</span>
-                </div>
-                <div class="preview-study-face" v-html="cardEditorBackPreview"></div>
-              </article>
-            </section>
-          </div>
-
-          <input
-            ref="mediaInputRef"
-            class="visually-hidden"
-            type="file"
-            :accept="mediaUploadKind === 'image' ? 'image/*' : 'audio/*'"
-            @change="handleEditorMediaChange"
-          />
-        </div>
-      </section>
+      <CardEditorOverlay
+        v-if="cardEditorOpen && managedDeck"
+        v-model:front-html="cardEditorForm.frontHtml"
+        v-model:back-html="cardEditorForm.backHtml"
+        v-model:tags="cardEditorForm.tags"
+        :deck-title="managedDeck.title"
+        :title="cardEditorTitle"
+        :front-preview-html="cardEditorFrontPreview"
+        :back-preview-html="cardEditorBackPreview"
+        :upload-media="uploadCardEditorMedia"
+        @save="saveCardEditor"
+        @close="closeCardEditor()"
+        @upload-error="handleCardEditorUploadError"
+      />
   </AppShell>
 </template>
