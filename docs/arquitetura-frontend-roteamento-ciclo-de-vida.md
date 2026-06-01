@@ -613,6 +613,9 @@ Objetivos:
 - criar guards simples de autenticacao;
 - manter o maximo possivel do template atual enquanto o router entra.
 
+Planejamento fino:
+- `docs/plano-momento-2-roteamento-frontend.md`.
+
 Riscos:
 - quebrar refresh direto;
 - duplicar fontes de verdade (`tab` e rota);

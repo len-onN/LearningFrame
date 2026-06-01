@@ -631,3 +631,71 @@ Decisoes:
 Validacoes:
 - testes focados de backend via container Maven: `DeckServiceTest` e `DeckControllerTest`;
 - build do frontend via container Node, validando `vue-tsc` e `vite build`.
+
+## 31. Planejamento Fino do Momento 2
+
+Apos o merge do Momento 1, a branch `frontend-refactor` foi atualizada localmente por fast-forward e recebeu o contrato leve de metadata de baralho. Em seguida, foi criada a branch `codex/frontend-router-foundation` a partir dela.
+
+Foi feita uma investigacao fina do estado atual do frontend antes da implementacao do roteamento:
+- `App.vue` segue como arquivo monolitico, concentrando navegacao, layout, telas, estado e fluxos;
+- `main.ts` ainda monta apenas `App`, sem router;
+- `package.json` ainda nao possui `vue-router`;
+- `nginx.conf` ja possui fallback SPA adequado para history mode;
+- a navegacao principal ainda depende de `tab`, `librarySection`, `libraryView` e `authMode`;
+- o Momento 1 ja disponibilizou `api.deckMetadata(deckId)`, necessario para a rota direta de gerenciamento.
+
+Foi criado o documento `docs/plano-momento-2-roteamento-frontend.md`, detalhando:
+- estado atual confirmado;
+- mapa de rotas do Momento 2;
+- substituicoes planejadas para `tab`, `librarySection`, `libraryView`, `authMode` e `currentTitle`;
+- novos elementos tecnicos (`vue-router`, `router/index.ts`, route meta, guard de auth);
+- funcoes atuais afetadas por navegacao roteada;
+- lateralidades em backend, container, build, testes, UX e memoria;
+- estrategia de implementacao em passos pequenos;
+- criterios de aceite e riscos.
+
+Decisao mantida:
+- o Momento 2 deve introduzir o router como fonte de verdade da navegacao principal, mas nao deve ainda extrair todas as paginas nem criar store global. A componentizacao pesada fica para os momentos seguintes.
+
+## 32. Implementacao do Momento 2: Router Principal
+
+O Momento 2 foi implementado na branch `codex/frontend-router-foundation`, mantendo `frontend-refactor` como destino do PR.
+
+Implementacoes:
+- instalacao de `vue-router`;
+- criacao de `frontend/src/router/index.ts`;
+- registro do router em `frontend/src/main.ts`;
+- rotas reais para biblioteca publica, meus baralhos, gerenciamento de baralho, estudo, estudo por baralho, pratica intercalada, importacao, criacao, progresso, login e cadastro;
+- guard simples de autenticacao baseado no token local;
+- redirect de rotas privadas para `/entrar?redirect=<rota-original>`;
+- catch-all redirecionando rotas desconhecidas para `/biblioteca/publicos`;
+- sidebar convertida para links roteados com `RouterLink custom`;
+- `tab`, `librarySection`, `libraryView` e `authMode` passaram a ser derivados da rota;
+- workflows principais passaram a navegar por `router.push`/`router.replace`;
+- rota direta de gerenciamento passou a carregar metadata via `api.deckMetadata(deckId)` e cartas via `api.deckCards`;
+- estudo por deck passou a ser carregado por rota, mantendo estudo anonimo com detalhe completo apenas quando necessario;
+- rota de pratica intercalada passou a carregar a fila tambem em refresh direto.
+
+Decisoes preservadas:
+- nao extrair paginas ainda;
+- nao criar store global;
+- nao transformar busca, paginacao, selecao multipla, editor de carta ou preview APKG em rotas;
+- nao mexer no Nginx, pois o fallback SPA ja estava configurado;
+- nao aplicar `npm audit fix --force`, apesar do alerta critico do npm, para evitar mudancas de dependencia fora do escopo.
+
+Validacoes:
+- build frontend em container Node com `vue-tsc` e `vite build`;
+- testes frontend em container Node com Vitest: 16 testes passando.
+
+## 33. Ajuste de Rotulo Para Cartas Sem Texto
+
+Durante a validacao manual do gerenciamento de cartas, foi identificado que cartas compostas apenas por midia ou HTML sem texto extraivel apareciam como "Carta sem texto". Isso era correto tecnicamente, mas ruim para uso repetido, pois varias cartas ficavam com o mesmo rotulo.
+
+Decisao:
+- no gerenciamento de cartas, o fallback passa a usar a ordem visivel/carregada: `Carta 1`, `Carta 2`, etc.;
+- o comportamento fica alinhado ao preview de importacao APKG, que ja usava numeracao quando nao havia texto na carta;
+- a busca, a selecao multipla, a edicao e a exclusao nao mudam de contrato.
+
+Validacoes:
+- testes frontend em container Node com Vitest: 16 testes passando;
+- build frontend em container Node com `vue-tsc` e `vite build`.

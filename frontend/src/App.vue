@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import {
   ArrowLeft,
   BarChart3,
@@ -63,11 +64,13 @@ const DECK_PAGE_SIZE = 8
 const CARD_PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 300
 
-const tab = ref<Tab>('library')
-const librarySection = ref<LibrarySection>('public')
-const libraryView = ref<LibraryView>('decks')
+const route = useRoute()
+const router = useRouter()
+const tab = computed<Tab>(() => route.meta.tab ?? 'library')
+const librarySection = computed<LibrarySection>(() => route.meta.librarySection ?? 'public')
+const libraryView = computed<LibraryView>(() => route.meta.libraryView ?? 'decks')
 const librarySearch = ref('')
-const authMode = ref<AuthMode>('login')
+const authMode = computed<AuthMode>(() => route.meta.authMode ?? 'login')
 const themePreference = ref<ThemePreference>(loadStoredThemePreference())
 const sidebarCollapsed = ref(false)
 const user = ref<UserResponse | null>(loadStoredUser())
@@ -242,11 +245,11 @@ const activeLibraryCountLabel = computed(() => {
   return user.value ? myDecksCountLabel.value : ''
 })
 const navTabs = [
-  { id: 'library' as const, label: 'Biblioteca', icon: BookOpen },
-  { id: 'study' as const, label: 'Estudo', icon: Brain },
-  { id: 'import' as const, label: 'Importar', icon: Upload },
-  { id: 'create' as const, label: 'Criar', icon: Plus },
-  { id: 'progress' as const, label: 'Progresso', icon: BarChart3 }
+  { id: 'library' as const, label: 'Biblioteca', icon: BookOpen, to: { name: 'library-public' } },
+  { id: 'study' as const, label: 'Estudo', icon: Brain, to: { name: 'study' } },
+  { id: 'import' as const, label: 'Importar', icon: Upload, to: { name: 'import' } },
+  { id: 'create' as const, label: 'Criar', icon: Plus, to: { name: 'create' } },
+  { id: 'progress' as const, label: 'Progresso', icon: BarChart3, to: { name: 'progress' } }
 ]
 const visibleTabs = computed(() => navTabs.filter((item) => item.id !== 'create' || user.value))
 const currentTitle = computed(() => {
@@ -256,12 +259,11 @@ const currentTitle = computed(() => {
   if (tab.value === 'library' && libraryView.value === 'manage-deck') {
     return managedDeck.value?.title ?? 'Gerenciar baralho'
   }
-  return navTabs.find((item) => item.id === tab.value)?.label ?? 'Biblioteca'
+  return route.meta.title ?? navTabs.find((item) => item.id === tab.value)?.label ?? 'Biblioteca'
 })
 
 onMounted(() => {
   applyThemePreference()
-  refreshAll()
 })
 
 let librarySearchTimer: number | undefined
@@ -281,7 +283,7 @@ watch(librarySearch, () => {
 
 watch(librarySection, (section) => {
   if (section !== 'mine') {
-    closeManagedDeck(true)
+    closeManagedDeck(true, false)
   }
   const query = currentLibraryQuery()
   if (section === 'public' && (!publicDeckPage.value || publicDeckQuery.value !== query)) {
@@ -307,9 +309,14 @@ watch(tab, (nextTab) => {
   }
 })
 
+watch(() => route.fullPath, () => {
+  void syncRouteState()
+}, { immediate: true })
+
 onBeforeUnmount(() => {
   revokePreviewMediaUrls()
   window.clearTimeout(highlightDeckTimer)
+  window.clearTimeout(librarySearchTimer)
   window.clearTimeout(managedCardsSearchTimer)
 })
 
@@ -326,6 +333,76 @@ function toggleSidebar() {
 function applyThemePreference() {
   document.documentElement.dataset.theme = themePreference.value
   document.documentElement.style.colorScheme = themePreference.value
+}
+
+async function navigateTo(to: RouteLocationRaw) {
+  await router.push(to)
+}
+
+async function syncRouteState() {
+  if (route.name !== 'library-deck-manage' && managedDeck.value) {
+    closeManagedDeck(true, false)
+  }
+
+  if (route.name === 'library-public') {
+    await withFeedback(async () => {
+      if (!publicDeckPage.value || publicDeckQuery.value !== currentLibraryQuery()) {
+        await loadPublicDecks(true)
+      }
+    }, false)
+    return
+  }
+
+  if (route.name === 'library-mine') {
+    await withFeedback(async () => {
+      if (user.value && (!myDeckPage.value || myDeckQuery.value !== currentLibraryQuery())) {
+        await loadMyDecks(true)
+      }
+    }, false)
+    return
+  }
+
+  if (route.name === 'library-deck-manage') {
+    const deckId = routeDeckId()
+    if (!deckId) {
+      await router.replace({ name: 'library-mine' })
+      return
+    }
+    await loadManagedDeckRoute(deckId)
+    return
+  }
+
+  if (route.name === 'study') {
+    resetStudySession()
+    return
+  }
+
+  if (route.name === 'study-deck') {
+    const deckId = routeDeckId()
+    if (!deckId) {
+      await router.replace({ name: 'study' })
+      return
+    }
+    await loadStudyDeck(deckId)
+    return
+  }
+
+  if (route.name === 'study-interleaved') {
+    await loadInterleavedPractice()
+    return
+  }
+
+  if (route.name === 'progress' && user.value) {
+    await withFeedback(async () => {
+      stats.value = await api.stats()
+    }, false)
+  }
+}
+
+function routeDeckId() {
+  const raw = Array.isArray(route.params.deckId) ? route.params.deckId[0] : route.params.deckId
+  const deckId = Number(raw)
+  return Number.isFinite(deckId) && deckId > 0 ? deckId : null
 }
 
 async function refreshAll() {
@@ -383,7 +460,7 @@ async function savePublicDeck(deck: DeckSummary) {
     librarySearch.value = ''
     await loadMyDecks(true)
     stats.value = await api.stats()
-    librarySection.value = 'mine'
+    await router.push({ name: 'library-mine' })
     notice.value = 'Baralho salvo em Meus baralhos como copia privada.'
     await highlightDeck(saved.id)
   })
@@ -408,10 +485,12 @@ async function submitAuth() {
     resetAuthValidation()
     await refreshAll()
     if (returnToImportAfterAuth.value && importPreview.value) {
-      tab.value = 'import'
+      await router.replace({ name: 'import' })
       returnToImportAfterAuth.value = false
+    } else if (typeof route.query.redirect === 'string' && route.query.redirect) {
+      await router.replace(route.query.redirect)
     } else {
-      tab.value = 'library'
+      await router.replace({ name: 'library-mine' })
     }
   })
 }
@@ -451,7 +530,7 @@ function resetAuthValidation() {
 }
 
 function logout() {
-  closeManagedDeck(true)
+  closeManagedDeck(true, false)
   user.value = null
   stats.value = null
   myDecks.value = []
@@ -460,42 +539,66 @@ function logout() {
   clearAuthToken()
   localStorage.removeItem('learningframe.user')
   notice.value = 'Modo anonimo ativado.'
-  tab.value = 'library'
+  void router.replace({ name: 'library-public' })
 }
 
 function goHome() {
-  closeManagedDeck(true)
-  tab.value = 'library'
+  closeManagedDeck(true, false)
+  void router.push({ name: 'library-public' })
   error.value = ''
   resetAuthValidation()
 }
 
 function openAuth(mode: AuthMode = 'login') {
-  closeManagedDeck(true)
-  authMode.value = mode
-  tab.value = 'auth'
+  closeManagedDeck(true, false)
+  const redirect = route.meta.requiresAuth ? route.fullPath : route.query.redirect
+  void router.push({
+    name: mode === 'login' ? 'login' : 'register',
+    query: typeof redirect === 'string' && redirect ? { redirect } : {}
+  })
   error.value = ''
   notice.value = ''
   resetAuthValidation()
 }
 
 function toggleAuthMode() {
-  authMode.value = authMode.value === 'login' ? 'register' : 'login'
+  void router.push({
+    name: authMode.value === 'login' ? 'register' : 'login',
+    query: typeof route.query.redirect === 'string' ? { redirect: route.query.redirect } : {}
+  })
   error.value = ''
   resetAuthValidation()
 }
 
 async function startDeck(deck: DeckSummary) {
-  tab.value = 'study'
   sessionTitle.value = deck.title
+  if (route.name === 'study-deck' && routeDeckId() === deck.id) {
+    await loadStudyDeck(deck.id)
+    return
+  }
+  await router.push({ name: 'study-deck', params: { deckId: deck.id } })
+}
+
+async function startInterleavedPractice() {
+  if (route.name === 'study-interleaved') {
+    await loadInterleavedPractice()
+    return
+  }
+  await router.push({ name: 'study-interleaved' })
+}
+
+async function loadStudyDeck(deckId: number) {
   answerVisible.value = false
 
   await withFeedback(async () => {
+    const metadata = await api.deckMetadata(deckId).catch(() => null)
+    sessionTitle.value = metadata?.title ?? 'Baralho'
     if (user.value) {
-      const due = await api.due('SINGLE_DECK', deck.id)
+      const due = await api.due('SINGLE_DECK', deckId)
       studyQueue.value = due.cards.map(serverCardToStudyCard)
     } else {
-      const localDeck = await ensurePublicDeck(deck.id)
+      const localDeck = await ensurePublicDeck(deckId)
+      sessionTitle.value = localDeck.title
       studyQueue.value = localDeckToStudyCards(localDeck, localStates.value)
     }
     if (studyQueue.value.length === 0) {
@@ -504,8 +607,7 @@ async function startDeck(deck: DeckSummary) {
   })
 }
 
-async function startInterleavedPractice() {
-  tab.value = 'study'
+async function loadInterleavedPractice() {
   sessionTitle.value = 'Prática intercalada'
   answerVisible.value = false
 
@@ -514,6 +616,9 @@ async function startInterleavedPractice() {
       const due = await api.due('MIXED_DUE')
       studyQueue.value = due.cards.map(serverCardToStudyCard)
     } else {
+      if (publicDecks.value.length === 0) {
+        await loadPublicDecks(true)
+      }
       studyQueue.value = []
       for (const deck of publicDecks.value.slice(0, 4)) {
         const localDeck = await ensurePublicDeck(deck.id)
@@ -524,6 +629,12 @@ async function startInterleavedPractice() {
       notice.value = 'Prática intercalada sem cards vencidos agora.'
     }
   })
+}
+
+function resetStudySession() {
+  studyQueue.value = []
+  sessionTitle.value = 'Selecione um baralho ou inicie a prática intercalada.'
+  answerVisible.value = false
 }
 
 async function reviewCurrent(rating: ReviewRating) {
@@ -614,8 +725,7 @@ async function persistImport() {
       if (user.value) {
         stats.value = await api.stats()
       }
-      librarySection.value = 'mine'
-      tab.value = 'library'
+      await router.push({ name: 'library-mine' })
       await highlightDeck(result.deckId)
     })
   } finally {
@@ -775,11 +885,8 @@ async function createDeck() {
     const created = await api.createDeck(deckForm.value.title, deckForm.value.description, deckForm.value.visibility)
     deckForm.value = { title: '', description: '', visibility: 'PRIVATE' }
     await loadMyDecks(true)
-    librarySection.value = 'mine'
-    tab.value = 'library'
     setManagedDeck(created)
-    libraryView.value = 'manage-deck'
-    await loadManagedCards(true)
+    await router.push({ name: 'library-deck-manage', params: { deckId: created.id } })
     notice.value = 'Baralho criado. Adicione as primeiras cartas.'
   })
 }
@@ -791,11 +898,21 @@ async function openManagedDeck(deck: DeckSummary, showLoading = true) {
   }
   await withFeedback(async () => {
     setManagedDeck(deck)
-    librarySection.value = 'mine'
-    libraryView.value = 'manage-deck'
+    librarySearch.value = ''
+    await router.push({ name: 'library-deck-manage', params: { deckId: deck.id } })
+  }, showLoading)
+}
+
+async function loadManagedDeckRoute(deckId: number) {
+  if (!user.value) {
+    return
+  }
+  await withFeedback(async () => {
+    const deck = await api.deckMetadata(deckId)
+    setManagedDeck(deck)
     librarySearch.value = ''
     await loadManagedCards(true)
-  }, showLoading)
+  })
 }
 
 function setManagedDeck(deck: DeckSummary) {
@@ -807,12 +924,11 @@ function setManagedDeck(deck: DeckSummary) {
   }
 }
 
-function closeManagedDeck(force = false) {
+function closeManagedDeck(force = false, navigateToList = true) {
   if (!force && managedDeckDirty.value && !window.confirm('Descartar alteracoes do baralho?')) {
     return
   }
   closeCardEditor(true)
-  libraryView.value = 'decks'
   managedDeck.value = null
   managedDeckForm.value = { title: '', description: '', visibility: 'PRIVATE' }
   managedCards.value = []
@@ -820,6 +936,9 @@ function closeManagedDeck(force = false) {
   managedCardsSearch.value = ''
   selectedManagedCardId.value = null
   selectedManagedCardIds.value = new Set()
+  if (navigateToList) {
+    void router.push({ name: 'library-mine' })
+  }
 }
 
 async function loadManagedCards(reset = false) {
@@ -1070,7 +1189,12 @@ function splitTags(tags: string) {
 }
 
 function cardTextSummary(card: CardResponse) {
-  return htmlSummary(card.frontHtml) || htmlSummary(card.backHtml) || 'Carta sem texto'
+  return htmlSummary(card.frontHtml) || htmlSummary(card.backHtml) || fallbackCardLabel(card)
+}
+
+function fallbackCardLabel(card: CardResponse) {
+  const index = managedCards.value.findIndex((managedCard) => managedCard.id === card.id)
+  return index >= 0 ? `Carta ${index + 1}` : 'Carta'
 }
 
 function mergeDeckPages(current: DeckSummary[], incoming: DeckSummary[]) {
@@ -1213,17 +1337,23 @@ function loadStoredThemePreference(): ThemePreference {
       </button>
 
       <nav class="nav-list" aria-label="Navegacao principal">
-        <button
+        <RouterLink
           v-for="item in visibleTabs"
           :key="item.id"
-          class="nav-button"
-          :class="{ active: tab === item.id }"
-          type="button"
-          @click="tab = item.id"
+          v-slot="{ navigate }"
+          custom
+          :to="item.to"
         >
-          <component :is="item.icon" :size="18" aria-hidden="true" />
-          <span>{{ item.label }}</span>
-        </button>
+          <button
+            class="nav-button"
+            :class="{ active: tab === item.id }"
+            type="button"
+            @click="navigate"
+          >
+            <component :is="item.icon" :size="18" aria-hidden="true" />
+            <span>{{ item.label }}</span>
+          </button>
+        </RouterLink>
       </nav>
 
       <button
@@ -1383,7 +1513,7 @@ function loadStoredThemePreference(): ThemePreference {
               type="button"
               role="tab"
               :aria-selected="librarySection === 'public'"
-              @click="librarySection = 'public'"
+              @click="navigateTo({ name: 'library-public' })"
             >
               Baralhos públicos
             </button>
@@ -1393,7 +1523,7 @@ function loadStoredThemePreference(): ThemePreference {
               type="button"
               role="tab"
               :aria-selected="librarySection === 'mine'"
-              @click="librarySection = 'mine'"
+              @click="navigateTo({ name: 'library-mine' })"
             >
               Meus baralhos
             </button>
