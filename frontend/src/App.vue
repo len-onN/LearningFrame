@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
+  ArrowLeft,
   BarChart3,
   BookOpen,
   Brain,
@@ -8,21 +9,28 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Eye,
+  Image as ImageIcon,
   LogOut,
   Moon,
+  Pencil,
   Plus,
   RotateCcw,
+  Save,
   Search,
   Shuffle,
   Sun,
+  Trash2,
   Upload,
   User,
+  Volume2,
   X
 } from '@lucide/vue'
 import { api, clearAuthToken, setAuthToken } from './services/api'
 import type {
   ApkgImportResponse,
   ApkgPreviewResponse,
+  CardResponse,
+  DeckDetail,
   DeckSummary,
   DeckVisibility,
   LocalDeck,
@@ -47,13 +55,17 @@ import { validateAuthForm, type AuthErrors, type AuthField, type AuthMode } from
 
 type Tab = 'library' | 'study' | 'import' | 'create' | 'progress' | 'auth'
 type LibrarySection = 'public' | 'mine'
+type LibraryView = 'decks' | 'manage-deck'
 type ThemePreference = 'light' | 'dark'
 type PreviewFace = 'front' | 'back'
+type CardEditorMode = 'create' | 'edit'
+type CardEditorFace = 'front' | 'back'
 const DECK_PAGE_SIZE = 8
 const SEARCH_DEBOUNCE_MS = 300
 
 const tab = ref<Tab>('library')
 const librarySection = ref<LibrarySection>('public')
+const libraryView = ref<LibraryView>('decks')
 const librarySearch = ref('')
 const authMode = ref<AuthMode>('login')
 const themePreference = ref<ThemePreference>(loadStoredThemePreference())
@@ -90,12 +102,31 @@ const deckForm = ref({
   visibility: 'PRIVATE' as DeckVisibility
 })
 
-const cardForm = ref({
-  deckId: 0,
+const managedDeck = ref<DeckDetail | null>(null)
+const managedDeckForm = ref({
+  title: '',
+  description: '',
+  visibility: 'PRIVATE' as DeckVisibility
+})
+
+const cardEditorOpen = ref(false)
+const cardEditorMode = ref<CardEditorMode>('create')
+const cardEditorCardId = ref<number | null>(null)
+const cardEditorForm = ref({
   frontHtml: '',
   backHtml: '',
   tags: ''
 })
+const cardEditorInitial = ref({
+  frontHtml: '',
+  backHtml: '',
+  tags: ''
+})
+const activeEditorFace = ref<CardEditorFace>('front')
+const frontEditorRef = ref<HTMLTextAreaElement | null>(null)
+const backEditorRef = ref<HTMLTextAreaElement | null>(null)
+const mediaInputRef = ref<HTMLInputElement | null>(null)
+const mediaUploadKind = ref<'image' | 'audio'>('image')
 
 const selectedFile = ref<File | null>(null)
 const importVisibility = ref<DeckVisibility>('PRIVATE')
@@ -130,6 +161,29 @@ const publicDecksCountLabel = computed(() => deckPageCountLabel(publicDecks.valu
 const myDecksCountLabel = computed(() => deckPageCountLabel(myDecks.value.length, myDeckPage.value))
 const filteredPublicDecks = computed(() => publicDecks.value)
 const filteredMyDecks = computed(() => myDecks.value)
+const managedDeckDirty = computed(() => {
+  const deck = managedDeck.value
+  return Boolean(deck)
+    && (
+      managedDeckForm.value.title !== deck?.title
+      || managedDeckForm.value.description !== (deck?.description ?? '')
+      || managedDeckForm.value.visibility !== deck?.visibility
+    )
+})
+const cardEditorDirty = computed(() => (
+  cardEditorForm.value.frontHtml !== cardEditorInitial.value.frontHtml
+  || cardEditorForm.value.backHtml !== cardEditorInitial.value.backHtml
+  || cardEditorForm.value.tags !== cardEditorInitial.value.tags
+))
+const cardEditorTitle = computed(() => cardEditorMode.value === 'edit' ? 'Editar carta' : 'Nova carta')
+const cardEditorFrontPreview = computed(() => managedDeck.value
+  ? safeStudyHtml(cardEditorForm.value.frontHtml, managedDeck.value.id)
+  : safePreviewHtml(cardEditorForm.value.frontHtml)
+)
+const cardEditorBackPreview = computed(() => managedDeck.value
+  ? safeStudyHtml(cardEditorForm.value.backHtml, managedDeck.value.id)
+  : safePreviewHtml(cardEditorForm.value.backHtml)
+)
 const loadingMessage = computed(() => importSaving.value ? 'Preparando seu baralho com mídia...' : 'Carregando...')
 const currentPreviewCard = computed(() => importPreview.value?.cards[previewCardIndex.value] ?? null)
 const currentPreviewHtml = computed(() => {
@@ -178,6 +232,9 @@ const currentTitle = computed(() => {
   if (tab.value === 'auth') {
     return authMode.value === 'login' ? 'Entrar' : 'Criar conta'
   }
+  if (tab.value === 'library' && libraryView.value === 'manage-deck') {
+    return managedDeck.value?.title ?? 'Gerenciar baralho'
+  }
   return navTabs.find((item) => item.id === tab.value)?.label ?? 'Biblioteca'
 })
 
@@ -201,12 +258,21 @@ watch(librarySearch, () => {
 })
 
 watch(librarySection, (section) => {
+  if (section !== 'mine') {
+    closeManagedDeck(true)
+  }
   const query = currentLibraryQuery()
   if (section === 'public' && (!publicDeckPage.value || publicDeckQuery.value !== query)) {
     void withFeedback(async () => loadPublicDecks(true), false)
   }
   if (section === 'mine' && user.value && (!myDeckPage.value || myDeckQuery.value !== query)) {
     void withFeedback(async () => loadMyDecks(true), false)
+  }
+})
+
+watch(tab, (nextTab) => {
+  if (nextTab !== 'library') {
+    closeCardEditor(true)
   }
 })
 
@@ -335,6 +401,7 @@ function resetAuthValidation() {
 }
 
 function logout() {
+  closeManagedDeck(true)
   user.value = null
   stats.value = null
   myDecks.value = []
@@ -347,12 +414,14 @@ function logout() {
 }
 
 function goHome() {
+  closeManagedDeck(true)
   tab.value = 'library'
   error.value = ''
   resetAuthValidation()
 }
 
 function openAuth(mode: AuthMode = 'login') {
+  closeManagedDeck(true)
   authMode.value = mode
   tab.value = 'auth'
   error.value = ''
@@ -655,26 +724,227 @@ async function createDeck() {
   await withFeedback(async () => {
     const created = await api.createDeck(deckForm.value.title, deckForm.value.description, deckForm.value.visibility)
     deckForm.value = { title: '', description: '', visibility: 'PRIVATE' }
-    cardForm.value.deckId = created.id
-    notice.value = 'Baralho criado.'
-    await refreshAll()
+    await loadMyDecks(true)
+    librarySection.value = 'mine'
+    tab.value = 'library'
+    setManagedDeck(await api.deck(created.id))
+    libraryView.value = 'manage-deck'
+    notice.value = 'Baralho criado. Adicione as primeiras cartas.'
   })
 }
 
-async function createCard() {
-  if (!cardForm.value.deckId) {
-    error.value = 'Escolha um baralho para adicionar o card.'
+async function openManagedDeck(deck: DeckSummary, showLoading = true) {
+  if (!user.value) {
+    openAuth('login')
     return
   }
   await withFeedback(async () => {
-    const tags = cardForm.value.tags.split(',').map((tag) => tag.trim()).filter(Boolean)
-    await api.createCard(cardForm.value.deckId, cardForm.value.frontHtml, cardForm.value.backHtml, tags)
-    cardForm.value.frontHtml = ''
-    cardForm.value.backHtml = ''
-    cardForm.value.tags = ''
-    notice.value = 'Card adicionado.'
-    await refreshAll()
+    const detail = await api.deck(deck.id)
+    setManagedDeck(detail)
+    librarySection.value = 'mine'
+    libraryView.value = 'manage-deck'
+    librarySearch.value = ''
+  }, showLoading)
+}
+
+function setManagedDeck(deck: DeckDetail) {
+  managedDeck.value = deck
+  managedDeckForm.value = {
+    title: deck.title,
+    description: deck.description ?? '',
+    visibility: deck.visibility
+  }
+}
+
+function closeManagedDeck(force = false) {
+  if (!force && managedDeckDirty.value && !window.confirm('Descartar alteracoes do baralho?')) {
+    return
+  }
+  closeCardEditor(true)
+  libraryView.value = 'decks'
+  managedDeck.value = null
+  managedDeckForm.value = { title: '', description: '', visibility: 'PRIVATE' }
+}
+
+async function reloadManagedDeck() {
+  const deckId = managedDeck.value?.id
+  if (!deckId) {
+    return
+  }
+  const detail = await api.deck(deckId)
+  setManagedDeck(detail)
+}
+
+async function saveManagedDeck() {
+  const deck = managedDeck.value
+  if (!deck) {
+    return
+  }
+  if (!managedDeckForm.value.title.trim()) {
+    error.value = 'Informe o titulo do baralho.'
+    return
+  }
+
+  await withFeedback(async () => {
+    await api.updateDeck(
+      deck.id,
+      managedDeckForm.value.title,
+      managedDeckForm.value.description,
+      managedDeckForm.value.visibility
+    )
+    await Promise.all([
+      reloadManagedDeck(),
+      loadMyDecks(true)
+    ])
+    notice.value = 'Baralho atualizado.'
   })
+}
+
+async function deleteManagedDeck() {
+  const deck = managedDeck.value
+  if (!deck || !window.confirm(`Excluir o baralho "${deck.title}" e todas as suas cartas?`)) {
+    return
+  }
+
+  await withFeedback(async () => {
+    await api.deleteDeck(deck.id)
+    closeManagedDeck(true)
+    await loadMyDecks(true)
+    if (user.value) {
+      stats.value = await api.stats()
+    }
+    notice.value = 'Baralho excluido.'
+  })
+}
+
+function openCreateCardEditor() {
+  if (!managedDeck.value) {
+    return
+  }
+  openCardEditor('create')
+}
+
+function openEditCardEditor(card: CardResponse) {
+  openCardEditor('edit', card)
+}
+
+function openCardEditor(mode: CardEditorMode, card?: CardResponse) {
+  cardEditorMode.value = mode
+  cardEditorCardId.value = card?.id ?? null
+  cardEditorForm.value = {
+    frontHtml: card?.frontHtml ?? '',
+    backHtml: card?.backHtml ?? '',
+    tags: card ? card.tags.join(', ') : ''
+  }
+  cardEditorInitial.value = { ...cardEditorForm.value }
+  activeEditorFace.value = 'front'
+  cardEditorOpen.value = true
+  void nextTick(() => frontEditorRef.value?.focus())
+}
+
+function closeCardEditor(force = false) {
+  if (!cardEditorOpen.value) {
+    return
+  }
+  if (!force && cardEditorDirty.value && !window.confirm('Descartar alteracoes desta carta?')) {
+    return
+  }
+  cardEditorOpen.value = false
+  cardEditorCardId.value = null
+  cardEditorForm.value = { frontHtml: '', backHtml: '', tags: '' }
+  cardEditorInitial.value = { frontHtml: '', backHtml: '', tags: '' }
+}
+
+async function saveCardEditor() {
+  const deck = managedDeck.value
+  if (!deck) {
+    return
+  }
+  if (!cardEditorForm.value.frontHtml.trim() || !cardEditorForm.value.backHtml.trim()) {
+    error.value = 'Preencha frente e verso da carta.'
+    return
+  }
+
+  await withFeedback(async () => {
+    const tags = splitTags(cardEditorForm.value.tags)
+    if (cardEditorMode.value === 'edit' && cardEditorCardId.value) {
+      await api.updateCard(deck.id, cardEditorCardId.value, cardEditorForm.value.frontHtml, cardEditorForm.value.backHtml, tags)
+      notice.value = 'Carta atualizada.'
+    } else {
+      await api.createCard(deck.id, cardEditorForm.value.frontHtml, cardEditorForm.value.backHtml, tags)
+      notice.value = 'Carta adicionada.'
+    }
+    closeCardEditor(true)
+    await Promise.all([
+      reloadManagedDeck(),
+      loadMyDecks(true)
+    ])
+  })
+}
+
+async function deleteManagedCard(card: CardResponse) {
+  const deck = managedDeck.value
+  if (!deck || !window.confirm('Excluir esta carta?')) {
+    return
+  }
+  await withFeedback(async () => {
+    await api.deleteCard(deck.id, card.id)
+    await Promise.all([
+      reloadManagedDeck(),
+      loadMyDecks(true)
+    ])
+    notice.value = 'Carta excluida.'
+  })
+}
+
+function triggerMediaUpload(kind: 'image' | 'audio', face: CardEditorFace) {
+  mediaUploadKind.value = kind
+  activeEditorFace.value = face
+  mediaInputRef.value?.click()
+}
+
+async function handleEditorMediaChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0] ?? null
+  input.value = ''
+  if (!file || !managedDeck.value) {
+    return
+  }
+
+  await withFeedback(async () => {
+    const uploaded = await api.uploadMedia(managedDeck.value!.id, file)
+    const marker = mediaUploadKind.value === 'image'
+      ? `<img src="${uploaded.fileName}" alt="">`
+      : `[sound:${uploaded.fileName}]`
+    insertIntoEditor(activeEditorFace.value, marker)
+    notice.value = mediaUploadKind.value === 'image'
+      ? 'Imagem inserida na carta.'
+      : 'Audio inserido na carta.'
+  })
+}
+
+function insertIntoEditor(face: CardEditorFace, text: string) {
+  const field = face === 'front' ? 'frontHtml' : 'backHtml'
+  const textarea = face === 'front' ? frontEditorRef.value : backEditorRef.value
+  const current = cardEditorForm.value[field]
+  const start = textarea?.selectionStart ?? current.length
+  const end = textarea?.selectionEnd ?? current.length
+  const nextValue = `${current.slice(0, start)}${text}${current.slice(end)}`
+  cardEditorForm.value[field] = nextValue
+  void nextTick(() => {
+    const target = face === 'front' ? frontEditorRef.value : backEditorRef.value
+    target?.focus()
+    const cursor = start + text.length
+    target?.setSelectionRange(cursor, cursor)
+  })
+}
+
+function splitTags(tags: string) {
+  return tags.split(',').map((tag) => tag.trim()).filter(Boolean)
+}
+
+function cardTextSummary(card: CardResponse) {
+  return htmlSummary(card.frontHtml) || htmlSummary(card.backHtml) || 'Carta sem texto'
 }
 
 function mergeDeckPages(current: DeckSummary[], incoming: DeckSummary[]) {
@@ -995,7 +1265,7 @@ function loadStoredThemePreference(): ThemePreference {
             </button>
           </div>
 
-          <div class="library-toolbar">
+          <div v-if="libraryView === 'decks'" class="library-toolbar">
             <label class="library-search">
               <Search :size="17" aria-hidden="true" />
               <input v-model="librarySearch" type="search" placeholder="Buscar baralhos" />
@@ -1009,7 +1279,7 @@ function loadStoredThemePreference(): ThemePreference {
             </div>
           </div>
 
-          <div class="library-content">
+          <div v-if="libraryView === 'decks'" class="library-content">
             <div v-if="librarySection === 'public'" class="panel wide">
               <div v-if="filteredPublicDecks.length" class="deck-list">
                 <article v-for="deck in filteredPublicDecks" :key="deck.id" class="deck-card">
@@ -1056,6 +1326,10 @@ function loadStoredThemePreference(): ThemePreference {
                       <Brain :size="16" aria-hidden="true" />
                       Estudar
                     </button>
+                    <button class="ghost compact" type="button" @click="openManagedDeck(deck)">
+                      <Pencil :size="16" aria-hidden="true" />
+                      Gerenciar
+                    </button>
                   </div>
                 </article>
               </div>
@@ -1077,6 +1351,86 @@ function loadStoredThemePreference(): ThemePreference {
                 Carregar mais baralhos...
               </a>
             </div>
+          </div>
+
+          <div v-else-if="managedDeck" class="manage-deck-view">
+            <div class="manage-deck-header">
+              <button class="ghost compact" type="button" @click="closeManagedDeck()">
+                <ArrowLeft :size="16" aria-hidden="true" />
+                Voltar
+              </button>
+              <div class="row-actions">
+                <button class="primary compact" type="button" :disabled="!managedDeckDirty" @click="saveManagedDeck">
+                  <Save :size="16" aria-hidden="true" />
+                  Salvar
+                </button>
+                <button class="ghost compact danger-action" type="button" @click="deleteManagedDeck">
+                  <Trash2 :size="16" aria-hidden="true" />
+                  Excluir baralho
+                </button>
+              </div>
+            </div>
+
+            <section class="manage-deck-layout">
+              <form class="panel manage-meta-panel" @submit.prevent="saveManagedDeck">
+                <div class="section-title">
+                  <h2>Dados do baralho</h2>
+                </div>
+                <label class="form-field">
+                  <span class="field-label">Titulo</span>
+                  <input v-model.trim="managedDeckForm.title" type="text" maxlength="180" required />
+                </label>
+                <label class="form-field">
+                  <span class="field-label">Descricao</span>
+                  <textarea v-model="managedDeckForm.description" rows="5" maxlength="2000"></textarea>
+                </label>
+                <label class="form-field">
+                  <span class="field-label">Visibilidade</span>
+                  <select v-model="managedDeckForm.visibility">
+                    <option value="PRIVATE">Privado</option>
+                    <option value="PUBLIC">Publico</option>
+                  </select>
+                </label>
+              </form>
+
+              <section class="panel manage-cards-panel">
+                <div class="section-title">
+                  <div>
+                    <h2>Cartas</h2>
+                    <p class="muted">{{ cardCountLabel(managedDeck.cards.length) }}</p>
+                  </div>
+                  <button class="primary compact" type="button" @click="openCreateCardEditor">
+                    <Plus :size="16" aria-hidden="true" />
+                    Nova carta
+                  </button>
+                </div>
+
+                <div v-if="managedDeck.cards.length" class="managed-card-list">
+                  <article v-for="card in managedDeck.cards" :key="card.id" class="managed-card-row">
+                    <div>
+                      <h3>{{ cardTextSummary(card) }}</h3>
+                      <p class="muted">{{ card.tags.length ? card.tags.join(', ') : 'sem tags' }}</p>
+                    </div>
+                    <div class="row-actions">
+                      <button class="ghost icon-button" type="button" title="Editar carta" aria-label="Editar carta" @click="openEditCardEditor(card)">
+                        <Pencil :size="16" aria-hidden="true" />
+                      </button>
+                      <button class="ghost icon-button danger-action" type="button" title="Excluir carta" aria-label="Excluir carta" @click="deleteManagedCard(card)">
+                        <Trash2 :size="16" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </article>
+                </div>
+                <div v-else class="empty-state compact-empty">
+                  <h2>Nenhuma carta ainda</h2>
+                  <p>Crie a primeira carta para estudar este baralho.</p>
+                  <button class="primary compact" type="button" @click="openCreateCardEditor">
+                    <Plus :size="16" aria-hidden="true" />
+                    Nova carta
+                  </button>
+                </div>
+              </section>
+            </section>
           </div>
         </div>
       </section>
@@ -1241,8 +1595,8 @@ function loadStoredThemePreference(): ThemePreference {
         </div>
       </section>
 
-      <section v-if="tab === 'create'" class="content-grid">
-        <form class="panel" @submit.prevent="createDeck">
+      <section v-if="tab === 'create'" class="create-deck-section">
+        <form class="panel create-deck-panel" @submit.prevent="createDeck">
           <div class="section-title">
             <h2>Novo baralho</h2>
           </div>
@@ -1257,23 +1611,6 @@ function loadStoredThemePreference(): ThemePreference {
             Criar baralho
           </button>
           <p v-if="!user" class="muted">Criacao persistente exige login.</p>
-        </form>
-
-        <form class="panel wide" @submit.prevent="createCard">
-          <div class="section-title">
-            <h2>Novo card</h2>
-          </div>
-          <select v-model.number="cardForm.deckId" :disabled="!user">
-            <option :value="0">Escolha um baralho</option>
-            <option v-for="deck in myDecks" :key="deck.id" :value="deck.id">{{ deck.title }}</option>
-          </select>
-          <textarea v-model="cardForm.frontHtml" required rows="4" placeholder="Frente" :disabled="!user"></textarea>
-          <textarea v-model="cardForm.backHtml" required rows="4" placeholder="Verso" :disabled="!user"></textarea>
-          <input v-model="cardForm.tags" type="text" placeholder="tags separadas por virgula" :disabled="!user" />
-          <button class="primary full" type="submit" :disabled="!user">
-            <Plus :size="16" aria-hidden="true" />
-            Adicionar card
-          </button>
         </form>
       </section>
 
@@ -1305,6 +1642,102 @@ function loadStoredThemePreference(): ThemePreference {
           <BarChart3 :size="36" aria-hidden="true" />
           <h2>Progresso persistente exige login</h2>
           <p>Entre para manter agenda, revisoes e estatisticas entre dispositivos.</p>
+        </div>
+      </section>
+
+      <section v-if="cardEditorOpen && managedDeck" class="card-editor-overlay" aria-label="Editor de carta">
+        <div class="card-editor-shell">
+          <header class="card-editor-header">
+            <div>
+              <p class="eyebrow">{{ managedDeck.title }}</p>
+              <h2>{{ cardEditorTitle }}</h2>
+            </div>
+            <div class="row-actions">
+              <button class="primary compact" type="button" @click="saveCardEditor">
+                <Save :size="16" aria-hidden="true" />
+                Salvar carta
+              </button>
+              <button class="ghost icon-button" type="button" title="Fechar editor" aria-label="Fechar editor" @click="closeCardEditor()">
+                <X :size="16" aria-hidden="true" />
+              </button>
+            </div>
+          </header>
+
+          <div class="card-editor-body">
+            <form class="card-editor-form" @submit.prevent="saveCardEditor">
+              <section class="editor-face-block">
+                <div class="section-title compact-title">
+                  <h3>Frente</h3>
+                  <div class="row-actions">
+                    <button class="ghost icon-button" type="button" title="Inserir imagem na frente" aria-label="Inserir imagem na frente" @click="triggerMediaUpload('image', 'front')">
+                      <ImageIcon :size="16" aria-hidden="true" />
+                    </button>
+                    <button class="ghost icon-button" type="button" title="Inserir audio na frente" aria-label="Inserir audio na frente" @click="triggerMediaUpload('audio', 'front')">
+                      <Volume2 :size="16" aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+                <textarea
+                  ref="frontEditorRef"
+                  v-model="cardEditorForm.frontHtml"
+                  rows="10"
+                  maxlength="12000"
+                  required
+                  @focus="activeEditorFace = 'front'"
+                ></textarea>
+              </section>
+
+              <section class="editor-face-block">
+                <div class="section-title compact-title">
+                  <h3>Verso</h3>
+                  <div class="row-actions">
+                    <button class="ghost icon-button" type="button" title="Inserir imagem no verso" aria-label="Inserir imagem no verso" @click="triggerMediaUpload('image', 'back')">
+                      <ImageIcon :size="16" aria-hidden="true" />
+                    </button>
+                    <button class="ghost icon-button" type="button" title="Inserir audio no verso" aria-label="Inserir audio no verso" @click="triggerMediaUpload('audio', 'back')">
+                      <Volume2 :size="16" aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+                <textarea
+                  ref="backEditorRef"
+                  v-model="cardEditorForm.backHtml"
+                  rows="10"
+                  maxlength="12000"
+                  required
+                  @focus="activeEditorFace = 'back'"
+                ></textarea>
+              </section>
+
+              <label class="form-field">
+                <span class="field-label">Tags</span>
+                <input v-model="cardEditorForm.tags" type="text" maxlength="400" placeholder="separadas por virgula" />
+              </label>
+            </form>
+
+            <section class="card-editor-preview">
+              <article class="preview-pane">
+                <div class="card-meta">
+                  <span>Frente</span>
+                </div>
+                <div class="preview-study-face" v-html="cardEditorFrontPreview"></div>
+              </article>
+              <article class="preview-pane">
+                <div class="card-meta">
+                  <span>Verso</span>
+                </div>
+                <div class="preview-study-face" v-html="cardEditorBackPreview"></div>
+              </article>
+            </section>
+          </div>
+
+          <input
+            ref="mediaInputRef"
+            class="visually-hidden"
+            type="file"
+            :accept="mediaUploadKind === 'image' ? 'image/*' : 'audio/*'"
+            @change="handleEditorMediaChange"
+          />
         </div>
       </section>
     </main>

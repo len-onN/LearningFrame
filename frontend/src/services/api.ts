@@ -2,9 +2,11 @@ import type {
   ApkgImportResponse,
   ApkgPreviewResponse,
   AuthResponse,
+  CardResponse,
   DeckDetail,
   DeckSummary,
   DeckVisibility,
+  MediaUploadResponse,
   PageResponse,
   DueResponse,
   ReviewRating,
@@ -97,10 +99,40 @@ export const api = {
       body: JSON.stringify({ title, description, visibility })
     })
   },
+  updateDeck(deckId: number, title: string, description: string, visibility: DeckVisibility) {
+    return request<DeckSummary>(`/api/decks/${deckId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ title, description, visibility })
+    })
+  },
+  deleteDeck(deckId: number) {
+    return request<void>(`/api/decks/${deckId}`, {
+      method: 'DELETE'
+    })
+  },
   createCard(deckId: number, frontHtml: string, backHtml: string, tags: string[]) {
-    return request(`/api/decks/${deckId}/cards`, {
+    return request<CardResponse>(`/api/decks/${deckId}/cards`, {
       method: 'POST',
       body: JSON.stringify({ frontHtml, backHtml, tags })
+    })
+  },
+  updateCard(deckId: number, cardId: number, frontHtml: string, backHtml: string, tags: string[]) {
+    return request<CardResponse>(`/api/decks/${deckId}/cards/${cardId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ frontHtml, backHtml, tags })
+    })
+  },
+  deleteCard(deckId: number, cardId: number) {
+    return request<void>(`/api/decks/${deckId}/cards/${cardId}`, {
+      method: 'DELETE'
+    })
+  },
+  uploadMedia(deckId: number, file: File) {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request<MediaUploadResponse>(`/api/decks/${deckId}/media`, {
+      method: 'POST',
+      body: formData
     })
   },
   due(mode: StudyMode, deckId?: number) {

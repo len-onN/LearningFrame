@@ -45,6 +45,11 @@ export interface CardResponse {
   tags: string[]
 }
 
+export interface MediaUploadResponse {
+  fileName: string
+  contentType: string
+}
+
 export interface DeckDetail {
   id: number
   title: string
