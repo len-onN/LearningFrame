@@ -52,6 +52,11 @@ public class DeckController {
         return deckService.myDecks(user, page, size, q);
     }
 
+    @GetMapping("/{deckId}/metadata")
+    DeckSummary deckMetadata(@PathVariable Long deckId, @AuthenticationPrincipal AuthenticatedUser user) {
+        return deckService.deckMetadata(deckId, user);
+    }
+
     @GetMapping("/{deckId}")
     DeckDetail getDeck(@PathVariable Long deckId, @AuthenticationPrincipal AuthenticatedUser user) {
         return deckService.getDeck(deckId, user);

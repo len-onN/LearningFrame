@@ -93,6 +93,14 @@ public class DeckService {
         return toDetail(deck);
     }
 
+    @Transactional(readOnly = true)
+    public DeckSummary deckMetadata(Long deckId, AuthenticatedUser principal) {
+        Long userId = principal == null ? null : principal.id();
+        Deck deck = decks.findAccessible(deckId, userId)
+                .orElseThrow(() -> ApiException.notFound("Baralho nao encontrado."));
+        return toSummary(deck, userId);
+    }
+
     @Transactional
     public DeckSummary createDeck(DeckUpsertRequest request, AuthenticatedUser principal) {
         AppUser owner = authService.requireUser(principal);

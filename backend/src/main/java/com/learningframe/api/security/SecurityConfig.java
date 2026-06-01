@@ -31,6 +31,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/decks/public").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/decks/*/metadata").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/decks/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/decks/*/media/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/import/apkg/preview").permitAll()
