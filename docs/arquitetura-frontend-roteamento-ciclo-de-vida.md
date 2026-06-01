@@ -642,6 +642,9 @@ Objetivos:
 - reduzir o `App.vue` para orquestracao minima;
 - manter comportamento visual.
 
+Planejamento fino:
+- `docs/plano-momento-3-shell-paginas.md`.
+
 Riscos:
 - passar props demais;
 - mover regra de negocio junto com template sem criterio;
