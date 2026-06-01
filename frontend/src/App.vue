@@ -2,22 +2,13 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import {
-  ArrowLeft,
   BarChart3,
   BookOpen,
   Brain,
-  Check,
-  ChevronsLeft,
-  ChevronsRight,
   Image as ImageIcon,
-  Pencil,
   Plus,
-  RotateCcw,
   Save,
-  Search,
-  Trash2,
   Upload,
-  User,
   Volume2,
   X
 } from '@lucide/vue'
@@ -45,8 +36,12 @@ import {
 } from './utils/localStudy'
 import AuthPage from './pages/AuthPage.vue'
 import CreateDeckPage from './pages/CreateDeckPage.vue'
+import ImportPage from './pages/ImportPage.vue'
+import LibraryPage from './pages/LibraryPage.vue'
 import ProgressPage from './pages/ProgressPage.vue'
 import StudyPage from './pages/StudyPage.vue'
+import type { LibrarySection, LibraryView, ManagedCardsViewState } from './features/library/libraryTypes'
+import type { PreviewFace } from './features/import/importTypes'
 import { nextReview } from './utils/srs'
 import { extractRelativeMediaSources, safePreviewHtml, safeStudyHtml } from './utils/html'
 import { createApkgMediaIndex, normalizeMediaName, type ApkgMediaIndex } from './utils/apkgMedia'
@@ -54,10 +49,7 @@ import { formatDueIn, nextDueLabel } from './utils/dueTime'
 import { validateAuthForm, type AuthErrors, type AuthField, type AuthMode } from './utils/authValidation'
 
 type Tab = 'library' | 'study' | 'import' | 'create' | 'progress' | 'auth'
-type LibrarySection = 'public' | 'mine'
-type LibraryView = 'decks' | 'manage-deck'
 type ThemePreference = 'light' | 'dark'
-type PreviewFace = 'front' | 'back'
 type CardEditorMode = 'create' | 'edit'
 type CardEditorFace = 'front' | 'back'
 const DECK_PAGE_SIZE = 8
@@ -185,6 +177,22 @@ const selectedManagedCardBackPreview = computed(() => managedDeck.value && selec
   ? safeStudyHtml(selectedManagedCard.value.backHtml, managedDeck.value.id)
   : ''
 )
+const managedCardsView = computed<ManagedCardsViewState>(() => ({
+  cards: managedCards.value,
+  selectedCard: selectedManagedCard.value,
+  selectedCardId: selectedManagedCardId.value,
+  selectedCardIds: selectedManagedCardIds.value,
+  selectedCount: selectedManagedCardsCount.value,
+  allVisibleSelected: allVisibleManagedCardsSelected.value,
+  hasMore: managedCardsHasMore.value,
+  countLabel: managedCardsCountLabel.value,
+  frontPreview: selectedManagedCardFrontPreview.value,
+  backPreview: selectedManagedCardBackPreview.value
+}))
+const deckFormatters = {
+  cardCount: cardCountLabel,
+  due: deckDueLabel
+}
 const managedDeckDirty = computed(() => {
   const deck = managedDeck.value
   return Boolean(deck)
@@ -309,7 +317,8 @@ watch(tab, (nextTab) => {
   }
 })
 
-watch(() => route.fullPath, () => {
+watch(() => route.fullPath, (_nextFullPath, previousFullPath) => {
+  clearImportStateForRouteChange(previousFullPath)
   void syncRouteState()
 }, { immediate: true })
 
@@ -746,6 +755,42 @@ function resetImportPreviewState() {
   previewMediaIndex.value = null
 }
 
+function clearImportWorkflowState() {
+  resetImportPreviewState()
+  selectedFile.value = null
+  importSaving.value = false
+  returnToImportAfterAuth.value = false
+}
+
+function clearImportStateForRouteChange(previousFullPath?: string) {
+  if (!previousFullPath) {
+    return
+  }
+
+  const leftImport = previousFullPath.startsWith('/importar') && route.name !== 'import'
+  const leftPreservedAuth = returnToImportAfterAuth.value
+    && isAuthPath(previousFullPath)
+    && route.name !== 'import'
+    && route.name !== 'login'
+    && route.name !== 'register'
+
+  if (leftImport && shouldPreserveImportAcrossAuth()) {
+    return
+  }
+
+  if (leftImport || leftPreservedAuth) {
+    clearImportWorkflowState()
+  }
+}
+
+function shouldPreserveImportAcrossAuth() {
+  return returnToImportAfterAuth.value && (route.name === 'login' || route.name === 'register')
+}
+
+function isAuthPath(path: string) {
+  return path.startsWith('/entrar') || path.startsWith('/cadastro')
+}
+
 let highlightDeckTimer: number | undefined
 
 async function highlightDeck(deckId: number) {
@@ -922,6 +967,10 @@ function setManagedDeck(deck: DeckSummary) {
     description: deck.description ?? '',
     visibility: deck.visibility
   }
+}
+
+function updateManagedDeckForm(nextForm: typeof managedDeckForm.value) {
+  managedDeckForm.value = nextForm
 }
 
 function closeManagedDeck(force = false, navigateToList = true) {
@@ -1355,268 +1404,50 @@ function loadStoredThemePreference(): ThemePreference {
         @touch-field="touchAuthField"
       />
 
-      <section v-if="tab === 'library'" class="library-grid">
-        <div class="library-shell">
-          <div class="library-tabs" role="tablist" aria-label="Tipos de baralho">
-            <button
-              class="library-tab"
-              :class="{ active: librarySection === 'public' }"
-              type="button"
-              role="tab"
-              :aria-selected="librarySection === 'public'"
-              @click="navigateTo({ name: 'library-public' })"
-            >
-              Baralhos públicos
-            </button>
-            <button
-              class="library-tab"
-              :class="{ active: librarySection === 'mine' }"
-              type="button"
-              role="tab"
-              :aria-selected="librarySection === 'mine'"
-              @click="navigateTo({ name: 'library-mine' })"
-            >
-              Meus baralhos
-            </button>
-          </div>
-
-          <div v-if="libraryView === 'decks'" class="library-toolbar">
-            <label class="library-search">
-              <Search :size="17" aria-hidden="true" />
-              <input v-model="librarySearch" type="search" placeholder="Buscar baralhos" />
-            </label>
-            <div class="row-actions">
-              <span v-if="activeLibraryCountLabel" class="muted">{{ activeLibraryCountLabel }}</span>
-              <button class="ghost compact" type="button" @click="refreshAll">
-                <RotateCcw :size="16" aria-hidden="true" />
-                Atualizar
-              </button>
-            </div>
-          </div>
-
-          <div v-if="libraryView === 'decks'" class="library-content">
-            <div v-if="librarySection === 'public'" class="panel wide">
-              <div v-if="filteredPublicDecks.length" class="deck-list">
-                <article v-for="deck in filteredPublicDecks" :key="deck.id" class="deck-card">
-                  <div>
-                    <h3>{{ deck.title }}</h3>
-                    <p>{{ deck.description }}</p>
-                    <span>{{ cardCountLabel(deck.cardCount) }} · {{ deckDueLabel(deck) }}</span>
-                  </div>
-                  <div class="row-actions">
-                    <button class="primary compact" type="button" @click="startDeck(deck)">
-                      <Brain :size="16" aria-hidden="true" />
-                      Estudar
-                    </button>
-                    <button class="ghost compact" type="button" @click="savePublicDeck(deck)">
-                      <Save :size="16" aria-hidden="true" />
-                      Salvar para mim
-                    </button>
-                  </div>
-                </article>
-              </div>
-              <p v-else class="muted empty-copy">Nenhum baralho público encontrado.</p>
-              <a
-                v-if="publicDecksHasMore"
-                class="load-more-link"
-                href="#"
-                @click.prevent="loadMorePublicDecks"
-              >
-                Carregar mais baralhos...
-              </a>
-            </div>
-
-            <div v-if="librarySection === 'mine'" class="panel wide">
-              <div v-if="user && filteredMyDecks.length" class="deck-list">
-                <article
-                  v-for="deck in filteredMyDecks"
-                  :key="deck.id"
-                  :data-deck-id="deck.id"
-                  class="deck-card"
-                  :class="{ highlighted: highlightedDeckId === deck.id }"
-                >
-                  <div>
-                    <h3>{{ deck.title }}</h3>
-                    <p>{{ deck.description }}</p>
-                    <span>{{ cardCountLabel(deck.cardCount) }} · {{ deckDueLabel(deck) }}</span>
-                  </div>
-                  <div class="row-actions">
-                    <button class="primary compact" type="button" @click="startDeck(deck)">
-                      <Brain :size="16" aria-hidden="true" />
-                      Estudar
-                    </button>
-                    <button class="ghost compact" type="button" @click="openManagedDeck(deck)">
-                      <Pencil :size="16" aria-hidden="true" />
-                      Gerenciar
-                    </button>
-                  </div>
-                </article>
-              </div>
-              <div v-else-if="!user" class="empty-state compact-empty">
-                <h2>Entre para ver seus baralhos</h2>
-                <p>Baralhos criados, importados e publicados pela sua conta aparecem aqui.</p>
-                <button class="primary compact" type="button" @click="openAuth('login')">
-                  <User :size="16" aria-hidden="true" />
-                  Entrar
-                </button>
-              </div>
-              <p v-else class="muted empty-copy">Nenhum baralho seu encontrado.</p>
-              <a
-                v-if="user && myDecksHasMore"
-                class="load-more-link"
-                href="#"
-                @click.prevent="loadMoreMyDecks"
-              >
-                Carregar mais baralhos...
-              </a>
-            </div>
-          </div>
-
-          <div v-else-if="managedDeck" class="manage-deck-view">
-            <div class="manage-deck-header">
-              <button class="ghost compact" type="button" @click="closeManagedDeck()">
-                <ArrowLeft :size="16" aria-hidden="true" />
-                Voltar
-              </button>
-              <div class="row-actions">
-                <button class="primary compact" type="button" :disabled="!managedDeckDirty" @click="saveManagedDeck">
-                  <Save :size="16" aria-hidden="true" />
-                  Salvar
-                </button>
-                <button class="ghost compact danger-action" type="button" @click="deleteManagedDeck">
-                  <Trash2 :size="16" aria-hidden="true" />
-                  Excluir baralho
-                </button>
-              </div>
-            </div>
-
-            <section class="manage-deck-layout">
-              <form class="panel manage-meta-panel" @submit.prevent="saveManagedDeck">
-                <div class="section-title">
-                  <h2>Dados do baralho</h2>
-                </div>
-                <label class="form-field">
-                  <span class="field-label">Titulo</span>
-                  <input v-model.trim="managedDeckForm.title" type="text" maxlength="180" required />
-                </label>
-                <label class="form-field">
-                  <span class="field-label">Descricao</span>
-                  <textarea v-model="managedDeckForm.description" rows="5" maxlength="2000"></textarea>
-                </label>
-                <label class="form-field">
-                  <span class="field-label">Visibilidade</span>
-                  <select v-model="managedDeckForm.visibility">
-                    <option value="PRIVATE">Privado</option>
-                    <option value="PUBLIC">Publico</option>
-                  </select>
-                </label>
-              </form>
-
-              <section class="panel manage-cards-panel">
-                <div class="section-title">
-                  <div>
-                    <h2>Cartas</h2>
-                    <p class="muted">{{ managedCardsCountLabel || cardCountLabel(managedDeck.cardCount) }}</p>
-                  </div>
-                  <button class="primary compact" type="button" @click="openCreateCardEditor">
-                    <Plus :size="16" aria-hidden="true" />
-                    Nova carta
-                  </button>
-                </div>
-
-                <div class="managed-cards-toolbar">
-                  <label class="library-search managed-card-search">
-                    <Search :size="17" aria-hidden="true" />
-                    <input v-model="managedCardsSearch" type="search" placeholder="Buscar em frente, verso ou tags" />
-                  </label>
-                  <div class="row-actions">
-                    <button class="ghost compact" type="button" :disabled="managedCards.length === 0" @click="toggleVisibleManagedCardsSelection">
-                      {{ allVisibleManagedCardsSelected ? 'Desmarcar pagina' : 'Selecionar pagina' }}
-                    </button>
-                    <button class="ghost compact" type="button" :disabled="selectedManagedCardsCount === 0" @click="clearManagedCardSelection">
-                      Limpar
-                    </button>
-                    <button class="ghost compact danger-action" type="button" :disabled="selectedManagedCardsCount === 0" @click="deleteSelectedManagedCards">
-                      <Trash2 :size="16" aria-hidden="true" />
-                      Excluir {{ selectedManagedCardsCount || '' }}
-                    </button>
-                  </div>
-                </div>
-
-                <section class="managed-cards-browser">
-                  <div class="managed-card-list">
-                    <article
-                      v-for="card in managedCards"
-                      :key="card.id"
-                      class="managed-card-row"
-                      :class="{ active: selectedManagedCardId === card.id }"
-                    >
-                      <label class="card-selection" :aria-label="`Selecionar ${cardTextSummary(card)}`">
-                        <input
-                          type="checkbox"
-                          :checked="selectedManagedCardIds.has(card.id)"
-                          @change="toggleManagedCardSelection(card.id)"
-                        />
-                      </label>
-                      <button class="managed-card-summary" type="button" @click="selectManagedCard(card)">
-                        <span>{{ cardTextSummary(card) }}</span>
-                        <small>{{ card.tags.length ? card.tags.join(', ') : 'sem tags' }}</small>
-                      </button>
-                    </article>
-                    <p v-if="managedCards.length === 0" class="muted empty-copy">
-                      {{ managedCardsSearch ? 'Nenhuma carta encontrada para esta busca.' : 'Nenhuma carta ainda.' }}
-                    </p>
-                    <a
-                      v-if="managedCardsHasMore"
-                      class="load-more-link"
-                      href="#"
-                      @click.prevent="loadMoreManagedCards"
-                    >
-                      Carregar mais cartas...
-                    </a>
-                  </div>
-
-                  <article v-if="selectedManagedCard" class="managed-card-preview">
-                    <div class="section-title">
-                      <div>
-                        <h3>{{ cardTextSummary(selectedManagedCard) }}</h3>
-                        <p class="muted">{{ selectedManagedCard.tags.length ? selectedManagedCard.tags.join(', ') : 'sem tags' }}</p>
-                      </div>
-                      <div class="row-actions">
-                        <button class="ghost icon-button" type="button" title="Editar carta" aria-label="Editar carta" @click="openEditCardEditor(selectedManagedCard)">
-                          <Pencil :size="16" aria-hidden="true" />
-                        </button>
-                        <button class="ghost icon-button danger-action" type="button" title="Excluir carta" aria-label="Excluir carta" @click="deleteManagedCard(selectedManagedCard)">
-                          <Trash2 :size="16" aria-hidden="true" />
-                        </button>
-                      </div>
-                    </div>
-                    <div class="managed-preview-faces">
-                      <div>
-                        <span class="field-label">Frente</span>
-                        <div class="preview-study-face" v-html="selectedManagedCardFrontPreview"></div>
-                      </div>
-                      <div>
-                        <span class="field-label">Verso</span>
-                        <div class="preview-study-face" v-html="selectedManagedCardBackPreview"></div>
-                      </div>
-                    </div>
-                  </article>
-
-                  <div v-else class="empty-state compact-empty">
-                    <h2>{{ managedCardsSearch ? 'Busca sem resultados' : 'Nenhuma carta ainda' }}</h2>
-                    <p>{{ managedCardsSearch ? 'Ajuste o termo de busca ou limpe o filtro.' : 'Crie a primeira carta para estudar este baralho.' }}</p>
-                    <button v-if="!managedCardsSearch" class="primary compact" type="button" @click="openCreateCardEditor">
-                      <Plus :size="16" aria-hidden="true" />
-                      Nova carta
-                    </button>
-                  </div>
-                </section>
-              </section>
-            </section>
-          </div>
-        </div>
-      </section>
+      <LibraryPage
+        v-if="tab === 'library'"
+        v-model:search="librarySearch"
+        :section="librarySection"
+        :view="libraryView"
+        :user="user"
+        :active-count-label="activeLibraryCountLabel"
+        :public-decks="filteredPublicDecks"
+        :my-decks="filteredMyDecks"
+        :public-decks-has-more="publicDecksHasMore"
+        :my-decks-has-more="myDecksHasMore"
+        :highlighted-deck-id="highlightedDeckId"
+        :managed-deck="managedDeck"
+        :managed-deck-form="managedDeckForm"
+        :managed-deck-dirty="managedDeckDirty"
+        :managed-cards-view="managedCardsView"
+        :managed-cards-search="managedCardsSearch"
+        :deck-formatters="deckFormatters"
+        :card-text-summary="cardTextSummary"
+        :card-count-label="cardCountLabel"
+        @go-public="navigateTo({ name: 'library-public' })"
+        @go-mine="navigateTo({ name: 'library-mine' })"
+        @refresh="refreshAll"
+        @start-deck="startDeck"
+        @save-public-deck="savePublicDeck"
+        @load-more-public="loadMorePublicDecks"
+        @load-more-mine="loadMoreMyDecks"
+        @open-managed-deck="openManagedDeck"
+        @login="openAuth('login')"
+        @close-managed-deck="closeManagedDeck()"
+        @save-managed-deck="saveManagedDeck"
+        @delete-managed-deck="deleteManagedDeck"
+        @update:managed-deck-form="updateManagedDeckForm"
+        @update:managed-cards-search="managedCardsSearch = $event"
+        @create-card="openCreateCardEditor"
+        @toggle-visible-card-selection="toggleVisibleManagedCardsSelection"
+        @clear-card-selection="clearManagedCardSelection"
+        @delete-selected-cards="deleteSelectedManagedCards"
+        @select-card="selectManagedCard"
+        @toggle-card-selection="toggleManagedCardSelection"
+        @load-more-cards="loadMoreManagedCards"
+        @edit-card="openEditCardEditor"
+        @delete-card="deleteManagedCard"
+      />
 
       <StudyPage
         v-if="tab === 'study'"
@@ -1632,123 +1463,30 @@ function loadStoredThemePreference(): ThemePreference {
         @review="reviewCurrent"
       />
 
-      <section v-if="tab === 'import'" class="import-page">
-        <div class="import-header">
-          <div>
-            <p class="eyebrow">Pacote Anki</p>
-            <h2>Importar APKG</h2>
-          </div>
-          <span v-if="selectedFile" class="muted">{{ selectedFile.name }}</span>
-        </div>
-
-        <div class="import-workspace">
-          <div class="panel wide">
-            <label class="file-drop">
-              <Upload :size="22" aria-hidden="true" />
-              <span>{{ selectedFile?.name ?? 'Selecionar arquivo .apkg' }}</span>
-              <input type="file" accept=".apkg" @change="handleApkgChange" />
-            </label>
-
-            <div v-if="loading && selectedFile && !importPreview" class="pending-card import-loading">
-              Lendo pacote e preparando previa...
-            </div>
-
-            <div v-if="importPreview" class="import-summary">
-              <div>
-                <strong>{{ importPreview.title }}</strong>
-                <span>{{ importPreview.notesFound }} notas encontradas · {{ importPreview.cardsReady }} cartas prontas · {{ importPreview.cardsSkipped }} ignoradas · {{ importPreview.mediaFound }} midias</span>
-              </div>
-              <p v-if="importPreview.mediaFound > 0" class="inline-alert">
-                Este pacote contem midia. A previa mostra marcadores; o estudo com imagens fica disponivel depois de salvar em Meus baralhos.
-              </p>
-              <p v-for="warning in importPreview.warnings" :key="warning" class="muted">{{ warning }}</p>
-            </div>
-
-            <div v-if="importPreview && currentPreviewCard" class="preview-section">
-              <div class="preview-toolbar">
-                <div class="preview-picker">
-                  <label class="field-label" for="preview-card-search">Carta</label>
-                  <button class="preview-picker-trigger" type="button" @click="previewPickerOpen = !previewPickerOpen">
-                    <span>{{ previewCardTitle(previewCardIndex) }}</span>
-                    <span>{{ previewFace === 'front' ? 'Frente' : 'Verso' }}</span>
-                  </button>
-                  <div v-if="previewPickerOpen" class="preview-picker-menu">
-                    <label class="library-search preview-search">
-                      <Search :size="16" aria-hidden="true" />
-                      <input
-                        id="preview-card-search"
-                        v-model="previewCardSearch"
-                        type="search"
-                        placeholder="Buscar carta"
-                        @keydown.esc="previewPickerOpen = false"
-                      />
-                    </label>
-                    <div class="preview-picker-list">
-                      <button
-                        v-for="option in previewCardOptions"
-                        :key="option.index"
-                        class="preview-picker-option"
-                        :class="{ active: option.index === previewCardIndex }"
-                        type="button"
-                        @click="selectPreviewCard(option.index)"
-                      >
-                        {{ option.label }}
-                      </button>
-                      <p v-if="previewCardOptions.length === 0" class="muted empty-copy">Nenhuma carta encontrada.</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="preview-actions">
-                  <button class="ghost compact" type="button" :disabled="previewCardIndex === 0" @click="movePreviewCard(-1)">
-                    <ChevronsLeft :size="16" aria-hidden="true" />
-                    Anterior
-                  </button>
-                  <button class="ghost compact" type="button" @click="togglePreviewFace">
-                    <RotateCcw :size="16" aria-hidden="true" />
-                    {{ previewFace === 'front' ? 'Ver verso' : 'Ver frente' }}
-                  </button>
-                  <button
-                    class="ghost compact"
-                    type="button"
-                    :disabled="previewCardIndex >= importPreview.cards.length - 1"
-                    @click="movePreviewCard(1)"
-                  >
-                    Proxima
-                    <ChevronsRight :size="16" aria-hidden="true" />
-                  </button>
-                </div>
-              </div>
-
-              <article class="preview-study-card" role="button" tabindex="0" @click="togglePreviewFace" @keydown.enter.prevent="togglePreviewFace" @keydown.space.prevent="togglePreviewFace">
-                <div class="card-meta">
-                  <span>{{ previewFace === 'front' ? 'Frente' : 'Verso' }}</span>
-                  <span>{{ currentPreviewCard.tags.length ? currentPreviewCard.tags.join(', ') : 'sem tags' }}</span>
-                </div>
-                <div class="preview-study-face" v-html="currentPreviewHtml"></div>
-              </article>
-            </div>
-          </div>
-
-          <form v-if="importPreview" class="panel import-save-panel" @submit.prevent="persistImport">
-            <div class="section-title">
-              <h2>{{ user ? 'Salvar em Meus baralhos' : 'Entrar para salvar' }}</h2>
-            </div>
-            <input v-model="importTitle" type="text" placeholder="Titulo do baralho" />
-            <select v-model="importVisibility" :disabled="!user">
-              <option value="PRIVATE">Privado</option>
-              <option value="PUBLIC">Publico</option>
-            </select>
-            <button class="primary full" type="submit">
-              <Check :size="16" aria-hidden="true" />
-              {{ user ? 'Salvar APKG' : 'Entrar para salvar' }}
-            </button>
-            <p class="muted">
-              {{ user ? 'O arquivo original sera enviado para preservar cartas e midias.' : 'A previa continua nesta tela enquanto voce entra na conta.' }}
-            </p>
-          </form>
-        </div>
-      </section>
+      <ImportPage
+        v-if="tab === 'import'"
+        v-model:import-title="importTitle"
+        v-model:import-visibility="importVisibility"
+        :selected-file="selectedFile"
+        :loading="loading"
+        :import-preview="importPreview"
+        :current-preview-card="currentPreviewCard"
+        :preview-card-index="previewCardIndex"
+        :preview-face="previewFace"
+        :preview-picker-open="previewPickerOpen"
+        :preview-card-search="previewCardSearch"
+        :preview-card-options="previewCardOptions"
+        :preview-card-title="previewCardTitle(previewCardIndex)"
+        :current-preview-html="currentPreviewHtml"
+        :user="user"
+        @file-change="handleApkgChange"
+        @update:preview-picker-open="previewPickerOpen = $event"
+        @update:preview-card-search="previewCardSearch = $event"
+        @select-preview-card="selectPreviewCard"
+        @move-preview-card="movePreviewCard"
+        @toggle-preview-face="togglePreviewFace"
+        @persist-import="persistImport"
+      />
 
       <CreateDeckPage
         v-if="tab === 'create'"
