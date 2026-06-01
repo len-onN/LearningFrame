@@ -9,23 +9,19 @@ import {
   Check,
   ChevronsLeft,
   ChevronsRight,
-  Eye,
   Image as ImageIcon,
-  LogOut,
-  Moon,
   Pencil,
   Plus,
   RotateCcw,
   Save,
   Search,
-  Shuffle,
-  Sun,
   Trash2,
   Upload,
   User,
   Volume2,
   X
 } from '@lucide/vue'
+import AppShell from './layouts/AppShell.vue'
 import { api, clearAuthToken, setAuthToken } from './services/api'
 import type {
   ApkgImportResponse,
@@ -47,6 +43,10 @@ import {
   localDeckToStudyCards,
   saveLocalStates
 } from './utils/localStudy'
+import AuthPage from './pages/AuthPage.vue'
+import CreateDeckPage from './pages/CreateDeckPage.vue'
+import ProgressPage from './pages/ProgressPage.vue'
+import StudyPage from './pages/StudyPage.vue'
 import { nextReview } from './utils/srs'
 import { extractRelativeMediaSources, safePreviewHtml, safeStudyHtml } from './utils/html'
 import { createApkgMediaIndex, normalizeMediaName, type ApkgMediaIndex } from './utils/apkgMedia'
@@ -1318,191 +1318,42 @@ function loadStoredThemePreference(): ThemePreference {
 </script>
 
 <template>
-  <div class="app-shell" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
-    <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
-      <button class="brand-button" type="button" title="Pagina inicial" @click="goHome">
-        <Brain :size="24" aria-hidden="true" />
-        <strong>LearningFrame</strong>
-      </button>
+  <AppShell
+    :sidebar-collapsed="sidebarCollapsed"
+    :nav-items="visibleTabs"
+    :active-tab="tab"
+    :current-title="currentTitle"
+    :theme-preference="themePreference"
+    :next-theme-label="nextThemeLabel"
+    :sidebar-toggle-label="sidebarToggleLabel"
+    :user="user"
+    :user-display-name="userDisplayName"
+    :loading="loading"
+    :loading-message="loadingMessage"
+    :notice="notice"
+    :error="error"
+    @go-home="goHome"
+    @toggle-sidebar="toggleSidebar"
+    @toggle-theme="toggleThemePreference"
+    @start-interleaved="startInterleavedPractice"
+    @login="openAuth('login')"
+    @logout="logout"
+    @dismiss-notice="dismissNotice"
+    @dismiss-error="dismissError"
+  >
 
-      <button
-        class="ghost icon-button sidebar-toggle"
-        type="button"
-        :title="sidebarToggleLabel"
-        :aria-label="sidebarToggleLabel"
-        @click="toggleSidebar"
-      >
-        <ChevronsRight v-if="sidebarCollapsed" :size="16" aria-hidden="true" />
-        <ChevronsLeft v-else :size="16" aria-hidden="true" />
-      </button>
-
-      <nav class="nav-list" aria-label="Navegacao principal">
-        <RouterLink
-          v-for="item in visibleTabs"
-          :key="item.id"
-          v-slot="{ navigate }"
-          custom
-          :to="item.to"
-        >
-          <button
-            class="nav-button"
-            :class="{ active: tab === item.id }"
-            type="button"
-            @click="navigate"
-          >
-            <component :is="item.icon" :size="18" aria-hidden="true" />
-            <span>{{ item.label }}</span>
-          </button>
-        </RouterLink>
-      </nav>
-
-      <button
-        class="primary full interleaved-button"
-        type="button"
-        @click="startInterleavedPractice"
-      >
-        <Shuffle :size="18" aria-hidden="true" />
-        <span>Prática intercalada</span>
-      </button>
-
-      <section class="sidebar-footer" aria-label="Conta">
-        <div v-if="user" class="sidebar-user">
-          <div class="user-summary" :title="userDisplayName">
-            <User :size="16" aria-hidden="true" />
-            <span>{{ userDisplayName }}</span>
-          </div>
-          <button class="ghost icon-button" type="button" title="Sair" aria-label="Sair" @click="logout">
-            <LogOut :size="16" aria-hidden="true" />
-          </button>
-        </div>
-
-        <button v-else class="primary compact sidebar-login" type="button" @click="openAuth('login')">
-          <User :size="16" aria-hidden="true" />
-          <span>Entrar</span>
-        </button>
-      </section>
-    </aside>
-
-    <main class="workspace">
-      <header class="topbar">
-        <div>
-          <p class="eyebrow concept-strip">
-            <button
-              class="icon-button theme-toggle inline-theme-toggle"
-              type="button"
-              :title="nextThemeLabel"
-              :aria-label="nextThemeLabel"
-              @click="toggleThemePreference"
-            >
-              <Sun v-if="themePreference === 'light'" :size="14" aria-hidden="true" />
-              <Moon v-else :size="14" aria-hidden="true" />
-            </button>
-            <span>Recordação ativa · Repetição espaçada · Prática intercalada</span>
-          </p>
-          <h1>{{ currentTitle }}</h1>
-        </div>
-      </header>
-
-      <div v-if="loading" class="status loading-status">
-        <RotateCcw :size="16" aria-hidden="true" />
-        <span>{{ loadingMessage }}</span>
-      </div>
-      <div v-if="notice" class="status success dismissible">
-        <span>{{ notice }}</span>
-        <button class="status-close" type="button" title="Fechar notificacao" aria-label="Fechar notificacao" @click="dismissNotice">
-          <X :size="15" aria-hidden="true" />
-        </button>
-      </div>
-      <div v-if="error" class="status error dismissible">
-        <span>{{ error }}</span>
-        <button class="status-close" type="button" title="Fechar notificacao" aria-label="Fechar notificacao" @click="dismissError">
-          <X :size="15" aria-hidden="true" />
-        </button>
-      </div>
-
-      <section v-if="tab === 'auth'" class="auth-page">
-        <form class="auth-card" novalidate @submit.prevent="submitAuth">
-          <button class="auth-close" type="button" title="Continuar sem login" aria-label="Continuar sem login" @click="goHome">
-            ×
-          </button>
-
-          <div>
-            <p class="eyebrow">Conta opcional</p>
-            <h2>{{ authMode === 'login' ? 'Acesse seu progresso' : 'Crie sua conta' }}</h2>
-            <p class="muted">
-              Continue estudando sem login ou entre para salvar baralhos, publicar decks e acompanhar seu progresso.
-            </p>
-          </div>
-
-          <div v-if="authMode === 'register'" class="form-field">
-            <label class="field-label" for="auth-display-name">Nome</label>
-            <input
-              id="auth-display-name"
-              v-model.trim="authForm.displayName"
-              class="field-control"
-              :class="{ invalid: Boolean(authFieldError('displayName')) }"
-              type="text"
-              autocomplete="name"
-              placeholder="Seu nome"
-              :aria-invalid="Boolean(authFieldError('displayName'))"
-              :aria-describedby="authFieldError('displayName') ? 'auth-display-name-error' : undefined"
-              @blur="touchAuthField('displayName')"
-            />
-            <p v-if="authFieldError('displayName')" id="auth-display-name-error" class="field-error">
-              {{ authFieldError('displayName') }}
-            </p>
-          </div>
-
-          <div class="form-field">
-            <label class="field-label" for="auth-email">E-mail</label>
-            <input
-              id="auth-email"
-              v-model.trim="authForm.email"
-              class="field-control"
-              :class="{ invalid: Boolean(authFieldError('email')) }"
-              type="email"
-              autocomplete="email"
-              placeholder="voce@email.com"
-              :aria-invalid="Boolean(authFieldError('email'))"
-              :aria-describedby="authFieldError('email') ? 'auth-email-error' : undefined"
-              @blur="touchAuthField('email')"
-            />
-            <p v-if="authFieldError('email')" id="auth-email-error" class="field-error">
-              {{ authFieldError('email') }}
-            </p>
-          </div>
-
-          <div class="form-field">
-            <label class="field-label" for="auth-password">Senha</label>
-            <input
-              id="auth-password"
-              v-model="authForm.password"
-              class="field-control"
-              :class="{ invalid: Boolean(authFieldError('password')) }"
-              type="password"
-              :autocomplete="authMode === 'login' ? 'current-password' : 'new-password'"
-              placeholder="Sua senha"
-              :aria-invalid="Boolean(authFieldError('password'))"
-              :aria-describedby="authFieldError('password') ? 'auth-password-error' : undefined"
-              @blur="touchAuthField('password')"
-            />
-            <p v-if="authFieldError('password')" id="auth-password-error" class="field-error">
-              {{ authFieldError('password') }}
-            </p>
-          </div>
-
-          <button class="primary full" type="submit">
-            <User :size="16" aria-hidden="true" />
-            {{ authMode === 'login' ? 'Entrar' : 'Criar conta' }}
-          </button>
-
-          <div class="auth-actions">
-            <button class="ghost compact" type="button" @click="toggleAuthMode">
-              {{ authMode === 'login' ? 'Criar conta' : 'Ja tenho conta' }}
-            </button>
-          </div>
-        </form>
-      </section>
+      <AuthPage
+        v-if="tab === 'auth'"
+        v-model:display-name="authForm.displayName"
+        v-model:email="authForm.email"
+        v-model:password="authForm.password"
+        :mode="authMode"
+        :field-error="authFieldError"
+        @submit="submitAuth"
+        @close="goHome"
+        @toggle-mode="toggleAuthMode"
+        @touch-field="touchAuthField"
+      />
 
       <section v-if="tab === 'library'" class="library-grid">
         <div class="library-shell">
@@ -1767,47 +1618,19 @@ function loadStoredThemePreference(): ThemePreference {
         </div>
       </section>
 
-      <section v-if="tab === 'study'" class="study-layout">
-        <div class="study-header">
-          <div>
-            <p class="eyebrow">{{ sessionTitle }}</p>
-            <h2>{{ studyQueue.length }} cards na fila</h2>
-          </div>
-          <button class="ghost compact" type="button" @click="startInterleavedPractice">
-            <Shuffle :size="16" aria-hidden="true" />
-            Prática intercalada
-          </button>
-        </div>
-
-        <article v-if="currentCard" class="study-card">
-          <div class="card-meta">
-            <span>{{ currentCard.deckTitle }}</span>
-            <span>{{ currentCard.newCard ? 'Novo' : `${currentCard.intervalDays} dias` }} · volta {{ currentDueLabel }}</span>
-          </div>
-          <div class="prompt" v-html="frontHtml"></div>
-
-          <button v-if="!answerVisible" class="primary reveal" type="button" @click="answerVisible = true">
-            <Eye :size="18" aria-hidden="true" />
-            Revelar resposta
-          </button>
-
-          <template v-else>
-            <div class="answer" v-html="backHtml"></div>
-            <div class="ratings" aria-label="Avaliar resposta">
-              <button class="rating again" type="button" @click="reviewCurrent('AGAIN')">De novo</button>
-              <button class="rating hard" type="button" @click="reviewCurrent('HARD')">Dificil</button>
-              <button class="rating good" type="button" @click="reviewCurrent('GOOD')">Bom</button>
-              <button class="rating easy" type="button" @click="reviewCurrent('EASY')">Facil</button>
-            </div>
-          </template>
-        </article>
-
-        <div v-else class="empty-state">
-          <Brain :size="36" aria-hidden="true" />
-          <h2>Nenhuma sessao ativa</h2>
-          <p>Escolha um baralho publico, um baralho salvo ou use a pratica intercalada.</p>
-        </div>
-      </section>
+      <StudyPage
+        v-if="tab === 'study'"
+        :session-title="sessionTitle"
+        :queue-length="studyQueue.length"
+        :current-card="currentCard"
+        :current-due-label="currentDueLabel"
+        :front-html="frontHtml"
+        :back-html="backHtml"
+        :answer-visible="answerVisible"
+        @start-interleaved="startInterleavedPractice"
+        @reveal-answer="answerVisible = true"
+        @review="reviewCurrent"
+      />
 
       <section v-if="tab === 'import'" class="import-page">
         <div class="import-header">
@@ -1927,55 +1750,20 @@ function loadStoredThemePreference(): ThemePreference {
         </div>
       </section>
 
-      <section v-if="tab === 'create'" class="create-deck-section">
-        <form class="panel create-deck-panel" @submit.prevent="createDeck">
-          <div class="section-title">
-            <h2>Novo baralho</h2>
-          </div>
-          <input v-model="deckForm.title" required type="text" placeholder="Titulo" :disabled="!user" />
-          <textarea v-model="deckForm.description" rows="4" placeholder="Descricao" :disabled="!user"></textarea>
-          <select v-model="deckForm.visibility" :disabled="!user">
-            <option value="PRIVATE">Privado</option>
-            <option value="PUBLIC">Publico</option>
-          </select>
-          <button class="primary full" type="submit" :disabled="!user">
-            <Plus :size="16" aria-hidden="true" />
-            Criar baralho
-          </button>
-          <p v-if="!user" class="muted">Criacao persistente exige login.</p>
-        </form>
-      </section>
+      <CreateDeckPage
+        v-if="tab === 'create'"
+        v-model:title="deckForm.title"
+        v-model:description="deckForm.description"
+        v-model:visibility="deckForm.visibility"
+        :user="user"
+        @submit="createDeck"
+      />
 
-      <section v-if="tab === 'progress'" class="progress-section">
-        <div v-if="user && stats" class="stats-strip">
-          <article class="metric">
-            <span>Vencidos agora</span>
-            <strong>{{ stats.dueNow }}</strong>
-          </article>
-          <article class="metric">
-            <span>Revisados hoje</span>
-            <strong>{{ stats.reviewsToday }}</strong>
-          </article>
-          <article class="metric">
-            <span>Acerto 7 dias</span>
-            <strong>{{ stats.accuracyLast7Days }}%</strong>
-          </article>
-          <article class="metric">
-            <span>Dias ativos 30d</span>
-            <strong>{{ stats.activeDaysLast30 }}</strong>
-          </article>
-          <article class="metric">
-            <span>Proxima revisao</span>
-            <strong>{{ formatDueIn(stats.nextDueAt) }}</strong>
-          </article>
-        </div>
-
-        <div v-else class="empty-state">
-          <BarChart3 :size="36" aria-hidden="true" />
-          <h2>Progresso persistente exige login</h2>
-          <p>Entre para manter agenda, revisoes e estatisticas entre dispositivos.</p>
-        </div>
-      </section>
+      <ProgressPage
+        v-if="tab === 'progress'"
+        :user="user"
+        :stats="stats"
+      />
 
       <section v-if="cardEditorOpen && managedDeck" class="card-editor-overlay" aria-label="Editor de carta">
         <div class="card-editor-shell">
@@ -2072,6 +1860,5 @@ function loadStoredThemePreference(): ThemePreference {
           />
         </div>
       </section>
-    </main>
-  </div>
+  </AppShell>
 </template>
