@@ -758,3 +758,28 @@ Validacoes:
 
 Observacao:
 - o `npm audit` continua apontando uma vulnerabilidade critica herdada; nao foi aplicado `npm audit fix --force` para evitar mudancas de dependencia fora do escopo desta refatoracao.
+
+## 36. Planejamento Fino do Momento 4
+
+Apos o merge do Momento 3, a branch `frontend-refactor` foi atualizada localmente por fast-forward e recebeu a extracao do `AppShell` e das paginas simples. Foi criada a branch `codex/frontend-library-import-plan` para investigacao e desenho da proxima etapa.
+
+Estado atual:
+- `App.vue` caiu para cerca de 1864 linhas, mas ainda concentra Biblioteca, Importacao, gerenciamento de cartas e `CardEditorOverlay`;
+- o router ja cobre as rotas necessarias e nao exige alteracoes para esta etapa;
+- o backend ja possui os contratos necessarios para listas paginadas, metadata leve, cartas paginadas e importacao APKG;
+- a Importacao ainda retem estado pesado enquanto o app esta aberto, exigindo politica explicita de limpeza ao sair da rota.
+
+Foi criado o documento `docs/plano-momento-4-biblioteca-importacao.md`, detalhando:
+- diagnostico das superficies restantes;
+- proposta de extracao para `LibraryPage`, listas, gerenciamento de deck/cartas e `ImportPage`;
+- estrategia de view models e componentes controlados por props/eventos;
+- decisao recomendada de deixar `CardEditorOverlay` para uma fatia propria;
+- politica de ciclo de vida para limpar APKG, indice de midia e object URLs ao sair de `/importar`, preservando somente o fluxo "Entrar para salvar";
+- colateralidades com router, API, memoria, UX, acessibilidade, CSS, testes e container;
+- criterios de aceite e divisao recomendada em PR 4A e PR 4B.
+
+Decisao proposta:
+- implementar primeiro as superficies de Biblioteca e Importacao, mantendo `App.vue` como orquestrador temporario;
+- nao reestruturar backend, rotas ou store global;
+- tratar a limpeza de estado pesado da Importacao como ajuste obrigatorio do Momento 4A;
+- extrair `CardEditorOverlay` em PR separado caso o contrato de upload/insercao no cursor continue nao trivial.
