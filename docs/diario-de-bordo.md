@@ -715,6 +715,46 @@ Decisao proposta:
 - usar callback `uploadMedia(file, kind): Promise<string>` para permitir que o componente insira o marcador no cursor sem importar `api.ts`;
 - nao alterar backend, rotas, CSS global, UX visual, WYSIWYG ou politica de midias orfas nesta fatia.
 
+## 39. Implementacao do Momento 4B: Editor de Cartas
+
+Apos o commit local do planejamento, a extracao do editor foi implementada na mesma branch `codex/frontend-card-editor-overlay`.
+
+Implementacoes:
+- criado `frontend/src/features/library/cardEditorTypes.ts` com os tipos do editor;
+- criado `frontend/src/features/library/CardEditorOverlay.vue`;
+- o componente passou a concentrar layout do overlay, foco inicial, refs de textarea, input de arquivo, face ativa, tipo de midia, upload em andamento e insercao do marcador no cursor;
+- `App.vue` manteve a orquestracao de criar/editar/salvar carta, dirty state, preview sanitizado, notificacoes e chamadas API;
+- o upload de midia passou a usar callback controlado `uploadCardEditorMedia(file, kind)`, sem importar `api.ts` no componente;
+- removidos do `App.vue` os refs e helpers locais de DOM/cursor do editor;
+- `App.vue` caiu para cerca de 1488 linhas.
+
+Decisoes preservadas:
+- nao alterar backend, rotas ou estilos globais;
+- nao criar store global nem composable de dominio ainda;
+- nao alterar UX visual do editor;
+- nao resolver midias orfas nesta fatia;
+- manter dirty confirmation no pai.
+
+Validacoes:
+- build frontend em container Node com `vue-tsc` e `vite build`;
+- testes frontend em container Node com Vitest: 16 testes passando.
+
+## 40. Bugfix: Ciclo de Vida de Notificacoes
+
+Durante a validacao do gerenciamento de baralhos, foi identificado que a notificacao de exclusao permanecia visivel mesmo apos trocar de pagina. A investigacao mostrou que `notice/error` eram globais no `App.vue`, sem uma politica explicita de ciclo de vida por rota, e que a exclusao chamava navegacao sem aguardar a conclusao antes de exibir a mensagem.
+
+Implementacoes:
+- criado controle leve de lifetime para feedbacks: `route`, `next-route` e `sticky`;
+- adicionados helpers `showNotice`, `showError`, `clearFeedback` e limpeza de feedback ao trocar de rota;
+- cargas disparadas pelo roteamento passaram a preservar feedback existente, evitando apagar mensagens recem-criadas no destino;
+- fluxos de login, logout, copia de baralho publico, importacao APKG, criacao/atualizacao/exclusao de baralhos e edicao/exclusao de cartas passaram a usar os helpers;
+- `closeManagedDeck` passou a aguardar a navegacao quando ela e solicitada, removendo a corrida observada na exclusao de baralho.
+
+Decisoes:
+- manter a solucao no `App.vue` enquanto notificacoes ainda nao foram extraidas para composable/store;
+- nao introduzir biblioteca de toast nesta etapa;
+- tratar mensagens comuns como route-scoped por padrao, limpando-as na proxima navegacao.
+
 ## 33. Ajuste de Rotulo Para Cartas Sem Texto
 
 Durante a validacao manual do gerenciamento de cartas, foi identificado que cartas compostas apenas por midia ou HTML sem texto extraivel apareciam como "Carta sem texto". Isso era correto tecnicamente, mas ruim para uso repetido, pois varias cartas ficavam com o mesmo rotulo.
