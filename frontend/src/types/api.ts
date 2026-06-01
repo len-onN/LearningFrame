@@ -60,6 +60,8 @@ export interface DeckDetail {
   cards: CardResponse[]
 }
 
+export type CardPageResponse = PageResponse<CardResponse>
+
 export interface StudyCardResponse {
   cardId: number
   deckId: number

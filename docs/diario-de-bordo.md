@@ -385,6 +385,7 @@ Outras pendencias decididas:
 
 - gerenciamento melhor de cartas dentro de baralhos proprios;
 - compartilhamento/salvar para si baralhos publicos;
+- favoritar baralhos publicos como relacao leve, sem duplicar conteudo, para uma etapa futura;
 - publicar/despublicar baralhos;
 - busca por conteudo de cartas no backend;
 - sistema de notificacoes mais estruturado;
@@ -474,3 +475,20 @@ Tambem foi corrigido o endpoint de API do modo dev para `http://127.0.0.1:8081`,
 
 **Proximo passo real:**
 Amanha, a prioridade e fazer teste manual no navegador pelo fluxo containerizado em `http://localhost:8080`, validando login, biblioteca, gerenciamento de baralhos, criacao/edicao/exclusao de cartas, upload de midia e preview. Depois disso, corrigir eventuais problemas de UX ou integracao antes de abrir PR.
+
+## 25. Biblioteca de Cartas Paginada e Copia de Baralhos Publicos
+
+O gerenciamento de cartas foi ajustado para nao renderizar todas as cartas de um baralho de uma vez. A decisao foi usar um modelo hibrido:
+- lista paginada com busca por frente, verso e tags;
+- link de "Carregar mais" para ampliar o lote atual;
+- selecao independente da carta em preview;
+- selecao multipla para exclusao em lote;
+- preview/edicao da carta ativa em painel separado.
+
+No backend, isso gerou os contratos:
+- `GET /api/decks/{deckId}/cards?page&size&q`;
+- `POST /api/decks/{deckId}/cards/bulk-delete`.
+
+Tambem foi adicionada a acao "Salvar para mim" nos cards de baralhos publicos. A implementacao copia o baralho publico para uma nova copia privada em "Meus baralhos", incluindo cartas, tags e midias. A escolha por copia privada evita edicao acidental do original e preserva um caminho simples para o usuario adaptar o material.
+
+Ideia preservada para depois: "Favoritar" deve ser tratado como uma relacao leve com o baralho publico original, sem duplicar cartas nem midias. Isso serviria para descoberta, retorno rapido e organizacao pessoal, enquanto "Salvar para mim" continua significando copia editavel.

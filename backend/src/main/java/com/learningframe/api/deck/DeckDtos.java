@@ -47,6 +47,17 @@ public final class DeckDtos {
     ) {
     }
 
+    public record CardPage(
+            List<CardResponse> content,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages,
+            boolean first,
+            boolean last
+    ) {
+    }
+
     public record DeckDetail(
             Long id,
             String title,
@@ -69,6 +80,11 @@ public final class DeckDtos {
             @NotBlank @Size(max = 12000) String frontHtml,
             @NotBlank @Size(max = 12000) String backHtml,
             List<@Size(max = 80) String> tags
+    ) {
+    }
+
+    public record CardBulkDeleteRequest(
+            @NotNull @Size(min = 1, max = 100) List<@NotNull Long> cardIds
     ) {
     }
 

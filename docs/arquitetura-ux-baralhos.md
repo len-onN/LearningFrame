@@ -47,6 +47,9 @@ A nova abordagem é fundamentada no princípio de **Proximidade Contextual**. On
 - **`PUT /api/decks/{id}`**: Atualiza metadados.
 - **`DELETE /api/decks/{id}`**: Exclui o deck.
 - **`POST /api/decks/{id}/media`**: (Implementado nesta task) Upload isolado de arquivo binário (`MultipartFile`). Validado por ownership, sanitiza o path traversal, normaliza espaços, devolve Content-Type seguro (fallback `.bin`) e injeta no model `MediaAsset`. Sobrescreve com método `updateContent()` caso arquivo de mesmo nome retorne.
+- **`GET /api/decks/{id}/cards?page&size&q`**: Lista cartas do baralho do usuario em pagina, com busca por frente, verso e tags.
+- **`POST /api/decks/{id}/cards/bulk-delete`**: Remove cartas selecionadas em lote, validando ownership do baralho e pertencimento das cartas.
+- **`POST /api/decks/{id}/copy`**: Salva um baralho publico como copia privada em "Meus baralhos", incluindo cartas, tags e midias.
 
 ### Frontend (Vue.js + TypeScript)
 - Arquitetura de Estado:
@@ -66,9 +69,14 @@ A primeira fatia vertical do plano ja foi implementada localmente:
 - view de gerenciamento contextual em `Biblioteca > Meus baralhos`;
 - edicao inline de metadados do baralho;
 - exclusao de baralho e cartas com confirmacao;
+- listagem paginada e buscavel de cartas no gerenciamento, evitando renderizacao integral de baralhos grandes;
+- selecao multipla de cartas para exclusao em lote, separada da carta ativa em preview;
 - overlay dedicado para criar/editar cartas em split view;
 - preview seguro usando `safeStudyHtml()`;
 - upload independente de imagem/audio, com injecao de `<img src="arquivo">` ou `[sound:arquivo]`;
+- acao "Salvar para mim" em baralhos publicos, criando copia privada editavel;
 - aba `Criar` reduzida para criacao macro de baralho, redirecionando para gerenciamento apos criar.
+
+Favoritar baralhos publicos fica como roadmap: deve ser uma relacao leve do usuario com o baralho original, sem duplicar conteudo. Isso complementa, mas nao substitui, "Salvar para mim", que significa possuir uma copia editavel.
 
 O proximo passo e validar manualmente no navegador via fluxo containerizado (`http://localhost:8080`), com foco em login, biblioteca, gerenciamento, editor de cartas, upload de midia e comportamento responsivo.

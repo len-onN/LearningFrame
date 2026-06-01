@@ -30,7 +30,6 @@ import type {
   ApkgImportResponse,
   ApkgPreviewResponse,
   CardResponse,
-  DeckDetail,
   DeckSummary,
   DeckVisibility,
   LocalDeck,
@@ -61,6 +60,7 @@ type PreviewFace = 'front' | 'back'
 type CardEditorMode = 'create' | 'edit'
 type CardEditorFace = 'front' | 'back'
 const DECK_PAGE_SIZE = 8
+const CARD_PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 300
 
 const tab = ref<Tab>('library')
@@ -102,12 +102,17 @@ const deckForm = ref({
   visibility: 'PRIVATE' as DeckVisibility
 })
 
-const managedDeck = ref<DeckDetail | null>(null)
+const managedDeck = ref<DeckSummary | null>(null)
 const managedDeckForm = ref({
   title: '',
   description: '',
   visibility: 'PRIVATE' as DeckVisibility
 })
+const managedCards = ref<CardResponse[]>([])
+const managedCardsPage = ref<PageResponse<CardResponse> | null>(null)
+const managedCardsSearch = ref('')
+const selectedManagedCardId = ref<number | null>(null)
+const selectedManagedCardIds = ref<Set<number>>(new Set())
 
 const cardEditorOpen = ref(false)
 const cardEditorMode = ref<CardEditorMode>('create')
@@ -161,6 +166,22 @@ const publicDecksCountLabel = computed(() => deckPageCountLabel(publicDecks.valu
 const myDecksCountLabel = computed(() => deckPageCountLabel(myDecks.value.length, myDeckPage.value))
 const filteredPublicDecks = computed(() => publicDecks.value)
 const filteredMyDecks = computed(() => myDecks.value)
+const managedCardsHasMore = computed(() => managedCardsPage.value ? !managedCardsPage.value.last : false)
+const managedCardsCountLabel = computed(() => deckPageCountLabel(managedCards.value.length, managedCardsPage.value, 'cartas'))
+const selectedManagedCard = computed(() => managedCards.value.find((card) => card.id === selectedManagedCardId.value) ?? null)
+const selectedManagedCardsCount = computed(() => selectedManagedCardIds.value.size)
+const allVisibleManagedCardsSelected = computed(() => (
+  managedCards.value.length > 0
+  && managedCards.value.every((card) => selectedManagedCardIds.value.has(card.id))
+))
+const selectedManagedCardFrontPreview = computed(() => managedDeck.value && selectedManagedCard.value
+  ? safeStudyHtml(selectedManagedCard.value.frontHtml, managedDeck.value.id)
+  : ''
+)
+const selectedManagedCardBackPreview = computed(() => managedDeck.value && selectedManagedCard.value
+  ? safeStudyHtml(selectedManagedCard.value.backHtml, managedDeck.value.id)
+  : ''
+)
 const managedDeckDirty = computed(() => {
   const deck = managedDeck.value
   return Boolean(deck)
@@ -244,6 +265,7 @@ onMounted(() => {
 })
 
 let librarySearchTimer: number | undefined
+let managedCardsSearchTimer: number | undefined
 
 watch(librarySearch, () => {
   window.clearTimeout(librarySearchTimer)
@@ -270,6 +292,15 @@ watch(librarySection, (section) => {
   }
 })
 
+watch(managedCardsSearch, () => {
+  window.clearTimeout(managedCardsSearchTimer)
+  managedCardsSearchTimer = window.setTimeout(() => {
+    if (managedDeck.value) {
+      void withFeedback(async () => loadManagedCards(true), false)
+    }
+  }, SEARCH_DEBOUNCE_MS)
+})
+
 watch(tab, (nextTab) => {
   if (nextTab !== 'library') {
     closeCardEditor(true)
@@ -279,6 +310,7 @@ watch(tab, (nextTab) => {
 onBeforeUnmount(() => {
   revokePreviewMediaUrls()
   window.clearTimeout(highlightDeckTimer)
+  window.clearTimeout(managedCardsSearchTimer)
 })
 
 function toggleThemePreference() {
@@ -337,6 +369,24 @@ async function loadMoreMyDecks() {
   await withFeedback(async () => {
     await loadMyDecks()
   }, false)
+}
+
+async function savePublicDeck(deck: DeckSummary) {
+  if (!user.value) {
+    openAuth('login')
+    notice.value = 'Entre para salvar este baralho em Meus baralhos.'
+    return
+  }
+
+  await withFeedback(async () => {
+    const saved = await api.copyPublicDeck(deck.id)
+    librarySearch.value = ''
+    await loadMyDecks(true)
+    stats.value = await api.stats()
+    librarySection.value = 'mine'
+    notice.value = 'Baralho salvo em Meus baralhos como copia privada.'
+    await highlightDeck(saved.id)
+  })
 }
 
 async function submitAuth() {
@@ -727,8 +777,9 @@ async function createDeck() {
     await loadMyDecks(true)
     librarySection.value = 'mine'
     tab.value = 'library'
-    setManagedDeck(await api.deck(created.id))
+    setManagedDeck(created)
     libraryView.value = 'manage-deck'
+    await loadManagedCards(true)
     notice.value = 'Baralho criado. Adicione as primeiras cartas.'
   })
 }
@@ -739,15 +790,15 @@ async function openManagedDeck(deck: DeckSummary, showLoading = true) {
     return
   }
   await withFeedback(async () => {
-    const detail = await api.deck(deck.id)
-    setManagedDeck(detail)
+    setManagedDeck(deck)
     librarySection.value = 'mine'
     libraryView.value = 'manage-deck'
     librarySearch.value = ''
+    await loadManagedCards(true)
   }, showLoading)
 }
 
-function setManagedDeck(deck: DeckDetail) {
+function setManagedDeck(deck: DeckSummary) {
   managedDeck.value = deck
   managedDeckForm.value = {
     title: deck.title,
@@ -764,15 +815,35 @@ function closeManagedDeck(force = false) {
   libraryView.value = 'decks'
   managedDeck.value = null
   managedDeckForm.value = { title: '', description: '', visibility: 'PRIVATE' }
+  managedCards.value = []
+  managedCardsPage.value = null
+  managedCardsSearch.value = ''
+  selectedManagedCardId.value = null
+  selectedManagedCardIds.value = new Set()
 }
 
-async function reloadManagedDeck() {
+async function loadManagedCards(reset = false) {
   const deckId = managedDeck.value?.id
   if (!deckId) {
     return
   }
-  const detail = await api.deck(deckId)
-  setManagedDeck(detail)
+  const page = reset ? 0 : (managedCardsPage.value?.page ?? -1) + 1
+  const query = managedCardsSearch.value.trim()
+  const response = await api.deckCards(deckId, page, CARD_PAGE_SIZE, query)
+  managedCards.value = reset ? response.content : mergeCardsPages(managedCards.value, response.content)
+  managedCardsPage.value = response
+  selectedManagedCardIds.value = new Set([...selectedManagedCardIds.value].filter((id) => (
+    managedCards.value.some((card) => card.id === id)
+  )))
+  if (!selectedManagedCardId.value || !managedCards.value.some((card) => card.id === selectedManagedCardId.value)) {
+    selectedManagedCardId.value = managedCards.value[0]?.id ?? null
+  }
+}
+
+async function loadMoreManagedCards() {
+  await withFeedback(async () => {
+    await loadManagedCards()
+  }, false)
 }
 
 async function saveManagedDeck() {
@@ -786,16 +857,14 @@ async function saveManagedDeck() {
   }
 
   await withFeedback(async () => {
-    await api.updateDeck(
+    const updated = await api.updateDeck(
       deck.id,
       managedDeckForm.value.title,
       managedDeckForm.value.description,
       managedDeckForm.value.visibility
     )
-    await Promise.all([
-      reloadManagedDeck(),
-      loadMyDecks(true)
-    ])
+    setManagedDeck(updated)
+    await loadMyDecks(true)
     notice.value = 'Baralho atualizado.'
   })
 }
@@ -813,6 +882,7 @@ async function deleteManagedDeck() {
     if (user.value) {
       stats.value = await api.stats()
     }
+    selectedManagedCardIds.value = new Set()
     notice.value = 'Baralho excluido.'
   })
 }
@@ -867,16 +937,18 @@ async function saveCardEditor() {
 
   await withFeedback(async () => {
     const tags = splitTags(cardEditorForm.value.tags)
+    let savedCard: CardResponse
     if (cardEditorMode.value === 'edit' && cardEditorCardId.value) {
-      await api.updateCard(deck.id, cardEditorCardId.value, cardEditorForm.value.frontHtml, cardEditorForm.value.backHtml, tags)
+      savedCard = await api.updateCard(deck.id, cardEditorCardId.value, cardEditorForm.value.frontHtml, cardEditorForm.value.backHtml, tags)
       notice.value = 'Carta atualizada.'
     } else {
-      await api.createCard(deck.id, cardEditorForm.value.frontHtml, cardEditorForm.value.backHtml, tags)
+      savedCard = await api.createCard(deck.id, cardEditorForm.value.frontHtml, cardEditorForm.value.backHtml, tags)
       notice.value = 'Carta adicionada.'
     }
     closeCardEditor(true)
+    selectedManagedCardId.value = savedCard.id
     await Promise.all([
-      reloadManagedDeck(),
+      loadManagedCards(true),
       loadMyDecks(true)
     ])
   })
@@ -890,11 +962,65 @@ async function deleteManagedCard(card: CardResponse) {
   await withFeedback(async () => {
     await api.deleteCard(deck.id, card.id)
     await Promise.all([
-      reloadManagedDeck(),
+      loadManagedCards(true),
       loadMyDecks(true)
     ])
+    selectedManagedCardIds.value = new Set([...selectedManagedCardIds.value].filter((id) => id !== card.id))
     notice.value = 'Carta excluida.'
   })
+}
+
+async function deleteSelectedManagedCards() {
+  const deck = managedDeck.value
+  const cardIds = [...selectedManagedCardIds.value]
+  if (!deck || cardIds.length === 0) {
+    return
+  }
+  if (!window.confirm(`Excluir ${cardIds.length} ${cardIds.length === 1 ? 'carta selecionada' : 'cartas selecionadas'}?`)) {
+    return
+  }
+
+  await withFeedback(async () => {
+    await api.deleteCards(deck.id, cardIds)
+    selectedManagedCardIds.value = new Set()
+    selectedManagedCardId.value = null
+    await Promise.all([
+      loadManagedCards(true),
+      loadMyDecks(true)
+    ])
+    notice.value = 'Cartas selecionadas excluidas.'
+  })
+}
+
+function selectManagedCard(card: CardResponse) {
+  selectedManagedCardId.value = card.id
+}
+
+function toggleManagedCardSelection(cardId: number) {
+  const selected = new Set(selectedManagedCardIds.value)
+  if (selected.has(cardId)) {
+    selected.delete(cardId)
+  } else {
+    selected.add(cardId)
+  }
+  selectedManagedCardIds.value = selected
+}
+
+function toggleVisibleManagedCardsSelection() {
+  if (allVisibleManagedCardsSelected.value) {
+    const selected = new Set(selectedManagedCardIds.value)
+    managedCards.value.forEach((card) => selected.delete(card.id))
+    selectedManagedCardIds.value = selected
+    return
+  }
+  selectedManagedCardIds.value = new Set([
+    ...selectedManagedCardIds.value,
+    ...managedCards.value.map((card) => card.id)
+  ])
+}
+
+function clearManagedCardSelection() {
+  selectedManagedCardIds.value = new Set()
 }
 
 function triggerMediaUpload(kind: 'image' | 'audio', face: CardEditorFace) {
@@ -955,11 +1081,19 @@ function mergeDeckPages(current: DeckSummary[], incoming: DeckSummary[]) {
   return [...merged.values()]
 }
 
-function deckPageCountLabel(loaded: number, page: PageResponse<DeckSummary> | null) {
+function mergeCardsPages(current: CardResponse[], incoming: CardResponse[]) {
+  const merged = new Map<number, CardResponse>()
+  for (const card of [...current, ...incoming]) {
+    merged.set(card.id, card)
+  }
+  return [...merged.values()]
+}
+
+function deckPageCountLabel<T>(loaded: number, page: PageResponse<T> | null, label = 'baralhos') {
   if (!page) {
     return ''
   }
-  return `${loaded} de ${page.totalElements} baralhos`
+  return `${loaded} de ${page.totalElements} ${label}`
 }
 
 function cardCountLabel(count: number) {
@@ -1293,6 +1427,10 @@ function loadStoredThemePreference(): ThemePreference {
                       <Brain :size="16" aria-hidden="true" />
                       Estudar
                     </button>
+                    <button class="ghost compact" type="button" @click="savePublicDeck(deck)">
+                      <Save :size="16" aria-hidden="true" />
+                      Salvar para mim
+                    </button>
                   </div>
                 </article>
               </div>
@@ -1397,7 +1535,7 @@ function loadStoredThemePreference(): ThemePreference {
                 <div class="section-title">
                   <div>
                     <h2>Cartas</h2>
-                    <p class="muted">{{ cardCountLabel(managedDeck.cards.length) }}</p>
+                    <p class="muted">{{ managedCardsCountLabel || cardCountLabel(managedDeck.cardCount) }}</p>
                   </div>
                   <button class="primary compact" type="button" @click="openCreateCardEditor">
                     <Plus :size="16" aria-hidden="true" />
@@ -1405,30 +1543,94 @@ function loadStoredThemePreference(): ThemePreference {
                   </button>
                 </div>
 
-                <div v-if="managedDeck.cards.length" class="managed-card-list">
-                  <article v-for="card in managedDeck.cards" :key="card.id" class="managed-card-row">
-                    <div>
-                      <h3>{{ cardTextSummary(card) }}</h3>
-                      <p class="muted">{{ card.tags.length ? card.tags.join(', ') : 'sem tags' }}</p>
+                <div class="managed-cards-toolbar">
+                  <label class="library-search managed-card-search">
+                    <Search :size="17" aria-hidden="true" />
+                    <input v-model="managedCardsSearch" type="search" placeholder="Buscar em frente, verso ou tags" />
+                  </label>
+                  <div class="row-actions">
+                    <button class="ghost compact" type="button" :disabled="managedCards.length === 0" @click="toggleVisibleManagedCardsSelection">
+                      {{ allVisibleManagedCardsSelected ? 'Desmarcar pagina' : 'Selecionar pagina' }}
+                    </button>
+                    <button class="ghost compact" type="button" :disabled="selectedManagedCardsCount === 0" @click="clearManagedCardSelection">
+                      Limpar
+                    </button>
+                    <button class="ghost compact danger-action" type="button" :disabled="selectedManagedCardsCount === 0" @click="deleteSelectedManagedCards">
+                      <Trash2 :size="16" aria-hidden="true" />
+                      Excluir {{ selectedManagedCardsCount || '' }}
+                    </button>
+                  </div>
+                </div>
+
+                <section class="managed-cards-browser">
+                  <div class="managed-card-list">
+                    <article
+                      v-for="card in managedCards"
+                      :key="card.id"
+                      class="managed-card-row"
+                      :class="{ active: selectedManagedCardId === card.id }"
+                    >
+                      <label class="card-selection" :aria-label="`Selecionar ${cardTextSummary(card)}`">
+                        <input
+                          type="checkbox"
+                          :checked="selectedManagedCardIds.has(card.id)"
+                          @change="toggleManagedCardSelection(card.id)"
+                        />
+                      </label>
+                      <button class="managed-card-summary" type="button" @click="selectManagedCard(card)">
+                        <span>{{ cardTextSummary(card) }}</span>
+                        <small>{{ card.tags.length ? card.tags.join(', ') : 'sem tags' }}</small>
+                      </button>
+                    </article>
+                    <p v-if="managedCards.length === 0" class="muted empty-copy">
+                      {{ managedCardsSearch ? 'Nenhuma carta encontrada para esta busca.' : 'Nenhuma carta ainda.' }}
+                    </p>
+                    <a
+                      v-if="managedCardsHasMore"
+                      class="load-more-link"
+                      href="#"
+                      @click.prevent="loadMoreManagedCards"
+                    >
+                      Carregar mais cartas...
+                    </a>
+                  </div>
+
+                  <article v-if="selectedManagedCard" class="managed-card-preview">
+                    <div class="section-title">
+                      <div>
+                        <h3>{{ cardTextSummary(selectedManagedCard) }}</h3>
+                        <p class="muted">{{ selectedManagedCard.tags.length ? selectedManagedCard.tags.join(', ') : 'sem tags' }}</p>
+                      </div>
+                      <div class="row-actions">
+                        <button class="ghost icon-button" type="button" title="Editar carta" aria-label="Editar carta" @click="openEditCardEditor(selectedManagedCard)">
+                          <Pencil :size="16" aria-hidden="true" />
+                        </button>
+                        <button class="ghost icon-button danger-action" type="button" title="Excluir carta" aria-label="Excluir carta" @click="deleteManagedCard(selectedManagedCard)">
+                          <Trash2 :size="16" aria-hidden="true" />
+                        </button>
+                      </div>
                     </div>
-                    <div class="row-actions">
-                      <button class="ghost icon-button" type="button" title="Editar carta" aria-label="Editar carta" @click="openEditCardEditor(card)">
-                        <Pencil :size="16" aria-hidden="true" />
-                      </button>
-                      <button class="ghost icon-button danger-action" type="button" title="Excluir carta" aria-label="Excluir carta" @click="deleteManagedCard(card)">
-                        <Trash2 :size="16" aria-hidden="true" />
-                      </button>
+                    <div class="managed-preview-faces">
+                      <div>
+                        <span class="field-label">Frente</span>
+                        <div class="preview-study-face" v-html="selectedManagedCardFrontPreview"></div>
+                      </div>
+                      <div>
+                        <span class="field-label">Verso</span>
+                        <div class="preview-study-face" v-html="selectedManagedCardBackPreview"></div>
+                      </div>
                     </div>
                   </article>
-                </div>
-                <div v-else class="empty-state compact-empty">
-                  <h2>Nenhuma carta ainda</h2>
-                  <p>Crie a primeira carta para estudar este baralho.</p>
-                  <button class="primary compact" type="button" @click="openCreateCardEditor">
-                    <Plus :size="16" aria-hidden="true" />
-                    Nova carta
-                  </button>
-                </div>
+
+                  <div v-else class="empty-state compact-empty">
+                    <h2>{{ managedCardsSearch ? 'Busca sem resultados' : 'Nenhuma carta ainda' }}</h2>
+                    <p>{{ managedCardsSearch ? 'Ajuste o termo de busca ou limpe o filtro.' : 'Crie a primeira carta para estudar este baralho.' }}</p>
+                    <button v-if="!managedCardsSearch" class="primary compact" type="button" @click="openCreateCardEditor">
+                      <Plus :size="16" aria-hidden="true" />
+                      Nova carta
+                    </button>
+                  </div>
+                </section>
               </section>
             </section>
           </div>
