@@ -689,6 +689,32 @@ Validacoes:
 - frontend containerizado respondendo `200` em `/biblioteca/publicos` e `/importar`;
 - backend respondendo `200` em `GET /api/decks/public` via `127.0.0.1:8081`.
 
+## 38. Planejamento Fino do Momento 4B
+
+Apos o merge do Momento 4A, `frontend-refactor` foi atualizada localmente por fast-forward. Foi criada a branch unica `codex/frontend-card-editor-overlay`, que deve conter tanto o planejamento quanto a futura implementacao do proximo passo.
+
+Estado atual:
+- `App.vue` esta com cerca de 1602 linhas;
+- Biblioteca e Importacao ja foram extraidas;
+- o `CardEditorOverlay` segue como ultimo grande bloco visual dentro do `App.vue`;
+- o editor ainda concentra refs de textarea/input, foco inicial, upload de midia, insercao no cursor, dirty state e preview sanitizado.
+
+Foi criado o documento `docs/plano-momento-4b-editor-cartas.md`, detalhando:
+- objetivo da extracao do editor;
+- fronteira entre responsabilidades locais de UI/DOM e responsabilidades de orquestracao/API;
+- proposta de `CardEditorOverlay.vue` e `cardEditorTypes.ts`;
+- contrato por props, `v-model`, eventos e callback controlado de upload;
+- preservacao do dirty confirmation no pai;
+- preservacao de preview sanitizado no pai;
+- lateralidades com Biblioteca, API, memoria, UX, acessibilidade, CSS, seguranca, testes e container;
+- criterios de aceite e riscos principais.
+
+Decisao proposta:
+- mover para o componente apenas DOM, foco, cursor, input de arquivo e layout visual;
+- manter no `App.vue` salvar/criar/atualizar, dirty state, notificacoes e chamadas API;
+- usar callback `uploadMedia(file, kind): Promise<string>` para permitir que o componente insira o marcador no cursor sem importar `api.ts`;
+- nao alterar backend, rotas, CSS global, UX visual, WYSIWYG ou politica de midias orfas nesta fatia.
+
 ## 33. Ajuste de Rotulo Para Cartas Sem Texto
 
 Durante a validacao manual do gerenciamento de cartas, foi identificado que cartas compostas apenas por midia ou HTML sem texto extraivel apareciam como "Carta sem texto". Isso era correto tecnicamente, mas ruim para uso repetido, pois varias cartas ficavam com o mesmo rotulo.
