@@ -606,3 +606,28 @@ Com essa decisao, a ordem operacional passa a ser:
 4. integrar cada momento em `frontend-refactor`;
 5. validar a aplicacao integrada;
 6. promover `frontend-refactor` para `develop` apenas quando a frente estiver completa.
+
+## 30. Momento 1: Contrato Leve de Metadata de Baralho
+
+Apos o merge do planejamento, `develop` foi atualizada localmente por fast-forward. Em seguida, foi criada e publicada a branch intermediaria `frontend-refactor`, que passa a ser a base de integracao da frente de roteamento, componentizacao e memoria.
+
+A branch `codex/backend-deck-route-contracts` foi criada a partir de `frontend-refactor` para o Momento 1.
+
+Implementacao realizada:
+- novo endpoint `GET /api/decks/{deckId}/metadata`;
+- retorno reaproveitando `DeckSummary`, sem lista de cartas;
+- resolucao por `findAccessible`, permitindo metadata anonima apenas para baralhos publicos e preservando isolamento de baralhos privados;
+- regra de seguranca explicita para permitir `GET /api/decks/*/metadata`;
+- wrapper `deckMetadata(deckId)` em `frontend/src/services/api.ts`;
+- testes de servico cobrindo metadata leve, metadata publica anonima e bloqueio de baralho inacessivel;
+- teste de controller cobrindo delegacao do contrato ao servico.
+
+Decisoes:
+- nao criar DTO novo enquanto `DeckSummary` cobre o contrato sem carregar cartas;
+- nao alterar `GET /api/decks/{deckId}`, pois ele ainda atende estudo publico anonimo no curto prazo;
+- nao mover endpoints de cartas para controller separado neste momento, mantendo o escopo do Momento 1 pequeno;
+- manter a rota direta de gerenciamento dependente de metadata leve e listagem paginada de cartas.
+
+Validacoes:
+- testes focados de backend via container Maven: `DeckServiceTest` e `DeckControllerTest`;
+- build do frontend via container Node, validando `vue-tsc` e `vite build`.

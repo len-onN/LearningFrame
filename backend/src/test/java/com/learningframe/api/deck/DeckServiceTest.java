@@ -69,6 +69,59 @@ class DeckServiceTest {
     }
 
     @Test
+    @DisplayName("retorna metadata leve sem carregar cartas")
+    void retornaMetadataLeveSemCarregarCartas() {
+        when(decks.findAccessible(10L, 7L)).thenReturn(Optional.of(deck));
+        when(cards.countByDeckId(10L)).thenReturn(3L);
+        when(cards.countDueForDeck(eq(7L), eq(10L), any())).thenReturn(0L);
+        when(reviewStates.findNextDueAtForDeck(7L, 10L)).thenReturn(Optional.empty());
+
+        var metadata = service.deckMetadata(10L, principal);
+
+        assertThat(metadata.id()).isEqualTo(10L);
+        assertThat(metadata.title()).isEqualTo("Anatomia");
+        assertThat(metadata.cardCount()).isEqualTo(3L);
+        assertThat(metadata.dueCount()).isEqualTo(0L);
+        assertThat(metadata.ownerName()).isEqualTo("Ana");
+
+        verify(decks).findAccessible(10L, 7L);
+        verify(cards, never()).findByDeckIdOrderByCreatedAtAsc(anyLong());
+    }
+
+    @Test
+    @DisplayName("retorna metadata publica anonima sem contagem de revisao")
+    void retornaMetadataPublicaAnonimaSemContagemDeRevisao() {
+        Deck publicDeck = deck(20L, null, DeckVisibility.PUBLIC, ImportFormat.APKG);
+        when(decks.findAccessible(20L, null)).thenReturn(Optional.of(publicDeck));
+        when(cards.countByDeckId(20L)).thenReturn(2L);
+
+        var metadata = service.deckMetadata(20L, null);
+
+        assertThat(metadata.id()).isEqualTo(20L);
+        assertThat(metadata.visibility()).isEqualTo(DeckVisibility.PUBLIC);
+        assertThat(metadata.sourceFormat()).isEqualTo(ImportFormat.APKG);
+        assertThat(metadata.cardCount()).isEqualTo(2L);
+        assertThat(metadata.dueCount()).isNull();
+        assertThat(metadata.ownerName()).isEqualTo("LearningFrame");
+
+        verify(cards, never()).countDueForDeck(anyLong(), anyLong(), any());
+        verify(cards, never()).findByDeckIdOrderByCreatedAtAsc(anyLong());
+    }
+
+    @Test
+    @DisplayName("bloqueia metadata de baralho inacessivel")
+    void bloqueiaMetadataDeBaralhoInacessivel() {
+        when(decks.findAccessible(10L, 7L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.deckMetadata(10L, principal))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("Baralho nao encontrado.");
+
+        verify(cards, never()).countByDeckId(anyLong());
+        verify(cards, never()).findByDeckIdOrderByCreatedAtAsc(anyLong());
+    }
+
+    @Test
     @DisplayName("pagina cartas pesquisadas sem carregar o baralho inteiro")
     void paginaCartasPesquisadasSemCarregarBaralhoInteiro() {
         Card card = card(100L, deck, "Nervo trigemeo", "Sensibilidade da face", "anatomia");

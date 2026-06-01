@@ -94,6 +94,9 @@ export const api = {
   deck(deckId: number) {
     return request<DeckDetail>(`/api/decks/${deckId}`)
   },
+  deckMetadata(deckId: number) {
+    return request<DeckSummary>(`/api/decks/${deckId}/metadata`)
+  },
   createDeck(title: string, description: string, visibility: DeckVisibility) {
     return request<DeckSummary>('/api/decks', {
       method: 'POST',
