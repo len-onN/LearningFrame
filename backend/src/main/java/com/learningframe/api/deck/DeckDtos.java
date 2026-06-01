@@ -71,4 +71,10 @@ public final class DeckDtos {
             List<@Size(max = 80) String> tags
     ) {
     }
+
+    public record MediaUploadResponse(
+            String fileName,
+            String contentType
+    ) {
+    }
 }
