@@ -1,6 +1,8 @@
 package com.learningframe.api.deck;
 
 import com.learningframe.api.deck.DeckDtos.CardResponse;
+import com.learningframe.api.deck.DeckDtos.CardBulkDeleteRequest;
+import com.learningframe.api.deck.DeckDtos.CardPage;
 import com.learningframe.api.deck.DeckDtos.CardUpsertRequest;
 import com.learningframe.api.deck.DeckDtos.DeckDetail;
 import com.learningframe.api.deck.DeckDtos.DeckPage;
@@ -61,6 +63,12 @@ public class DeckController {
         return deckService.createDeck(request, user);
     }
 
+    @PostMapping("/{deckId}/copy")
+    @ResponseStatus(HttpStatus.CREATED)
+    DeckSummary copyPublicDeck(@PathVariable Long deckId, @AuthenticationPrincipal AuthenticatedUser user) {
+        return deckService.copyPublicDeck(deckId, user);
+    }
+
     @PutMapping("/{deckId}")
     DeckSummary updateDeck(@PathVariable Long deckId, @Valid @RequestBody DeckUpsertRequest request, @AuthenticationPrincipal AuthenticatedUser user) {
         return deckService.updateDeck(deckId, request, user);
@@ -82,6 +90,17 @@ public class DeckController {
         return deckService.createCard(deckId, request, user);
     }
 
+    @GetMapping("/{deckId}/cards")
+    CardPage deckCards(
+            @PathVariable Long deckId,
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String q
+    ) {
+        return deckService.deckCards(deckId, user, page, size, q);
+    }
+
     @PutMapping("/{deckId}/cards/{cardId}")
     CardResponse updateCard(
             @PathVariable Long deckId,
@@ -100,5 +119,15 @@ public class DeckController {
             @AuthenticationPrincipal AuthenticatedUser user
     ) {
         deckService.deleteCard(deckId, cardId, user);
+    }
+
+    @PostMapping("/{deckId}/cards/bulk-delete")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void deleteCards(
+            @PathVariable Long deckId,
+            @Valid @RequestBody CardBulkDeleteRequest request,
+            @AuthenticationPrincipal AuthenticatedUser user
+    ) {
+        deckService.deleteCards(deckId, request, user);
     }
 }

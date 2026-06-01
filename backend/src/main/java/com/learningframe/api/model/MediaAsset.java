@@ -69,6 +69,11 @@ public class MediaAsset {
         return content;
     }
 
+    public void updateContent(String newContentType, byte[] newContent) {
+        this.contentType = newContentType;
+        this.content = newContent;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }

@@ -45,6 +45,11 @@ export interface CardResponse {
   tags: string[]
 }
 
+export interface MediaUploadResponse {
+  fileName: string
+  contentType: string
+}
+
 export interface DeckDetail {
   id: number
   title: string
@@ -54,6 +59,8 @@ export interface DeckDetail {
   ownerName: string
   cards: CardResponse[]
 }
+
+export type CardPageResponse = PageResponse<CardResponse>
 
 export interface StudyCardResponse {
   cardId: number

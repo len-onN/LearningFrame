@@ -2,6 +2,8 @@ package com.learningframe.api.deck;
 
 import com.learningframe.api.auth.AuthService;
 import com.learningframe.api.common.ApiException;
+import com.learningframe.api.deck.DeckDtos.CardBulkDeleteRequest;
+import com.learningframe.api.deck.DeckDtos.CardPage;
 import com.learningframe.api.deck.DeckDtos.CardResponse;
 import com.learningframe.api.deck.DeckDtos.CardUpsertRequest;
 import com.learningframe.api.deck.DeckDtos.DeckDetail;
@@ -13,9 +15,11 @@ import com.learningframe.api.model.Card;
 import com.learningframe.api.model.Deck;
 import com.learningframe.api.model.DeckVisibility;
 import com.learningframe.api.model.ImportFormat;
+import com.learningframe.api.model.MediaAsset;
 import com.learningframe.api.model.Tag;
 import com.learningframe.api.repository.CardRepository;
 import com.learningframe.api.repository.DeckRepository;
+import com.learningframe.api.repository.MediaAssetRepository;
 import com.learningframe.api.repository.ReviewStateRepository;
 import com.learningframe.api.repository.TagRepository;
 import com.learningframe.api.security.AuthenticatedUser;
@@ -38,13 +42,22 @@ public class DeckService {
 
     private final DeckRepository decks;
     private final CardRepository cards;
+    private final MediaAssetRepository mediaAssets;
     private final ReviewStateRepository reviewStates;
     private final TagRepository tags;
     private final AuthService authService;
 
-    public DeckService(DeckRepository decks, CardRepository cards, ReviewStateRepository reviewStates, TagRepository tags, AuthService authService) {
+    public DeckService(
+            DeckRepository decks,
+            CardRepository cards,
+            MediaAssetRepository mediaAssets,
+            ReviewStateRepository reviewStates,
+            TagRepository tags,
+            AuthService authService
+    ) {
         this.decks = decks;
         this.cards = cards;
+        this.mediaAssets = mediaAssets;
         this.reviewStates = reviewStates;
         this.tags = tags;
         this.authService = authService;
@@ -94,6 +107,34 @@ public class DeckService {
     }
 
     @Transactional
+    public DeckSummary copyPublicDeck(Long sourceDeckId, AuthenticatedUser principal) {
+        AppUser owner = authService.requireUser(principal);
+        Deck source = decks.findById(sourceDeckId)
+                .filter(deck -> deck.getVisibility() == DeckVisibility.PUBLIC)
+                .orElseThrow(() -> ApiException.notFound("Baralho publico nao encontrado."));
+
+        Deck copy = decks.save(new Deck(
+                owner,
+                source.getTitle(),
+                source.getDescription(),
+                DeckVisibility.PRIVATE,
+                source.getSourceFormat()
+        ));
+
+        List<Card> copiedCards = cards.findByDeckIdOrderByCreatedAtAsc(source.getId()).stream()
+                .map(sourceCard -> copyCard(sourceCard, copy))
+                .toList();
+        cards.saveAll(copiedCards);
+
+        List<MediaAsset> copiedMedia = mediaAssets.findByDeckId(source.getId()).stream()
+                .map(asset -> new MediaAsset(copy, asset.getFileName(), asset.getContentType(), asset.getContent().clone()))
+                .toList();
+        mediaAssets.saveAll(copiedMedia);
+
+        return toSummary(copy, owner.getId());
+    }
+
+    @Transactional
     public DeckSummary updateDeck(Long deckId, DeckUpsertRequest request, AuthenticatedUser principal) {
         AppUser owner = authService.requireUser(principal);
         Deck deck = ownedDeck(deckId, owner.getId());
@@ -118,6 +159,18 @@ public class DeckService {
         return toCard(cards.save(card));
     }
 
+    @Transactional(readOnly = true)
+    public CardPage deckCards(Long deckId, AuthenticatedUser principal, int page, int size, String query) {
+        AppUser owner = authService.requireUser(principal);
+        ownedDeck(deckId, owner.getId());
+        String normalizedQuery = normalizeSearchQuery(query);
+        PageRequest pageRequest = pageRequest(page, size);
+        Page<Card> result = normalizedQuery == null
+                ? cards.findPageByDeckIdOrderByCreatedAtDesc(deckId, pageRequest)
+                : cards.searchPageByDeckId(deckId, normalizedQuery, pageRequest);
+        return toCardPage(result);
+    }
+
     @Transactional
     public CardResponse updateCard(Long deckId, Long cardId, CardUpsertRequest request, AuthenticatedUser principal) {
         AppUser owner = authService.requireUser(principal);
@@ -139,6 +192,19 @@ public class DeckService {
                 .filter(existing -> existing.getDeck().getId().equals(deckId))
                 .orElseThrow(() -> ApiException.notFound("Card nao encontrado."));
         cards.delete(card);
+    }
+
+    @Transactional
+    public void deleteCards(Long deckId, CardBulkDeleteRequest request, AuthenticatedUser principal) {
+        AppUser owner = authService.requireUser(principal);
+        ownedDeck(deckId, owner.getId());
+        List<Card> selectedCards = cards.findAllById(request.cardIds()).stream()
+                .filter(card -> card.getDeck().getId().equals(deckId))
+                .toList();
+        if (selectedCards.size() != new LinkedHashSet<>(request.cardIds()).size()) {
+            throw ApiException.notFound("Uma ou mais cartas nao foram encontradas.");
+        }
+        cards.deleteAll(selectedCards);
     }
 
     private Deck ownedDeck(Long deckId, Long ownerId) {
@@ -167,6 +233,18 @@ public class DeckService {
     private DeckPage toPage(Page<Deck> page, Long userId) {
         return new DeckPage(
                 page.getContent().stream().map(deck -> toSummary(deck, userId)).toList(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isFirst(),
+                page.isLast()
+        );
+    }
+
+    private CardPage toCardPage(Page<Card> page) {
+        return new CardPage(
+                page.getContent().stream().map(this::toCard).toList(),
                 page.getNumber(),
                 page.getSize(),
                 page.getTotalElements(),
@@ -217,6 +295,12 @@ public class DeckService {
                 card.getBackHtml(),
                 card.getTags().stream().map(Tag::getName).sorted().toList()
         );
+    }
+
+    private Card copyCard(Card source, Deck targetDeck) {
+        Card copy = new Card(targetDeck, source.getFrontHtml(), source.getBackHtml(), source.getSourceNoteId());
+        copy.getTags().addAll(source.getTags());
+        return copy;
     }
 
     private void replaceTags(Card card, List<String> requestedTags) {
