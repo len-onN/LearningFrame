@@ -685,7 +685,9 @@ Decisoes preservadas:
 
 Validacoes:
 - build frontend em container Node com `vue-tsc` e `vite build`;
-- testes frontend em container Node com Vitest: 16 testes passando.
+- testes frontend em container Node com Vitest: 16 testes passando;
+- frontend containerizado respondendo `200` em `/biblioteca/publicos` e `/importar`;
+- backend respondendo `200` em `GET /api/decks/public` via `127.0.0.1:8081`.
 
 ## 33. Ajuste de Rotulo Para Cartas Sem Texto
 
@@ -783,3 +785,28 @@ Decisao proposta:
 - nao reestruturar backend, rotas ou store global;
 - tratar a limpeza de estado pesado da Importacao como ajuste obrigatorio do Momento 4A;
 - extrair `CardEditorOverlay` em PR separado caso o contrato de upload/insercao no cursor continue nao trivial.
+
+## 37. Implementacao do Momento 4A: Biblioteca e Importacao
+
+A implementacao foi iniciada na branch `codex/frontend-library-import-surfaces`, criada a partir do planejamento do Momento 4.
+
+Implementacoes:
+- criados tipos leves de view model para a Biblioteca em `frontend/src/features/library/libraryTypes.ts`;
+- criada `frontend/src/pages/LibraryPage.vue` como superficie controlada da Biblioteca;
+- criada `frontend/src/features/library/DeckListPanel.vue` para reutilizar a exibicao de baralhos publicos e meus baralhos;
+- criada `frontend/src/features/library/DeckManagementView.vue` para metadata, busca paginada de cartas, selecao multipla e preview;
+- criada `frontend/src/pages/ImportPage.vue` como superficie controlada da importacao APKG;
+- criado `frontend/src/features/import/ImportPreviewPicker.vue` e `importTypes.ts` para o seletor de cartas do preview;
+- `App.vue` segue como orquestrador de rotas, API, estado e workflows, caindo para cerca de 1602 linhas;
+- adicionada limpeza explicita do estado pesado de Importacao ao sair de `/importar`, revogando object URLs e descartando arquivo/preview/indice, exceto no fluxo "Entrar para salvar".
+
+Decisoes preservadas:
+- nao alterar rotas nem backend;
+- nao criar store global;
+- nao mover chamadas API para componentes visuais;
+- nao extrair `CardEditorOverlay` nesta fatia, mantendo o contrato de upload/foco/insercao no cursor para PR proprio;
+- manter CSS global e classes existentes para reduzir risco visual.
+
+Validacoes:
+- build frontend em container Node com `vue-tsc` e `vite build`;
+- testes frontend em container Node com Vitest: 16 testes passando.
