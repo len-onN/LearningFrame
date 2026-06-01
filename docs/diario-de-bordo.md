@@ -492,3 +492,117 @@ No backend, isso gerou os contratos:
 Tambem foi adicionada a acao "Salvar para mim" nos cards de baralhos publicos. A implementacao copia o baralho publico para uma nova copia privada em "Meus baralhos", incluindo cartas, tags e midias. A escolha por copia privada evita edicao acidental do original e preserva um caminho simples para o usuario adaptar o material.
 
 Ideia preservada para depois: "Favoritar" deve ser tratado como uma relacao leve com o baralho publico original, sem duplicar cartas nem midias. Isso serviria para descoberta, retorno rapido e organizacao pessoal, enquanto "Salvar para mim" continua significando copia editavel.
+
+## 26. Fechamento do PR de Biblioteca
+
+O PR de gerenciamento de biblioteca foi mergeado em `develop` e a branch local foi atualizada por fast-forward.
+
+Implementacoes consolidadas:
+- gerenciamento contextual de baralhos em `Biblioteca > Meus baralhos`;
+- edicao de metadados, exclusao de baralhos, criacao/edicao/exclusao de cartas;
+- upload independente de imagem/audio para cartas persistidas;
+- lista paginada e buscavel de cartas no modo de gerenciamento;
+- selecao multipla e exclusao em lote de cartas;
+- preview da carta ativa em painel separado;
+- acao "Salvar para mim" em baralhos publicos, criando copia privada editavel;
+- ajuste visual para uniformizar a altura dos cards em "Baralhos publicos" e "Meus baralhos";
+- fluxo containerizado de desenvolvimento com `docker-compose.dev.yml` e build frontend em watch.
+
+Decisoes preservadas:
+- "Salvar para mim" significa copiar o baralho publico para uma copia privada do usuario.
+- "Favoritar" fica para uma etapa futura como vinculo leve com o baralho original, sem duplicar cartas ou midias.
+- A gerencia de cartas deve evitar renderizar todos os registros de uma vez; busca e paginacao sao parte do contrato da tela.
+- O editor de cartas permanece em overlay, por ser mais adequado para evoluir para ferramentas ricas de midia/diagramas.
+
+## 27. Alerta Arquitetural: Frontend Monolitico
+
+Com a conclusao do gerenciamento de biblioteca, ficou evidente que o `App.vue` concentrou responsabilidades demais: roteamento interno por abas, autenticacao, biblioteca, estudo, importacao APKG, gerenciamento de baralhos, editor de cartas, preview, notificacoes e integracao com API. Isso aumenta custo de leitura, risco de regressao e dificuldade para testar fluxos isolados.
+
+Como estamos na reta final do MVP, a recomendacao nao e reescrever a aplicacao nem introduzir arquitetura pesada agora. A melhor estrategia e uma decomposicao incremental, guiada por dor real:
+
+1. **Extrair componentes por superficie de UI.**
+   Separar telas e blocos grandes em componentes Vue: `LibraryView`, `DeckList`, `DeckManagementView`, `CardEditorOverlay`, `StudyView`, `ImportView`, `CreateDeckView`, `AuthView` e `ProgressView`. Mantem o comportamento atual, mas reduz o arquivo central.
+
+2. **Extrair composables por dominio de estado.**
+   Mover logica reativa para composables como `useAuth`, `useDeckLibrary`, `useDeckManagement`, `useStudySession`, `useApkgImport`, `useNotifications` e `useTheme`. Isso preserva Vue puro, sem obrigar dependencia nova.
+
+3. **Manter `api.ts` como fronteira de infraestrutura.**
+   A camada de API ja e um bom ponto de separacao. O proximo ganho e garantir que componentes e composables consumam funcoes de dominio, evitando espalhar detalhes de endpoint pelo UI.
+
+4. **Adiar store global formal ate haver necessidade clara.**
+   Pinia pode ser util, mas neste momento pode aumentar trabalho sem resolver a dor principal. Primeiro separar componentes/composables; depois avaliar se autenticacao, notificacoes e biblioteca precisam de store compartilhada.
+
+5. **Evitar microfrontends, rewrite ou router complexo neste MVP.**
+   Essas opcoes resolvem problemas de escala maior, mas custariam foco, testes e tempo. Para o MVP, modularizar internamente e suficiente.
+
+Plano sugerido:
+- criar uma branch propria para refatoracao estrutural;
+- mover primeiro componentes de baixo risco, sem alterar comportamento;
+- validar build/testes a cada fatia;
+- so depois mexer nos composables de estado;
+- manter commits pequenos e convencionais, separando refactors de features.
+
+## 28. Planejamento Fino de Roteamento, Componentizacao e Memoria
+
+Apos a primeira proposta de refatoracao, foi decidido aprofundar o planejamento antes de iniciar implementacao. A preocupacao central deixou de ser apenas "quebrar o `App.vue`" e passou a incluir:
+- quais fluxos realmente merecem rota propria;
+- quais estados sao apenas internos de tela;
+- quais dados pesados precisam ciclo de vida e descarte explicito;
+- quais contratos de backend precisam existir para suportar refresh direto em rotas profundas;
+- como manter rastreabilidade por branches pequenas.
+
+Foi criado o documento `docs/arquitetura-frontend-roteamento-ciclo-de-vida.md`, que passa a ser a referencia da frente arquitetural.
+
+Principais decisoes do planejamento:
+- usar rotas reais para Biblioteca, Meus baralhos, Gerenciamento de baralho, Estudo, Importacao, Criacao, Progresso, Login e Cadastro;
+- manter editor de carta, carta selecionada, paginacao carregada e preview APKG como estados internos, nao rotas, neste MVP;
+- adicionar um endpoint leve de metadata/resumo de baralho antes de habilitar rota direta de gerenciamento;
+- preservar `GET /api/decks/{deckId}` no curto prazo para estudo publico anonimo, mesmo sendo um detalhe completo;
+- nao introduzir `/api/v1`, microfrontends, rewrite ou Pinia neste momento;
+- componentizar por superficies de tela antes de extrair composables;
+- tratar memoria pesada explicitamente, especialmente APKG, object URLs, fila de estudo, cache anonimo de baralhos publicos e requests de busca.
+
+Com esse refinamento, os momentos iniciais foram reescritos:
+
+1. Primeiro vem o contrato de backend para rotas diretas (`GET /api/decks/{deckId}/metadata` ou equivalente).
+2. Depois entra o `vue-router` como fonte de verdade para a navegacao principal.
+3. Em seguida, `App.vue` vira shell e as paginas principais sao extraidas.
+4. A Biblioteca e quebrada em modulo proprio.
+5. Importacao e Estudo sao extraidos em modulos.
+6. Composables de dominio sao criados.
+7. Por fim, a politica fina de ciclo de vida e memoria e aplicada.
+
+Essa ordem foi escolhida para evitar big bang e manter cada branch revisavel com objetivo arquitetural claro.
+
+## 29. Branch Intermediaria Para a Refatoracao Frontend
+
+Como a frente de roteamento, componentizacao e ciclo de vida sera longa e composta por varias etapas, foi decidido usar uma branch intermediaria de integracao chamada `frontend-refactor`.
+
+Fluxo decidido:
+- `frontend-refactor` sera criada a partir de `develop` atualizada;
+- cada momento da refatoracao nascera de `frontend-refactor`;
+- os PRs de implementacao serao mergeados em `frontend-refactor`, nao diretamente em `develop`;
+- apos cada merge em `frontend-refactor`, a aplicacao deve ser validada no container;
+- quando todas as etapas estiverem integradas e estaveis, sera aberto um PR final de `frontend-refactor` para `develop`.
+
+Motivos:
+- evitar que `develop` receba estados intermediarios de uma refatoracao estrutural;
+- permitir PRs pequenos e revisaveis sem exigir que cada fatia isolada represente a arquitetura final;
+- preservar historico atomico das decisoes;
+- reduzir o risco de uma refatoracao grande bloquear outras correcoes;
+- criar uma area explicita de estabilizacao antes da promocao para a branch principal de desenvolvimento.
+
+Cuidados:
+- manter `frontend-refactor` sincronizada com `develop` caso hotfixes ou ajustes paralelos sejam mergeados;
+- evitar features de produto dentro dessa branch que nao estejam relacionadas a roteamento, componentizacao ou memoria;
+- validar build, testes e fluxo manual apos cada etapa;
+- usar commits Conventional Commits e descricoes de PR claras para cada momento.
+
+Com essa decisao, a ordem operacional passa a ser:
+
+1. concluir e versionar o planejamento arquitetural;
+2. criar `frontend-refactor` a partir de `develop`;
+3. abrir branches curtas a partir de `frontend-refactor`;
+4. integrar cada momento em `frontend-refactor`;
+5. validar a aplicacao integrada;
+6. promover `frontend-refactor` para `develop` apenas quando a frente estiver completa.
