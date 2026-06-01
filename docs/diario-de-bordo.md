@@ -729,3 +729,32 @@ Decisao arquitetural:
 - componentes novos devem ser controlados por props/eventos;
 - chamadas API, caches, limpeza profunda de memoria e composables de dominio ficam para momentos posteriores;
 - `CardEditorOverlay` preferencialmente fica para o Momento 4, por estar acoplado ao modulo Biblioteca.
+
+## 35. Implementacao do Momento 3: Shell e Paginas Simples
+
+Apos o merge do planejamento do Momento 3, a branch `frontend-refactor` foi atualizada e foi criada a branch `codex/frontend-page-shell` para a primeira fatia de implementacao.
+
+Implementacoes:
+- extracao do casco visual para `frontend/src/layouts/AppShell.vue`;
+- sidebar, navegacao principal, botao de pratica intercalada, controle de tema, area de conta e mensagens globais passaram a ser controlados por props/eventos;
+- extracao das paginas simples para `frontend/src/pages/AuthPage.vue`, `StudyPage.vue`, `CreateDeckPage.vue` e `ProgressPage.vue`;
+- `App.vue` permanece como orquestrador temporario de estado, rotas, chamadas API, watchers e fluxos principais;
+- Biblioteca, Importacao e editor de cartas permanecem no `App.vue` nesta fatia por concentrarem mais estado lateral e merecerem extracao propria no proximo momento.
+
+Decisoes:
+- nao criar store global ainda;
+- nao mover chamadas API para os novos componentes;
+- nao alterar contratos do backend nem rotas existentes;
+- manter componentes novos controlados por props, modelos e eventos para preservar previsibilidade durante a refatoracao;
+- deixar Biblioteca/Importacao para uma etapa separada, reduzindo o risco sobre busca, paginacao, selecao multipla, preview APKG e editor de cartas.
+
+Validacoes:
+- `npm ci` em container Node;
+- build frontend em container Node com `vue-tsc` e `vite build`;
+- testes frontend em container Node com Vitest: 16 testes passando;
+- containers de dev ativos via Docker Compose;
+- frontend respondendo `200` em `/` e `/biblioteca/publicos`;
+- backend respondendo `200` em `GET /api/decks/public` via `127.0.0.1:8081`.
+
+Observacao:
+- o `npm audit` continua apontando uma vulnerabilidade critica herdada; nao foi aplicado `npm audit fix --force` para evitar mudancas de dependencia fora do escopo desta refatoracao.
