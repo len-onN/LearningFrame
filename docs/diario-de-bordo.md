@@ -739,6 +739,34 @@ Validacoes:
 - build frontend em container Node com `vue-tsc` e `vite build`;
 - testes frontend em container Node com Vitest: 16 testes passando.
 
+## 44. Exclusao Multipla de Baralhos e Refinamento de Selecao
+
+Na branch `codex/frontend-domain-composables-plan`, a fatia em andamento do Momento 6 recebeu uma feature transversal para resolver a exclusao de varios baralhos em `Meus baralhos`, preservando o modelo de listas paginadas e evitando carregar conteudo desnecessario em memoria.
+
+Implementacoes:
+- criado o contrato backend `POST /api/decks/bulk-delete`, com payload `{ deckIds }`, limite de ate 100 ids e resposta `204`;
+- adicionada validacao transacional de ownership no backend: se algum baralho selecionado nao existir ou nao pertencer ao usuario autenticado, a operacao falha antes de excluir qualquer item;
+- adicionada consulta `findOwnedByIds` no repositorio de decks para buscar apenas baralhos do usuario logado;
+- criado wrapper `api.deleteDecks()` no frontend;
+- expandido `useDeckLibrary` para controlar selecao de `Meus baralhos` com `selectedMyDeckIds`, contagem, selecao dos itens visiveis, limpeza e modo de selecao;
+- integrada toolbar contextual na Biblioteca com `Selecionar`, `Selecionar visiveis`, `Limpar` e `Excluir`, mantendo confirmacao antes da remocao;
+- adicionado botao flutuante de voltar ao topo da Biblioteca como apoio ao fluxo de listas paginadas com `Carregar mais`;
+- refinado `DeckListPanel` para que, no modo selecao, o card inteiro seja selecionavel por clique e teclado, enquanto botoes internos de acao ficam desativados para evitar execucoes acidentais.
+
+Decisoes:
+- a selecao multipla fica restrita a `Meus baralhos`; baralhos publicos continuam com acoes de estudar e salvar;
+- a acao em lote atua apenas sobre itens carregados/visiveis, sem semantica de "selecionar todos os resultados da busca";
+- a toolbar contextual fica sticky durante o modo selecao para evitar que a acao de exclusao se perca quando a lista crescer;
+- o backend mantem a exclusao em lote como endpoint proprio, sem alterar o contrato unitario `DELETE /api/decks/{deckId}`.
+
+Validacoes:
+- testes frontend com Vitest: 33 testes passando;
+- build frontend com `vue-tsc` e `vite build`;
+- testes backend em container Maven/Java 21: 27 testes passando;
+- containers reconstruidos e reiniciados via Docker Compose;
+- backend respondendo `200` em `GET /api/decks/public`;
+- frontend respondendo `200` em `http://127.0.0.1:8080/`.
+
 ## 40. Bugfix: Ciclo de Vida de Notificacoes
 
 Durante a validacao do gerenciamento de baralhos, foi identificado que a notificacao de exclusao permanecia visivel mesmo apos trocar de pagina. A investigacao mostrou que `notice/error` eram globais no `App.vue`, sem uma politica explicita de ciclo de vida por rota, e que a exclusao chamava navegacao sem aguardar a conclusao antes de exibir a mensagem.
@@ -771,6 +799,48 @@ Decisoes:
 - nao transformar o router em `RouterView` real nesta etapa;
 - nao mover Biblioteca, Importacao, Estudo ou Gerenciamento para composables de dominio ainda;
 - manter a assinatura nova de `withFeedback` com opcoes explicitas, preservando compatibilidade booleana temporaria no composable.
+
+## 42. Planejamento Fino do Momento 6: Composables de Dominio
+
+Apos o merge do Momento 5, a branch `frontend-refactor` foi atualizada localmente por fast-forward e foi criada a branch `codex/frontend-domain-composables-plan` para planejar a proxima etapa da refatoracao.
+
+Foi criado o documento `docs/plano-momento-6-composables-dominio.md`, detalhando:
+- estado atual do `App.vue` apos infraestrutura global extraida;
+- proposta de composables de dominio por feature: Biblioteca, Gerenciamento, Importacao APKG, Estudo e Auth Flow;
+- decisao de nao trocar `RouteSurface` por `RouterView` real ainda;
+- fronteiras de dependencia entre dominio, router, auth, feedback, stats, memoria e API;
+- lateralidades de UX, performance, memoria, testes e validacao manual;
+- matriz explicita de "faca" e "nao faca";
+- regras de controle de carga computacional para evitar carregamentos completos, watchers amplos, caches globais ou processamento desnecessario;
+- refinamento da sequencia para iniciar por 6A1 `useDeckLibrary`, validar, e so depois seguir para 6A2 `useDeckManagement`.
+
+Decisoes:
+- tratar o Momento 6 como uma etapa de alto risco arquitetural, com implementacao fatiada;
+- manter `App.vue` como integrador temporario das orquestracoes transversais;
+- extrair primeiro estado, computeds e helpers puros antes de mover workflows com API;
+- manter `stats` e auth flow no `App.vue` ate as fronteiras de Biblioteca/Importacao/Estudo estarem mais estaveis;
+- adiar route components reais para o Momento 7.
+
+## 43. Implementacao do Momento 6A1: useDeckLibrary
+
+Com base no planejamento do Momento 6, a primeira fatia implementada foi a extracao do dominio de listas da Biblioteca para `frontend/src/features/library/useDeckLibrary.ts`.
+
+Implementacoes:
+- criado `useDeckLibrary` para concentrar busca da Biblioteca, listas de baralhos publicos e meus baralhos, paginas, queries aplicadas, labels de contagem, `hasMore`, listas filtradas e destaque temporario de deck;
+- adicionados helpers exportados `mergeDeckPages`, `deckPageCountLabel` e `normalizeSearch`;
+- `App.vue` passou a consumir o composable, preservando nele as orquestracoes transversais como `savePublicDeck`, `refreshAll`, router, feedback, auth e stats;
+- o debounce da busca continuou no integrador para manter ownership claro sobre rota, usuario e feedback;
+- adicionados testes unitarios em `frontend/src/features/library/useDeckLibrary.test.ts`.
+
+Decisoes preservadas:
+- nao mover `useDeckManagement` nesta fatia;
+- nao alterar router, URLs, backend ou componentes visuais;
+- nao transformar listas paginadas em carregamento completo;
+- manter `App.vue` como integrador temporario para a proxima fatia 6A2.
+
+Validacoes:
+- testes frontend em container Node com Vitest: 30 testes passando;
+- build frontend em container Node com `vue-tsc` e `vite build`.
 
 ## 33. Ajuste de Rotulo Para Cartas Sem Texto
 

@@ -88,6 +88,11 @@ public final class DeckDtos {
     ) {
     }
 
+    public record DeckBulkDeleteRequest(
+            @NotNull @Size(min = 1, max = 100) List<@NotNull Long> deckIds
+    ) {
+    }
+
     public record MediaUploadResponse(
             String fileName,
             String contentType

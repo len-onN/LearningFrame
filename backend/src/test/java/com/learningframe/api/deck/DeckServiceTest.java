@@ -3,6 +3,7 @@ package com.learningframe.api.deck;
 import com.learningframe.api.auth.AuthService;
 import com.learningframe.api.common.ApiException;
 import com.learningframe.api.deck.DeckDtos.CardBulkDeleteRequest;
+import com.learningframe.api.deck.DeckDtos.DeckBulkDeleteRequest;
 import com.learningframe.api.model.AppUser;
 import com.learningframe.api.model.Card;
 import com.learningframe.api.model.Deck;
@@ -171,6 +172,33 @@ class DeckServiceTest {
                 .hasMessage("Uma ou mais cartas nao foram encontradas.");
 
         verify(cards, never()).deleteAll(any());
+    }
+
+    @Test
+    @DisplayName("exclui baralhos selecionados do usuario")
+    void excluiBaralhosSelecionadosDoUsuario() {
+        Deck first = deck(11L, owner);
+        Deck second = deck(12L, owner);
+        List<Long> ids = List.of(11L, 12L);
+        when(decks.findOwnedByIds(7L, ids)).thenReturn(List.of(first, second));
+
+        service.deleteDecks(new DeckBulkDeleteRequest(ids), principal);
+
+        verify(decks).deleteAll(List.of(first, second));
+    }
+
+    @Test
+    @DisplayName("bloqueia exclusao em lote com baralho ausente ou de outro usuario")
+    void bloqueiaExclusaoEmLoteComBaralhoAusenteOuDeOutroUsuario() {
+        Deck selected = deck(11L, owner);
+        List<Long> ids = List.of(11L, 99L);
+        when(decks.findOwnedByIds(7L, ids)).thenReturn(List.of(selected));
+
+        assertThatThrownBy(() -> service.deleteDecks(new DeckBulkDeleteRequest(ids), principal))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("Um ou mais baralhos nao foram encontrados.");
+
+        verify(decks, never()).deleteAll(any());
     }
 
     @Test
