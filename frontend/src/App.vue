@@ -9,7 +9,7 @@ import {
   Upload
 } from '@lucide/vue'
 import AppShell from './layouts/AppShell.vue'
-import { api, clearAuthToken, setAuthToken } from './services/api'
+import { api } from './services/api'
 import type {
   ApkgImportResponse,
   ApkgPreviewResponse,
@@ -21,8 +21,7 @@ import type {
   ReviewRating,
   StatsSummary,
   StudyCard,
-  StudyCardResponse,
-  UserResponse
+  StudyCardResponse
 } from './types/api'
 import {
   deckDetailToLocal,
@@ -45,24 +44,42 @@ import { extractRelativeMediaSources, safePreviewHtml, safeStudyHtml } from './u
 import { createApkgMediaIndex, normalizeMediaName, type ApkgMediaIndex } from './utils/apkgMedia'
 import { formatDueIn, nextDueLabel } from './utils/dueTime'
 import { validateAuthForm, type AuthErrors, type AuthField, type AuthMode } from './utils/authValidation'
+import { useAuthSession } from './composables/useAuthSession'
+import { useFeedback } from './composables/useFeedback'
+import { useTheme } from './composables/useTheme'
 
 type Tab = 'library' | 'study' | 'import' | 'create' | 'progress' | 'auth'
-type ThemePreference = 'light' | 'dark'
-type FeedbackLifetime = 'route' | 'next-route' | 'sticky'
 const DECK_PAGE_SIZE = 8
 const CARD_PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 300
 
 const route = useRoute()
 const router = useRouter()
+const { user, persistSession, clearSession } = useAuthSession()
+const {
+  themePreference,
+  nextThemeLabel,
+  toggleThemePreference,
+  applyThemePreference
+} = useTheme()
+const {
+  notice,
+  error,
+  loading,
+  showNotice,
+  showError,
+  clearFeedback,
+  clearFeedbackForRouteChange,
+  withFeedback,
+  dismissNotice,
+  dismissError
+} = useFeedback()
 const tab = computed<Tab>(() => route.meta.tab ?? 'library')
 const librarySection = computed<LibrarySection>(() => route.meta.librarySection ?? 'public')
 const libraryView = computed<LibraryView>(() => route.meta.libraryView ?? 'decks')
 const librarySearch = ref('')
 const authMode = computed<AuthMode>(() => route.meta.authMode ?? 'login')
-const themePreference = ref<ThemePreference>(loadStoredThemePreference())
 const sidebarCollapsed = ref(false)
-const user = ref<UserResponse | null>(loadStoredUser())
 const publicDecks = ref<DeckSummary[]>([])
 const myDecks = ref<DeckSummary[]>([])
 const publicDeckPage = ref<PageResponse<DeckSummary> | null>(null)
@@ -72,10 +89,6 @@ const myDeckQuery = ref('')
 const publicStudyDeckCache = ref<LocalDeck[]>([])
 const localStates = ref(loadLocalStates())
 const stats = ref<StatsSummary | null>(null)
-const notice = ref('')
-const error = ref('')
-const feedbackLifetime = ref<FeedbackLifetime>('route')
-const loading = ref(false)
 
 const authForm = ref({
   displayName: '',
@@ -145,7 +158,6 @@ const frontHtml = computed(() => currentCard.value ? safeStudyHtml(currentCard.v
 const backHtml = computed(() => currentCard.value ? safeStudyHtml(currentCard.value.backHtml, currentCard.value.deckId) : '')
 const currentDueLabel = computed(() => currentCard.value ? formatDueIn(currentCard.value.dueAt) : '')
 const authErrors = computed<AuthErrors>(() => validateAuthForm(authForm.value, authMode.value))
-const nextThemeLabel = computed(() => themePreference.value === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro')
 const sidebarToggleLabel = computed(() => sidebarCollapsed.value ? 'Expandir menu' : 'Recolher menu')
 const userDisplayName = computed(() => user.value?.displayName ?? 'Visitante')
 const publicDecksHasMore = computed(() => publicDeckPage.value ? !publicDeckPage.value.last : false)
@@ -274,10 +286,10 @@ watch(librarySearch, () => {
   window.clearTimeout(librarySearchTimer)
   librarySearchTimer = window.setTimeout(() => {
     if (librarySection.value === 'public') {
-      void withFeedback(async () => loadPublicDecks(true), false)
+      void withFeedback(async () => loadPublicDecks(true), { showLoading: false })
     }
     if (librarySection.value === 'mine' && user.value) {
-      void withFeedback(async () => loadMyDecks(true), false)
+      void withFeedback(async () => loadMyDecks(true), { showLoading: false })
     }
   }, SEARCH_DEBOUNCE_MS)
 })
@@ -288,10 +300,10 @@ watch(librarySection, (section) => {
   }
   const query = currentLibraryQuery()
   if (section === 'public' && (!publicDeckPage.value || publicDeckQuery.value !== query)) {
-    void withFeedback(async () => loadPublicDecks(true), false)
+    void withFeedback(async () => loadPublicDecks(true), { showLoading: false })
   }
   if (section === 'mine' && user.value && (!myDeckPage.value || myDeckQuery.value !== query)) {
-    void withFeedback(async () => loadMyDecks(true), false)
+    void withFeedback(async () => loadMyDecks(true), { showLoading: false })
   }
 })
 
@@ -299,7 +311,7 @@ watch(managedCardsSearch, () => {
   window.clearTimeout(managedCardsSearchTimer)
   managedCardsSearchTimer = window.setTimeout(() => {
     if (managedDeck.value) {
-      void withFeedback(async () => loadManagedCards(true), false)
+      void withFeedback(async () => loadManagedCards(true), { showLoading: false })
     }
   }, SEARCH_DEBOUNCE_MS)
 })
@@ -310,8 +322,8 @@ watch(tab, (nextTab) => {
   }
 })
 
-watch(() => route.fullPath, (_nextFullPath, previousFullPath) => {
-  clearFeedbackForRouteChange(previousFullPath)
+watch(() => route.fullPath, (nextFullPath, previousFullPath) => {
+  clearFeedbackForRouteChange(previousFullPath, nextFullPath)
   clearImportStateForRouteChange(previousFullPath)
   void syncRouteState()
 }, { immediate: true })
@@ -323,19 +335,8 @@ onBeforeUnmount(() => {
   window.clearTimeout(managedCardsSearchTimer)
 })
 
-function toggleThemePreference() {
-  themePreference.value = themePreference.value === 'dark' ? 'light' : 'dark'
-  localStorage.setItem('learningframe.theme', themePreference.value)
-  applyThemePreference()
-}
-
 function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value
-}
-
-function applyThemePreference() {
-  document.documentElement.dataset.theme = themePreference.value
-  document.documentElement.style.colorScheme = themePreference.value
 }
 
 async function navigateTo(to: RouteLocationRaw) {
@@ -352,7 +353,7 @@ async function syncRouteState() {
       if (!publicDeckPage.value || publicDeckQuery.value !== currentLibraryQuery()) {
         await loadPublicDecks(true)
       }
-    }, false, false)
+    }, { showLoading: false, clearOnStart: false })
     return
   }
 
@@ -361,7 +362,7 @@ async function syncRouteState() {
       if (user.value && (!myDeckPage.value || myDeckQuery.value !== currentLibraryQuery())) {
         await loadMyDecks(true)
       }
-    }, false, false)
+    }, { showLoading: false, clearOnStart: false })
     return
   }
 
@@ -398,7 +399,7 @@ async function syncRouteState() {
   if (route.name === 'progress' && user.value) {
     await withFeedback(async () => {
       stats.value = await api.stats()
-    }, false, false)
+    }, { showLoading: false, clearOnStart: false })
   }
 }
 
@@ -415,7 +416,7 @@ async function refreshAll() {
       await loadMyDecks(true)
       stats.value = await api.stats()
     }
-  }, false)
+  }, { showLoading: false })
 }
 
 async function loadPublicDecks(reset = false) {
@@ -442,13 +443,13 @@ async function loadMyDecks(reset = false) {
 async function loadMorePublicDecks() {
   await withFeedback(async () => {
     await loadPublicDecks()
-  }, false)
+  }, { showLoading: false })
 }
 
 async function loadMoreMyDecks() {
   await withFeedback(async () => {
     await loadMyDecks()
-  }, false)
+  }, { showLoading: false })
 }
 
 async function savePublicDeck(deck: DeckSummary) {
@@ -480,9 +481,7 @@ async function submitAuth() {
       ? await api.login(authForm.value.email, authForm.value.password)
       : await api.register(authForm.value.displayName, authForm.value.email, authForm.value.password)
 
-    user.value = response.user
-    setAuthToken(response.token)
-    localStorage.setItem('learningframe.user', JSON.stringify(response.user))
+    persistSession(response.user, response.token)
     authForm.value.password = ''
     resetAuthValidation()
     await refreshAll()
@@ -534,13 +533,11 @@ function resetAuthValidation() {
 
 async function logout() {
   closeManagedDeck(true, false)
-  user.value = null
+  clearSession()
   stats.value = null
   myDecks.value = []
   myDeckPage.value = null
   myDeckQuery.value = ''
-  clearAuthToken()
-  localStorage.removeItem('learningframe.user')
   await router.replace({ name: 'library-public' })
   showNotice('Modo anonimo ativado.')
 }
@@ -950,7 +947,7 @@ async function loadManagedDeckRoute(deckId: number) {
     setManagedDeck(deck)
     librarySearch.value = ''
     await loadManagedCards(true)
-  }, true, false)
+  }, { clearOnStart: false })
 }
 
 function setManagedDeck(deck: DeckSummary) {
@@ -1005,7 +1002,7 @@ async function loadManagedCards(reset = false) {
 async function loadMoreManagedCards() {
   await withFeedback(async () => {
     await loadManagedCards()
-  }, false)
+  }, { showLoading: false })
 }
 
 async function saveManagedDeck() {
@@ -1293,89 +1290,6 @@ function serverCardToStudyCard(card: StudyCardResponse): StudyCard {
   }
 }
 
-async function withFeedback(task: () => Promise<void>, showLoading = true, clearOnStart = true) {
-  if (clearOnStart) {
-    clearFeedback()
-  }
-  if (showLoading) {
-    loading.value = true
-  }
-  try {
-    await task()
-  } catch (caught) {
-    const message = caught instanceof Error ? caught.message : 'Erro inesperado.'
-    showError(message === 'Failed to fetch'
-      ? 'Backend indisponivel. Verifique se o Docker Compose esta ativo e tente novamente.'
-      : message)
-  } finally {
-    loading.value = false
-  }
-}
-
-function showNotice(message: string, lifetime: FeedbackLifetime = 'route') {
-  notice.value = message
-  error.value = ''
-  feedbackLifetime.value = lifetime
-}
-
-function showError(message: string, lifetime: FeedbackLifetime = 'route') {
-  error.value = message
-  notice.value = ''
-  feedbackLifetime.value = lifetime
-}
-
-function clearFeedback() {
-  notice.value = ''
-  error.value = ''
-  feedbackLifetime.value = 'route'
-}
-
-function clearFeedbackForRouteChange(previousFullPath?: string) {
-  if (!previousFullPath || previousFullPath === route.fullPath) {
-    return
-  }
-
-  if (feedbackLifetime.value === 'sticky') {
-    return
-  }
-
-  if (feedbackLifetime.value === 'next-route') {
-    feedbackLifetime.value = 'route'
-    return
-  }
-
-  clearFeedback()
-}
-
-function dismissNotice() {
-  notice.value = ''
-  if (!error.value) {
-    feedbackLifetime.value = 'route'
-  }
-}
-
-function dismissError() {
-  error.value = ''
-  if (!notice.value) {
-    feedbackLifetime.value = 'route'
-  }
-}
-
-function loadStoredUser() {
-  try {
-    const raw = localStorage.getItem('learningframe.user')
-    return raw ? JSON.parse(raw) as UserResponse : null
-  } catch {
-    return null
-  }
-}
-
-function loadStoredThemePreference(): ThemePreference {
-  const storedTheme = localStorage.getItem('learningframe.theme')
-  return storedTheme === 'light' || storedTheme === 'dark'
-    ? storedTheme
-    : 'light'
-}
 </script>
 
 <template>

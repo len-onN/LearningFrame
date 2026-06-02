@@ -755,6 +755,23 @@ Decisoes:
 - nao introduzir biblioteca de toast nesta etapa;
 - tratar mensagens comuns como route-scoped por padrao, limpando-as na proxima navegacao.
 
+## 41. Implementacao do Momento 5: Composables de Infraestrutura
+
+Apos atualizar `frontend-refactor`, foi criada a branch `codex/frontend-next-refactor-plan` para planejar e implementar a proxima fatia da refatoracao.
+
+Implementacoes:
+- criado `docs/plano-momento-5-composables-infraestrutura.md`;
+- criado `frontend/src/composables/useFeedback.ts` para centralizar `notice`, `error`, `loading`, lifetime e `withFeedback`;
+- criado `frontend/src/composables/useTheme.ts` para concentrar preferencia de tema, persistencia e aplicacao no documento;
+- criado `frontend/src/composables/useAuthSession.ts` para leitura, persistencia e limpeza da sessao local;
+- `App.vue` passou a consumir esses composables, preservando os workflows de dominio ainda no componente raiz;
+- adicionados testes unitarios para o ciclo de vida das notificacoes em `useFeedback.test.ts`.
+
+Decisoes:
+- nao transformar o router em `RouterView` real nesta etapa;
+- nao mover Biblioteca, Importacao, Estudo ou Gerenciamento para composables de dominio ainda;
+- manter a assinatura nova de `withFeedback` com opcoes explicitas, preservando compatibilidade booleana temporaria no composable.
+
 ## 33. Ajuste de Rotulo Para Cartas Sem Texto
 
 Durante a validacao manual do gerenciamento de cartas, foi identificado que cartas compostas apenas por midia ou HTML sem texto extraivel apareciam como "Carta sem texto". Isso era correto tecnicamente, mas ruim para uso repetido, pois varias cartas ficavam com o mesmo rotulo.
