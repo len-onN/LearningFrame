@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import {
   BarChart3,
@@ -38,6 +38,7 @@ import StudyPage from './pages/StudyPage.vue'
 import CardEditorOverlay from './features/library/CardEditorOverlay.vue'
 import type { CardEditorMediaKind, CardEditorMode } from './features/library/cardEditorTypes'
 import type { LibrarySection, LibraryView, ManagedCardsViewState } from './features/library/libraryTypes'
+import { deckPageCountLabel, normalizeSearch, useDeckLibrary } from './features/library/useDeckLibrary'
 import type { PreviewFace } from './features/import/importTypes'
 import { nextReview } from './utils/srs'
 import { extractRelativeMediaSources, safePreviewHtml, safeStudyHtml } from './utils/html'
@@ -77,15 +78,32 @@ const {
 const tab = computed<Tab>(() => route.meta.tab ?? 'library')
 const librarySection = computed<LibrarySection>(() => route.meta.librarySection ?? 'public')
 const libraryView = computed<LibraryView>(() => route.meta.libraryView ?? 'decks')
-const librarySearch = ref('')
 const authMode = computed<AuthMode>(() => route.meta.authMode ?? 'login')
 const sidebarCollapsed = ref(false)
-const publicDecks = ref<DeckSummary[]>([])
-const myDecks = ref<DeckSummary[]>([])
-const publicDeckPage = ref<PageResponse<DeckSummary> | null>(null)
-const myDeckPage = ref<PageResponse<DeckSummary> | null>(null)
-const publicDeckQuery = ref('')
-const myDeckQuery = ref('')
+const {
+  librarySearch,
+  publicDecks,
+  myDecks,
+  publicDeckPage,
+  myDeckPage,
+  publicDeckQuery,
+  myDeckQuery,
+  highlightedDeckId,
+  publicDecksHasMore,
+  myDecksHasMore,
+  filteredPublicDecks,
+  filteredMyDecks,
+  activeLibraryCountLabel,
+  currentLibraryQuery,
+  loadPublicDecks,
+  loadMyDecks,
+  highlightDeck,
+  clearHighlightDeckTimer
+} = useDeckLibrary({
+  librarySection,
+  user,
+  pageSize: DECK_PAGE_SIZE
+})
 const publicStudyDeckCache = ref<LocalDeck[]>([])
 const localStates = ref(loadLocalStates())
 const stats = ref<StatsSummary | null>(null)
@@ -146,7 +164,6 @@ const previewPickerOpen = ref(false)
 const previewCardSearch = ref('')
 const previewMediaIndex = ref<ApkgMediaIndex | null>(null)
 const previewMediaUrls = ref<Record<string, string>>({})
-const highlightedDeckId = ref<number | null>(null)
 const importSaving = ref(false)
 
 const studyQueue = ref<StudyCard[]>([])
@@ -160,12 +177,6 @@ const currentDueLabel = computed(() => currentCard.value ? formatDueIn(currentCa
 const authErrors = computed<AuthErrors>(() => validateAuthForm(authForm.value, authMode.value))
 const sidebarToggleLabel = computed(() => sidebarCollapsed.value ? 'Expandir menu' : 'Recolher menu')
 const userDisplayName = computed(() => user.value?.displayName ?? 'Visitante')
-const publicDecksHasMore = computed(() => publicDeckPage.value ? !publicDeckPage.value.last : false)
-const myDecksHasMore = computed(() => myDeckPage.value ? !myDeckPage.value.last : false)
-const publicDecksCountLabel = computed(() => deckPageCountLabel(publicDecks.value.length, publicDeckPage.value))
-const myDecksCountLabel = computed(() => deckPageCountLabel(myDecks.value.length, myDeckPage.value))
-const filteredPublicDecks = computed(() => publicDecks.value)
-const filteredMyDecks = computed(() => myDecks.value)
 const managedCardsHasMore = computed(() => managedCardsPage.value ? !managedCardsPage.value.last : false)
 const managedCardsCountLabel = computed(() => deckPageCountLabel(managedCards.value.length, managedCardsPage.value, 'cartas'))
 const selectedManagedCard = computed(() => managedCards.value.find((card) => card.id === selectedManagedCardId.value) ?? null)
@@ -244,19 +255,6 @@ const previewCardOptions = computed(() => {
     }))
     .filter((card) => !query || card.searchText.includes(query))
 })
-const activeLibraryCountLabel = computed(() => {
-  const searching = normalizeSearch(librarySearch.value).length > 0
-  if (searching) {
-    if (librarySection.value === 'public') {
-      return publicDecksCountLabel.value
-    }
-    return user.value ? myDecksCountLabel.value : ''
-  }
-  if (librarySection.value === 'public') {
-    return publicDecksCountLabel.value
-  }
-  return user.value ? myDecksCountLabel.value : ''
-})
 const navTabs = [
   { id: 'library' as const, label: 'Biblioteca', icon: BookOpen, to: { name: 'library-public' } },
   { id: 'study' as const, label: 'Estudo', icon: Brain, to: { name: 'study' } },
@@ -330,7 +328,7 @@ watch(() => route.fullPath, (nextFullPath, previousFullPath) => {
 
 onBeforeUnmount(() => {
   revokePreviewMediaUrls()
-  window.clearTimeout(highlightDeckTimer)
+  clearHighlightDeckTimer()
   window.clearTimeout(librarySearchTimer)
   window.clearTimeout(managedCardsSearchTimer)
 })
@@ -417,27 +415,6 @@ async function refreshAll() {
       stats.value = await api.stats()
     }
   }, { showLoading: false })
-}
-
-async function loadPublicDecks(reset = false) {
-  const page = reset ? 0 : (publicDeckPage.value?.page ?? -1) + 1
-  const query = currentLibraryQuery()
-  const response = await api.publicDecks(page, DECK_PAGE_SIZE, query)
-  publicDecks.value = reset ? response.content : mergeDeckPages(publicDecks.value, response.content)
-  publicDeckPage.value = response
-  publicDeckQuery.value = query
-}
-
-async function loadMyDecks(reset = false) {
-  if (!user.value) {
-    return
-  }
-  const page = reset ? 0 : (myDeckPage.value?.page ?? -1) + 1
-  const query = currentLibraryQuery()
-  const response = await api.myDecks(page, DECK_PAGE_SIZE, query)
-  myDecks.value = reset ? response.content : mergeDeckPages(myDecks.value, response.content)
-  myDeckPage.value = response
-  myDeckQuery.value = query
 }
 
 async function loadMorePublicDecks() {
@@ -779,23 +756,6 @@ function shouldPreserveImportAcrossAuth() {
 
 function isAuthPath(path: string) {
   return path.startsWith('/entrar') || path.startsWith('/cadastro')
-}
-
-let highlightDeckTimer: number | undefined
-
-async function highlightDeck(deckId: number) {
-  highlightedDeckId.value = null
-  window.clearTimeout(highlightDeckTimer)
-  await nextTick()
-  document.querySelector(`[data-deck-id="${deckId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  window.requestAnimationFrame(() => {
-    highlightedDeckId.value = deckId
-    highlightDeckTimer = window.setTimeout(() => {
-      if (highlightedDeckId.value === deckId) {
-        highlightedDeckId.value = null
-      }
-    }, 10000)
-  })
 }
 
 async function selectPreviewCard(index: number) {
@@ -1213,14 +1173,6 @@ function fallbackCardLabel(card: CardResponse) {
   return index >= 0 ? `Carta ${index + 1}` : 'Carta'
 }
 
-function mergeDeckPages(current: DeckSummary[], incoming: DeckSummary[]) {
-  const merged = new Map<number, DeckSummary>()
-  for (const deck of [...current, ...incoming]) {
-    merged.set(deck.id, deck)
-  }
-  return [...merged.values()]
-}
-
 function mergeCardsPages(current: CardResponse[], incoming: CardResponse[]) {
   const merged = new Map<number, CardResponse>()
   for (const card of [...current, ...incoming]) {
@@ -1229,27 +1181,8 @@ function mergeCardsPages(current: CardResponse[], incoming: CardResponse[]) {
   return [...merged.values()]
 }
 
-function deckPageCountLabel<T>(loaded: number, page: PageResponse<T> | null, label = 'baralhos') {
-  if (!page) {
-    return ''
-  }
-  return `${loaded} de ${page.totalElements} ${label}`
-}
-
 function cardCountLabel(count: number) {
   return `${count} ${count === 1 ? 'carta' : 'cartas'}`
-}
-
-function normalizeSearch(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim()
-}
-
-function currentLibraryQuery() {
-  return librarySearch.value.trim()
 }
 
 function deckDueLabel(deck: DeckSummary) {

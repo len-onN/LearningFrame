@@ -793,6 +793,27 @@ Decisoes:
 - manter `stats` e auth flow no `App.vue` ate as fronteiras de Biblioteca/Importacao/Estudo estarem mais estaveis;
 - adiar route components reais para o Momento 7.
 
+## 43. Implementacao do Momento 6A1: useDeckLibrary
+
+Com base no planejamento do Momento 6, a primeira fatia implementada foi a extracao do dominio de listas da Biblioteca para `frontend/src/features/library/useDeckLibrary.ts`.
+
+Implementacoes:
+- criado `useDeckLibrary` para concentrar busca da Biblioteca, listas de baralhos publicos e meus baralhos, paginas, queries aplicadas, labels de contagem, `hasMore`, listas filtradas e destaque temporario de deck;
+- adicionados helpers exportados `mergeDeckPages`, `deckPageCountLabel` e `normalizeSearch`;
+- `App.vue` passou a consumir o composable, preservando nele as orquestracoes transversais como `savePublicDeck`, `refreshAll`, router, feedback, auth e stats;
+- o debounce da busca continuou no integrador para manter ownership claro sobre rota, usuario e feedback;
+- adicionados testes unitarios em `frontend/src/features/library/useDeckLibrary.test.ts`.
+
+Decisoes preservadas:
+- nao mover `useDeckManagement` nesta fatia;
+- nao alterar router, URLs, backend ou componentes visuais;
+- nao transformar listas paginadas em carregamento completo;
+- manter `App.vue` como integrador temporario para a proxima fatia 6A2.
+
+Validacoes:
+- testes frontend em container Node com Vitest: 30 testes passando;
+- build frontend em container Node com `vue-tsc` e `vite build`.
+
 ## 33. Ajuste de Rotulo Para Cartas Sem Texto
 
 Durante a validacao manual do gerenciamento de cartas, foi identificado que cartas compostas apenas por midia ou HTML sem texto extraivel apareciam como "Carta sem texto". Isso era correto tecnicamente, mas ruim para uso repetido, pois varias cartas ficavam com o mesmo rotulo.
