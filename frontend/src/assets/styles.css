@@ -6,7 +6,7 @@
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --color-bg: #f6f7f9;
+  --color-bg: #fbfcfd;
   --color-surface: #ffffff;
   --color-surface-muted: #fbfcfd;
   --color-text: #18212f;
@@ -24,6 +24,7 @@
   --color-primary-soft-hover: #f2fbf9;
   --color-nav-active-bg: #d5eae5;
   --color-section-bg: #eef2f5;
+  --color-library-section-bg: #e2f1ed;
   --color-focus: #d9f3ef;
   --color-on-primary: #ffffff;
   --color-field-label: #314158;
@@ -67,6 +68,7 @@
   --color-primary-soft-hover: #173f39;
   --color-nav-active-bg: #1b5048;
   --color-section-bg: #1f2724;
+  --color-library-section-bg: var(--color-section-bg);
   --color-focus: #164e45;
   --color-on-primary: #052e2b;
   --color-field-label: #d7e4df;
@@ -680,7 +682,7 @@ textarea {
 
 .library-grid .panel {
   border: 0;
-  background: var(--color-section-bg);
+  background: var(--color-library-section-bg);
   padding: 16px;
 }
 
