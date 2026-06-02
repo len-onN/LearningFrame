@@ -92,6 +92,76 @@ describe('useDeckLibrary', () => {
     await library.loadMyDecks(true)
     expect(library.activeLibraryCountLabel.value).toBe('1 de 2 baralhos')
   })
+
+  it('alterna selecao individual de meus baralhos', async () => {
+    const client = {
+      publicDecks: vi.fn(async () => page([], 0, 0, true)),
+      myDecks: vi.fn(async () => page([myDeck], 0, 1, true))
+    }
+    const library = useDeckLibrary({
+      librarySection: ref('mine'),
+      user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }),
+      client
+    })
+
+    await library.loadMyDecks(true)
+    library.toggleMyDeckSelection(2)
+
+    expect(library.deckSelectionMode.value).toBe(true)
+    expect(library.selectedMyDeckIds.value.has(2)).toBe(true)
+    expect(library.selectedMyDecksCount.value).toBe(1)
+
+    library.toggleMyDeckSelection(2)
+
+    expect(library.selectedMyDeckIds.value.has(2)).toBe(false)
+    expect(library.selectedMyDecksCount.value).toBe(0)
+  })
+
+  it('seleciona e desmarca todos os baralhos visiveis', async () => {
+    const decks = [deck(2, 'A'), deck(3, 'B')]
+    const client = {
+      publicDecks: vi.fn(async () => page([], 0, 0, true)),
+      myDecks: vi.fn(async () => page(decks, 0, 2, true))
+    }
+    const library = useDeckLibrary({
+      librarySection: ref('mine'),
+      user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }),
+      client
+    })
+
+    await library.loadMyDecks(true)
+    library.toggleVisibleMyDeckSelection()
+
+    expect(library.allVisibleMyDecksSelected.value).toBe(true)
+    expect([...library.selectedMyDeckIds.value]).toEqual([2, 3])
+
+    library.toggleVisibleMyDeckSelection()
+
+    expect(library.allVisibleMyDecksSelected.value).toBe(false)
+    expect(library.selectedMyDecksCount.value).toBe(0)
+  })
+
+  it('remove selecoes que nao estao mais carregadas ao recarregar meus baralhos', async () => {
+    const firstPage = page([deck(2, 'A'), deck(3, 'B')], 0, 2, true)
+    const secondPage = page([deck(3, 'B')], 0, 1, true)
+    const client = {
+      publicDecks: vi.fn(async () => page([], 0, 0, true)),
+      myDecks: vi.fn()
+        .mockResolvedValueOnce(firstPage)
+        .mockResolvedValueOnce(secondPage)
+    }
+    const library = useDeckLibrary({
+      librarySection: ref('mine'),
+      user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }),
+      client
+    })
+
+    await library.loadMyDecks(true)
+    library.toggleVisibleMyDeckSelection()
+    await library.loadMyDecks(true)
+
+    expect([...library.selectedMyDeckIds.value]).toEqual([3])
+  })
 })
 
 function deck(id: number, title: string): DeckSummary {

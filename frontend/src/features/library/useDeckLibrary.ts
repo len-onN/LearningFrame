@@ -29,6 +29,8 @@ export function useDeckLibrary({
   const publicDeckQuery = ref('')
   const myDeckQuery = ref('')
   const highlightedDeckId = ref<number | null>(null)
+  const deckSelectionMode = ref(false)
+  const selectedMyDeckIds = ref<Set<number>>(new Set())
 
   let highlightDeckTimer: number | undefined
 
@@ -38,6 +40,11 @@ export function useDeckLibrary({
   const myDecksCountLabel = computed(() => deckPageCountLabel(myDecks.value.length, myDeckPage.value))
   const filteredPublicDecks = computed(() => publicDecks.value)
   const filteredMyDecks = computed(() => myDecks.value)
+  const selectedMyDecksCount = computed(() => selectedMyDeckIds.value.size)
+  const allVisibleMyDecksSelected = computed(() => (
+    myDecks.value.length > 0
+    && myDecks.value.every((deck) => selectedMyDeckIds.value.has(deck.id))
+  ))
   const activeLibraryCountLabel = computed(() => {
     const searching = normalizeSearch(librarySearch.value).length > 0
     if (searching) {
@@ -75,6 +82,7 @@ export function useDeckLibrary({
     myDecks.value = reset ? response.content : mergeDeckPages(myDecks.value, response.content)
     myDeckPage.value = response
     myDeckQuery.value = query
+    pruneMyDeckSelection()
   }
 
   async function highlightDeck(deckId: number) {
@@ -96,6 +104,58 @@ export function useDeckLibrary({
     window.clearTimeout(highlightDeckTimer)
   }
 
+  function toggleDeckSelectionMode() {
+    deckSelectionMode.value = !deckSelectionMode.value
+    if (!deckSelectionMode.value) {
+      clearMyDeckSelection()
+    }
+  }
+
+  function enterDeckSelectionMode() {
+    deckSelectionMode.value = true
+  }
+
+  function exitDeckSelectionMode() {
+    deckSelectionMode.value = false
+    clearMyDeckSelection()
+  }
+
+  function toggleMyDeckSelection(deckId: number) {
+    enterDeckSelectionMode()
+    const selected = new Set(selectedMyDeckIds.value)
+    if (selected.has(deckId)) {
+      selected.delete(deckId)
+    } else {
+      selected.add(deckId)
+    }
+    selectedMyDeckIds.value = selected
+  }
+
+  function toggleVisibleMyDeckSelection() {
+    const selected = new Set(selectedMyDeckIds.value)
+    if (allVisibleMyDecksSelected.value) {
+      myDecks.value.forEach((deck) => selected.delete(deck.id))
+    } else {
+      myDecks.value.forEach((deck) => selected.add(deck.id))
+    }
+    selectedMyDeckIds.value = selected
+    if (selectedMyDeckIds.value.size > 0) {
+      enterDeckSelectionMode()
+    }
+  }
+
+  function clearMyDeckSelection() {
+    selectedMyDeckIds.value = new Set()
+  }
+
+  function pruneMyDeckSelection() {
+    const loadedIds = new Set(myDecks.value.map((deck) => deck.id))
+    selectedMyDeckIds.value = new Set([...selectedMyDeckIds.value].filter((deckId) => loadedIds.has(deckId)))
+    if (selectedMyDeckIds.value.size === 0 && deckSelectionMode.value && myDecks.value.length === 0) {
+      deckSelectionMode.value = false
+    }
+  }
+
   return {
     librarySearch,
     publicDecks,
@@ -105,18 +165,28 @@ export function useDeckLibrary({
     publicDeckQuery,
     myDeckQuery,
     highlightedDeckId,
+    deckSelectionMode,
+    selectedMyDeckIds,
     publicDecksHasMore,
     myDecksHasMore,
     publicDecksCountLabel,
     myDecksCountLabel,
     filteredPublicDecks,
     filteredMyDecks,
+    selectedMyDecksCount,
+    allVisibleMyDecksSelected,
     activeLibraryCountLabel,
     currentLibraryQuery,
     loadPublicDecks,
     loadMyDecks,
     highlightDeck,
-    clearHighlightDeckTimer
+    clearHighlightDeckTimer,
+    toggleDeckSelectionMode,
+    enterDeckSelectionMode,
+    exitDeckSelectionMode,
+    toggleMyDeckSelection,
+    toggleVisibleMyDeckSelection,
+    clearMyDeckSelection
   }
 }
 

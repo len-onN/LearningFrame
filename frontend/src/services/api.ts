@@ -119,6 +119,12 @@ export const api = {
       method: 'DELETE'
     })
   },
+  deleteDecks(deckIds: number[]) {
+    return request<void>('/api/decks/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ deckIds })
+    })
+  },
   createCard(deckId: number, frontHtml: string, backHtml: string, tags: string[]) {
     return request<CardResponse>(`/api/decks/${deckId}/cards`, {
       method: 'POST',

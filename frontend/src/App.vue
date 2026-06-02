@@ -89,16 +89,25 @@ const {
   publicDeckQuery,
   myDeckQuery,
   highlightedDeckId,
+  deckSelectionMode,
+  selectedMyDeckIds,
   publicDecksHasMore,
   myDecksHasMore,
   filteredPublicDecks,
   filteredMyDecks,
+  selectedMyDecksCount,
+  allVisibleMyDecksSelected,
   activeLibraryCountLabel,
   currentLibraryQuery,
   loadPublicDecks,
   loadMyDecks,
   highlightDeck,
-  clearHighlightDeckTimer
+  clearHighlightDeckTimer,
+  toggleDeckSelectionMode,
+  exitDeckSelectionMode,
+  toggleMyDeckSelection,
+  toggleVisibleMyDeckSelection,
+  clearMyDeckSelection
 } = useDeckLibrary({
   librarySection,
   user,
@@ -295,6 +304,7 @@ watch(librarySearch, () => {
 watch(librarySection, (section) => {
   if (section !== 'mine') {
     closeManagedDeck(true, false)
+    exitDeckSelectionMode()
   }
   const query = currentLibraryQuery()
   if (section === 'public' && (!publicDeckPage.value || publicDeckQuery.value !== query)) {
@@ -344,6 +354,9 @@ async function navigateTo(to: RouteLocationRaw) {
 async function syncRouteState() {
   if (route.name !== 'library-deck-manage' && managedDeck.value) {
     closeManagedDeck(true, false)
+  }
+  if (route.name !== 'library-mine') {
+    exitDeckSelectionMode()
   }
 
   if (route.name === 'library-public') {
@@ -447,6 +460,31 @@ async function savePublicDeck(deck: DeckSummary) {
   })
 }
 
+async function deleteSelectedMyDecks() {
+  const deckIds = [...selectedMyDeckIds.value]
+  if (deckIds.length === 0) {
+    return
+  }
+  const label = deckIds.length === 1 ? '1 baralho selecionado' : `${deckIds.length} baralhos selecionados`
+  if (!window.confirm(`Excluir ${label} e todas as suas cartas?`)) {
+    return
+  }
+
+  await withFeedback(async () => {
+    await api.deleteDecks(deckIds)
+    exitDeckSelectionMode()
+    await loadMyDecks(true)
+    if (user.value) {
+      stats.value = await api.stats()
+    }
+    showNotice(deckIds.length === 1 ? 'Baralho excluido.' : 'Baralhos selecionados excluidos.')
+  })
+}
+
+function clearSelectedMyDecks() {
+  clearMyDeckSelection()
+}
+
 async function submitAuth() {
   markAuthSubmitted()
   if (hasAuthErrors()) {
@@ -510,6 +548,7 @@ function resetAuthValidation() {
 
 async function logout() {
   closeManagedDeck(true, false)
+  exitDeckSelectionMode()
   clearSession()
   stats.value = null
   myDecks.value = []
@@ -1275,6 +1314,10 @@ function serverCardToStudyCard(card: StudyCardResponse): StudyCard {
         :public-decks-has-more="publicDecksHasMore"
         :my-decks-has-more="myDecksHasMore"
         :highlighted-deck-id="highlightedDeckId"
+        :deck-selection-mode="deckSelectionMode"
+        :selected-my-deck-ids="selectedMyDeckIds"
+        :selected-my-decks-count="selectedMyDecksCount"
+        :all-visible-my-decks-selected="allVisibleMyDecksSelected"
         :managed-deck="managedDeck"
         :managed-deck-form="managedDeckForm"
         :managed-deck-dirty="managedDeckDirty"
@@ -1291,6 +1334,11 @@ function serverCardToStudyCard(card: StudyCardResponse): StudyCard {
         @load-more-public="loadMorePublicDecks"
         @load-more-mine="loadMoreMyDecks"
         @open-managed-deck="openManagedDeck"
+        @toggle-deck-selection-mode="toggleDeckSelectionMode"
+        @toggle-visible-deck-selection="toggleVisibleMyDeckSelection"
+        @clear-deck-selection="clearSelectedMyDecks"
+        @delete-selected-decks="deleteSelectedMyDecks"
+        @toggle-deck-selection="toggleMyDeckSelection"
         @login="openAuth('login')"
         @close-managed-deck="closeManagedDeck()"
         @save-managed-deck="saveManagedDeck"

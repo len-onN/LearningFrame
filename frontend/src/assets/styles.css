@@ -640,6 +640,50 @@ textarea {
   gap: 12px;
 }
 
+.library-toolbar.selection-active {
+  position: sticky;
+  top: 10px;
+  z-index: 8;
+  margin-inline: -8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--color-surface);
+  box-shadow: 0 14px 36px rgb(15 23 42 / 12%);
+}
+
+.library-toolbar .row-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.selection-count {
+  color: var(--color-primary-strong);
+  font-weight: 800;
+}
+
+.library-top-sentinel {
+  display: block;
+  width: 1px;
+  height: 1px;
+}
+
+.library-back-top {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 20;
+  color: var(--color-primary-strong);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 14px 32px rgb(15 23 42 / 16%);
+}
+
+.library-back-top:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-primary-soft-hover);
+}
+
 .library-search {
   position: relative;
   display: flex;
@@ -721,6 +765,7 @@ textarea {
 }
 
 .deck-card {
+  position: relative;
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
   align-content: stretch;
@@ -730,6 +775,48 @@ textarea {
   border-radius: 8px;
   padding: 14px;
   background: var(--color-surface);
+}
+
+.deck-card.selectable {
+  padding-right: 46px;
+  cursor: pointer;
+}
+
+.deck-card.selectable:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-primary-soft-hover);
+}
+
+.deck-card.selectable:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.deck-card.selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft-hover);
+  box-shadow: 0 0 0 2px var(--color-focus);
+}
+
+.deck-card.selectable .row-actions {
+  pointer-events: none;
+}
+
+.deck-selection {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+}
+
+.deck-selection input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
 }
 
 .deck-card.highlighted {
@@ -1627,6 +1714,10 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .library-toolbar .row-actions {
+    justify-content: flex-start;
+  }
+
   .managed-cards-toolbar {
     grid-template-columns: 1fr;
   }
@@ -1678,6 +1769,11 @@ textarea {
 
   .library-grid .deck-list {
     grid-template-columns: 1fr;
+  }
+
+  .library-back-top {
+    right: 16px;
+    bottom: 16px;
   }
 
   .import-header {

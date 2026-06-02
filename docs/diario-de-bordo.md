@@ -739,6 +739,34 @@ Validacoes:
 - build frontend em container Node com `vue-tsc` e `vite build`;
 - testes frontend em container Node com Vitest: 16 testes passando.
 
+## 44. Exclusao Multipla de Baralhos e Refinamento de Selecao
+
+Na branch `codex/frontend-domain-composables-plan`, a fatia em andamento do Momento 6 recebeu uma feature transversal para resolver a exclusao de varios baralhos em `Meus baralhos`, preservando o modelo de listas paginadas e evitando carregar conteudo desnecessario em memoria.
+
+Implementacoes:
+- criado o contrato backend `POST /api/decks/bulk-delete`, com payload `{ deckIds }`, limite de ate 100 ids e resposta `204`;
+- adicionada validacao transacional de ownership no backend: se algum baralho selecionado nao existir ou nao pertencer ao usuario autenticado, a operacao falha antes de excluir qualquer item;
+- adicionada consulta `findOwnedByIds` no repositorio de decks para buscar apenas baralhos do usuario logado;
+- criado wrapper `api.deleteDecks()` no frontend;
+- expandido `useDeckLibrary` para controlar selecao de `Meus baralhos` com `selectedMyDeckIds`, contagem, selecao dos itens visiveis, limpeza e modo de selecao;
+- integrada toolbar contextual na Biblioteca com `Selecionar`, `Selecionar visiveis`, `Limpar` e `Excluir`, mantendo confirmacao antes da remocao;
+- adicionado botao flutuante de voltar ao topo da Biblioteca como apoio ao fluxo de listas paginadas com `Carregar mais`;
+- refinado `DeckListPanel` para que, no modo selecao, o card inteiro seja selecionavel por clique e teclado, enquanto botoes internos de acao ficam desativados para evitar execucoes acidentais.
+
+Decisoes:
+- a selecao multipla fica restrita a `Meus baralhos`; baralhos publicos continuam com acoes de estudar e salvar;
+- a acao em lote atua apenas sobre itens carregados/visiveis, sem semantica de "selecionar todos os resultados da busca";
+- a toolbar contextual fica sticky durante o modo selecao para evitar que a acao de exclusao se perca quando a lista crescer;
+- o backend mantem a exclusao em lote como endpoint proprio, sem alterar o contrato unitario `DELETE /api/decks/{deckId}`.
+
+Validacoes:
+- testes frontend com Vitest: 33 testes passando;
+- build frontend com `vue-tsc` e `vite build`;
+- testes backend em container Maven/Java 21: 27 testes passando;
+- containers reconstruidos e reiniciados via Docker Compose;
+- backend respondendo `200` em `GET /api/decks/public`;
+- frontend respondendo `200` em `http://127.0.0.1:8080/`.
+
 ## 40. Bugfix: Ciclo de Vida de Notificacoes
 
 Durante a validacao do gerenciamento de baralhos, foi identificado que a notificacao de exclusao permanecia visivel mesmo apos trocar de pagina. A investigacao mostrou que `notice/error` eram globais no `App.vue`, sem uma politica explicita de ciclo de vida por rota, e que a exclusao chamava navegacao sem aguardar a conclusao antes de exibir a mensagem.
