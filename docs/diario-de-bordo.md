@@ -772,6 +772,27 @@ Decisoes:
 - nao mover Biblioteca, Importacao, Estudo ou Gerenciamento para composables de dominio ainda;
 - manter a assinatura nova de `withFeedback` com opcoes explicitas, preservando compatibilidade booleana temporaria no composable.
 
+## 42. Planejamento Fino do Momento 6: Composables de Dominio
+
+Apos o merge do Momento 5, a branch `frontend-refactor` foi atualizada localmente por fast-forward e foi criada a branch `codex/frontend-domain-composables-plan` para planejar a proxima etapa da refatoracao.
+
+Foi criado o documento `docs/plano-momento-6-composables-dominio.md`, detalhando:
+- estado atual do `App.vue` apos infraestrutura global extraida;
+- proposta de composables de dominio por feature: Biblioteca, Gerenciamento, Importacao APKG, Estudo e Auth Flow;
+- decisao de nao trocar `RouteSurface` por `RouterView` real ainda;
+- fronteiras de dependencia entre dominio, router, auth, feedback, stats, memoria e API;
+- lateralidades de UX, performance, memoria, testes e validacao manual;
+- matriz explicita de "faca" e "nao faca";
+- regras de controle de carga computacional para evitar carregamentos completos, watchers amplos, caches globais ou processamento desnecessario;
+- refinamento da sequencia para iniciar por 6A1 `useDeckLibrary`, validar, e so depois seguir para 6A2 `useDeckManagement`.
+
+Decisoes:
+- tratar o Momento 6 como uma etapa de alto risco arquitetural, com implementacao fatiada;
+- manter `App.vue` como integrador temporario das orquestracoes transversais;
+- extrair primeiro estado, computeds e helpers puros antes de mover workflows com API;
+- manter `stats` e auth flow no `App.vue` ate as fronteiras de Biblioteca/Importacao/Estudo estarem mais estaveis;
+- adiar route components reais para o Momento 7.
+
 ## 33. Ajuste de Rotulo Para Cartas Sem Texto
 
 Durante a validacao manual do gerenciamento de cartas, foi identificado que cartas compostas apenas por midia ou HTML sem texto extraivel apareciam como "Carta sem texto". Isso era correto tecnicamente, mas ruim para uso repetido, pois varias cartas ficavam com o mesmo rotulo.
