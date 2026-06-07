@@ -833,3 +833,35 @@ Atualizacao de prioridades:
   de estabilizacao;
 - polimento do modo de estudo permanece desejavel, mas deve continuar limitado
   para nao reabrir escopo grande antes da entrega.
+
+### 13.8 E2E de fluxos de risco
+
+Data: 2026-06-07
+Branch observada: `codex/e2e-risk-flows`
+
+A expansao E2E de maior risco foi executada em branch curta, sem adicionar
+features e sem alterar infraestrutura.
+
+Resultado:
+- a suite Playwright passou de 9 para 14 testes em Chromium;
+- foram adicionados testes de refresh direto em rotas principais;
+- foi adicionada cobertura de back/forward do navegador entre telas reais;
+- foi adicionada cobertura de edicao persistida de metadata de baralho;
+- foi adicionada cobertura de selecao e exclusao em lote de cartas;
+- foi adicionada cobertura de selecao e exclusao em lote de baralhos;
+- nao foi necessario adicionar `data-testid`, helper novo, endpoint ou
+  dependencia.
+
+Validacoes executadas:
+- `npm test`: 33 testes frontend passando;
+- `npm run build`: build frontend passando;
+- `npm run e2e`: 14 testes Playwright passando no Compose dedicado
+  `learningframe-e2e`, com teardown `down -v`;
+- `git diff --check`: sem problemas.
+
+Atualizacao de prioridades:
+- a expansao E2E de fluxos de risco deixa de ser pendencia aberta;
+- a proxima frente recomendada e `codex/study-session-polish`, mantendo escopo
+  pequeno para melhorar a percepcao de qualidade do estudo;
+- QA manual integrado e documentacao final continuam como proximas etapas
+  obrigatorias antes do fechamento academico do MVP.

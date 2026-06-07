@@ -1201,3 +1201,69 @@ Decisao:
 
 Documento criado para o proximo chat:
 - `docs/prompt-proximo-chat-e2e-risk-flows-mvp.md`.
+
+## 51. E2E de Fluxos de Risco do MVP
+
+Data: 2026-06-07
+Branch de trabalho: `codex/e2e-risk-flows`
+
+A branch curta para expandir a suite E2E foi criada a partir de `develop`
+atualizada, apos o merge de `codex/audit-vitest-decision`.
+
+Confirmacoes iniciais:
+- `develop` estava em `28ed6e3`, contendo o merge da correcao do Vitest;
+- a nova branch `codex/e2e-risk-flows` foi criada sem mudancas locais pendentes;
+- a suite E2E existente tinha 9 testes Playwright em Chromium;
+- o ambiente E2E continuava isolado em Compose dedicado `learningframe-e2e`,
+  banco `learningframe_e2e`, servico `db-e2e`, porta MySQL host `3317` e
+  teardown com `down -v`.
+
+Planejamento:
+- foi criado `docs/plano-e2e-risk-flows-mvp.md`;
+- o escopo foi limitado a fluxos de maior risco para estabilizacao do MVP;
+- ficou fora de escopo adicionar features, criar nova infraestrutura E2E,
+  adicionar dependencias de acessibilidade ou expandir a suite de forma
+  exaustiva.
+
+Implementacao:
+- criado `frontend/e2e/specs/routing-risk.spec.ts`;
+- criado `frontend/e2e/specs/deck-risk-flows.spec.ts`;
+- adicionados testes de refresh direto para rotas principais:
+  `/biblioteca/publicos`, `/importar`, `/biblioteca/meus`,
+  `/biblioteca/meus/:deckId/gerenciar` e `/estudo/baralho/:deckId`;
+- adicionada cobertura de back/forward entre Biblioteca publica, Meus baralhos,
+  gerenciamento e Criar;
+- adicionada cobertura de edicao persistida de metadata de baralho:
+  titulo, descricao e visibilidade;
+- adicionada cobertura de selecao e exclusao em lote de cartas;
+- adicionada cobertura de selecao e exclusao em lote de baralhos.
+
+Decisoes preservadas:
+- os testes reutilizam `seed`, `loginViaUi` e ids retornados pelo reset E2E;
+- nao foi necessario criar helper novo, endpoint, fixture ou `data-testid`;
+- as acoes destrutivas aguardam resposta da API em paralelo com o clique;
+- os seletores priorizam roles, labels e textos visiveis, recorrendo a
+  `data-deck-id` apenas onde o padrao ja existia nos specs anteriores.
+
+Validacoes:
+- `npm test`: 33 testes frontend passando com Vitest 4.1.8;
+- `npm run build`: `vue-tsc` e `vite build` passando;
+- `npm run e2e`: 14 testes Playwright passando em Chromium;
+- `git diff --check`: sem problemas;
+- o E2E subiu o Compose dedicado `learningframe-e2e` e derrubou o ambiente com
+  `down -v`, removendo o volume `learningframe-e2e_mysql-e2e-data`.
+
+Observacao:
+- `npm test` e `npm run build` precisaram ser repetidos fora do sandbox porque
+  a primeira execucao foi bloqueada por permissao ao carregar
+  `frontend/vite.config.ts`.
+
+Decisao:
+- a suite E2E de estabilizacao passou a cobrir os fluxos de risco inicialmente
+  previstos;
+- a proxima frente recomendada continua sendo pequena e focada:
+  `codex/study-session-polish`, para aplicar polimentos limitados no modo de
+  estudo se ainda couber antes do QA manual final.
+
+Documento criado para o proximo chat:
+- `docs/prompt-proximo-chat-study-session-polish-mvp.md`.
