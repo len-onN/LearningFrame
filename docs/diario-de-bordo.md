@@ -785,6 +785,39 @@ Tambem foram atualizados:
 - `docs/arquitetura-frontend-roteamento-ciclo-de-vida.md`, encaixando o Momento 8 antes da validacao final da branch `frontend-refactor`;
 - `docs/plano-momento-7-rotas-ciclo-de-vida.md`, registrando a ponte entre validacao manual do Momento 7 e a futura suite e2e.
 
+## 47. Implementacao do Momento 8: Testes E2E com Banco Dedicado
+
+Na branch `codex/e2e-dedicated-db`, foi implementada a primeira suite end-to-end com Playwright e ambiente Compose isolado.
+
+Implementacoes:
+- criado `docker-compose.e2e.yml` com `db-e2e`, `backend-e2e` e `frontend-e2e`;
+- o banco e2e usa MySQL dedicado, credenciais proprias, porta `3317`, volume proprio e remocao com `down -v`;
+- o backend e2e sobe em `18081` com `SPRING_PROFILES_ACTIVE=e2e`;
+- o frontend e2e sobe em `18080` e recebe `VITE_API_BASE_URL` no build da imagem;
+- criado `package.json` raiz com `npm test`, `npm run build`, `npm run e2e`, `npm run e2e:up`, `npm run e2e:test` e `npm run e2e:down`;
+- criado script `scripts/e2e/run-e2e.mjs` para subir, aguardar readiness, executar Playwright e derrubar o ambiente em `finally`;
+- adicionado profile `e2e` no backend com endpoint interno `POST /api/e2e/reset`;
+- o reset e2e e protegido por `X-E2E-Token` e `E2E_RESET_TOKEN`;
+- o seed e2e cria usuarios, baralhos publicos e privados, cartas, tags e estados de revisao previsiveis;
+- adicionada fixture APKG pequena real para exercitar preview, preservacao durante login, persistencia e limpeza de estado ao sair da rota;
+- adicionados nomes acessiveis em campos sem label estavel para favorecer testes por `getByLabel`;
+- o Vitest passou a ignorar `frontend/e2e/**`.
+
+Suite inicial:
+- smoke da Biblioteca publica;
+- redirect de rota privada para login e retorno;
+- login/logout com limpeza de dados privados;
+- criacao de baralho com navegacao para gerenciamento;
+- criacao, edicao e exclusao basica de carta;
+- estudo anonimo de baralho publico;
+- estudo autenticado com atualizacao de progresso;
+- importacao APKG pequena com preservacao ao login e limpeza ao sair da importacao.
+
+Validacoes:
+- `npm test`: 33 testes passando;
+- `npm run build`: `vue-tsc` e `vite build` passando;
+- `npm run e2e`: 9 testes Playwright passando em Chromium, com Compose e2e subindo e derrubando o volume do MySQL ao final.
+
 ## 44. Exclusao Multipla de Baralhos e Refinamento de Selecao
 
 Na branch `codex/frontend-domain-composables-plan`, a fatia em andamento do Momento 6 recebeu uma feature transversal para resolver a exclusao de varios baralhos em `Meus baralhos`, preservando o modelo de listas paginadas e evitando carregar conteudo desnecessario em memoria.
