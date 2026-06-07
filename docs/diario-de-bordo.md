@@ -739,6 +739,52 @@ Validacoes:
 - build frontend em container Node com `vue-tsc` e `vite build`;
 - testes frontend em container Node com Vitest: 16 testes passando.
 
+## 45. Implementacao Parcial do Momento 7: Rotas Reais e Ciclo de Vida
+
+Na branch `codex/frontend-moment-7-route-lifecycle`, foi iniciada a implementacao do Momento 7 a partir do plano de rotas reais e ciclo de vida por tela.
+
+Implementacoes:
+- criado `frontend/src/routes/routeContext.ts` com contextos tipados por superficie de rota;
+- criados route adapters reais em `frontend/src/routes/`: `AuthRoute`, `LibraryRoute`, `StudyRoute`, `ImportRoute`, `CreateDeckRoute` e `ProgressRoute`;
+- o router deixou de usar o `RouteSurface` vazio e passou a apontar cada rota para seu componente real;
+- `App.vue` passou a renderizar `<RouterView />` dentro do `AppShell`, mantendo os workflows e estados de dominio no integrador por enquanto;
+- as paginas visuais existentes continuaram controladas por props/eventos, sem mover chamadas API para `pages/`;
+- a sincronizacao inicial de Biblioteca, Estudo e Progresso passou a ser acionada pelos route adapters;
+- ao sair da Biblioteca, o gerenciamento contextual e a selecao de baralhos sao limpos;
+- ao sair das rotas de Estudo, a fila e a resposta visivel sao descartadas;
+- o cache anonimo de baralhos publicos usados no estudo passou a ter limite LRU simples de 6 baralhos;
+- o preview APKG ganhou controle de sequencia para evitar que uma resposta antiga sobrescreva o arquivo selecionado mais recentemente.
+
+Decisoes preservadas:
+- nao criar Pinia/store global;
+- nao mover os workflows de API para os componentes visuais;
+- manter `CardEditorOverlay` no `App.vue` nesta fatia;
+- nao alterar backend, endpoints nem CSS.
+
+Validacoes:
+- testes frontend com Vitest: 33 testes passando;
+- build frontend com `vue-tsc` e `vite build` passando.
+
+## 46. Planejamento do Momento 8: Testes E2E com Banco Dedicado
+
+Apos a implementacao parcial do Momento 7, foi decidido planejar uma etapa propria de testes end-to-end. A motivacao e que rotas reais, guards de autenticacao, limpeza de estado, importacao APKG, estudo e gerenciamento de baralhos dependem de interacoes entre navegador, frontend, backend e banco que nao sao totalmente cobertas por testes unitarios.
+
+Decisao:
+- criar o Momento 8 apos o Momento 7;
+- usar Playwright como ferramenta e2e;
+- criar um MySQL dedicado para testes, separado do banco dev;
+- subir e descer o ambiente e2e automaticamente durante a execucao da suite;
+- usar Compose proprio, portas proprias e volume descartavel;
+- adicionar reset/seed deterministico para que cada teste comece previsivel;
+- cobrir primeiro smoke, autenticacao/redirect, criacao e gerenciamento de baralho, cartas, estudo, importacao APKG pequena e progresso.
+
+Documento criado:
+- `docs/plano-momento-8-testes-e2e.md`.
+
+Tambem foram atualizados:
+- `docs/arquitetura-frontend-roteamento-ciclo-de-vida.md`, encaixando o Momento 8 antes da validacao final da branch `frontend-refactor`;
+- `docs/plano-momento-7-rotas-ciclo-de-vida.md`, registrando a ponte entre validacao manual do Momento 7 e a futura suite e2e.
+
 ## 44. Exclusao Multipla de Baralhos e Refinamento de Selecao
 
 Na branch `codex/frontend-domain-composables-plan`, a fatia em andamento do Momento 6 recebeu uma feature transversal para resolver a exclusao de varios baralhos em `Meus baralhos`, preservando o modelo de listas paginadas e evitando carregar conteudo desnecessario em memoria.

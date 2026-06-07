@@ -1,6 +1,11 @@
-import { h } from 'vue'
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { getAuthToken } from '../services/api'
+import AuthRoute from '../routes/AuthRoute.vue'
+import CreateDeckRoute from '../routes/CreateDeckRoute.vue'
+import ImportRoute from '../routes/ImportRoute.vue'
+import LibraryRoute from '../routes/LibraryRoute.vue'
+import ProgressRoute from '../routes/ProgressRoute.vue'
+import StudyRoute from '../routes/StudyRoute.vue'
 
 export type AppRouteName =
   | 'library-public'
@@ -15,11 +20,6 @@ export type AppRouteName =
   | 'login'
   | 'register'
 
-const RouteSurface = {
-  name: 'RouteSurface',
-  render: () => h('div')
-}
-
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
@@ -28,67 +28,67 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/biblioteca/publicos',
     name: 'library-public',
-    component: RouteSurface,
+    component: LibraryRoute,
     meta: { title: 'Biblioteca', tab: 'library', librarySection: 'public', libraryView: 'decks' }
   },
   {
     path: '/biblioteca/meus',
     name: 'library-mine',
-    component: RouteSurface,
+    component: LibraryRoute,
     meta: { title: 'Biblioteca', tab: 'library', librarySection: 'mine', libraryView: 'decks', requiresAuth: true }
   },
   {
     path: '/biblioteca/meus/:deckId/gerenciar',
     name: 'library-deck-manage',
-    component: RouteSurface,
+    component: LibraryRoute,
     meta: { title: 'Gerenciar baralho', tab: 'library', librarySection: 'mine', libraryView: 'manage-deck', requiresAuth: true }
   },
   {
     path: '/estudo',
     name: 'study',
-    component: RouteSurface,
+    component: StudyRoute,
     meta: { title: 'Estudo', tab: 'study' }
   },
   {
     path: '/estudo/baralho/:deckId',
     name: 'study-deck',
-    component: RouteSurface,
+    component: StudyRoute,
     meta: { title: 'Estudo', tab: 'study' }
   },
   {
     path: '/estudo/intercalado',
     name: 'study-interleaved',
-    component: RouteSurface,
+    component: StudyRoute,
     meta: { title: 'Estudo', tab: 'study' }
   },
   {
     path: '/importar',
     name: 'import',
-    component: RouteSurface,
+    component: ImportRoute,
     meta: { title: 'Importar', tab: 'import' }
   },
   {
     path: '/criar',
     name: 'create',
-    component: RouteSurface,
+    component: CreateDeckRoute,
     meta: { title: 'Criar', tab: 'create', requiresAuth: true }
   },
   {
     path: '/progresso',
     name: 'progress',
-    component: RouteSurface,
+    component: ProgressRoute,
     meta: { title: 'Progresso', tab: 'progress', requiresAuth: true }
   },
   {
     path: '/entrar',
     name: 'login',
-    component: RouteSurface,
+    component: AuthRoute,
     meta: { title: 'Entrar', tab: 'auth', authMode: 'login' }
   },
   {
     path: '/cadastro',
     name: 'register',
-    component: RouteSurface,
+    component: AuthRoute,
     meta: { title: 'Criar conta', tab: 'auth', authMode: 'register' }
   },
   {

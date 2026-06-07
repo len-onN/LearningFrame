@@ -530,6 +530,7 @@ develop
        -> codex/frontend-import-study-modules
        -> codex/frontend-domain-composables
        -> codex/frontend-memory-lifecycle
+       -> codex/e2e-dedicated-db
 ```
 
 Regras:
@@ -743,6 +744,36 @@ Riscos:
 Commit sugerido:
 - `refactor(frontend): controla ciclo de vida de estados temporarios`
 
+### Momento 8 - Testes E2E com Banco Dedicado
+
+Branch:
+- `codex/e2e-dedicated-db`
+
+Base e destino:
+- base: `frontend-refactor`, apos o Momento 7;
+- PR para: `frontend-refactor`.
+
+Objetivos:
+- adicionar Playwright para validar fluxos completos no navegador;
+- criar `docker-compose.e2e.yml` com MySQL, backend e frontend dedicados;
+- subir e descer o ambiente e2e automaticamente durante a suite;
+- usar banco, portas, credenciais e volumes separados do ambiente dev;
+- criar reset e seed deterministicos para os testes;
+- cobrir rotas diretas, guards de autenticacao, Biblioteca, gerenciamento, estudo, importacao e progresso.
+
+Riscos:
+- suite lenta ou instavel;
+- reset de teste exposto fora do profile e2e;
+- testes dependentes de textos/seletores frageis;
+- fixtures APKG grandes demais para execucao frequente;
+- Compose e2e conflitar com o ambiente dev.
+
+Planejamento fino:
+- `docs/plano-momento-8-testes-e2e.md`.
+
+Commit sugerido:
+- `test(e2e): adiciona testes com banco dedicado`
+
 ## 10. Criterios de Aceite
 
 Ao fim da frente arquitetural:
@@ -754,6 +785,7 @@ Ao fim da frente arquitetural:
 - object URLs sao revogadas;
 - listas e buscas continuam paginadas;
 - testes existentes continuam passando;
+- suite e2e inicial passa em banco dedicado;
 - fluxo containerizado continua funcionando em `http://localhost:8080`;
 - nao ha regressao funcional nas features do MVP.
 
@@ -770,7 +802,8 @@ Ordem final recomendada:
 7. Componentizacao de Importacao e Estudo.
 8. Composables por dominio.
 9. Politica fina de memoria, aborts e limpeza.
-10. Validacao integrada completa em `frontend-refactor`.
-11. PR final `frontend-refactor -> develop`.
+10. Testes E2E com banco dedicado.
+11. Validacao integrada completa em `frontend-refactor`.
+12. PR final `frontend-refactor -> develop`.
 
 Essa ordem preserva rastreabilidade e evita big bang. Cada branch responde a uma pergunta arquitetural unica e pode ser revisada/mergeada sem carregar toda a reestruturacao de uma vez. A diferenca essencial e que a estabilizacao acontece em `frontend-refactor`, mantendo `develop` livre de estados intermediarios da refatoracao.
