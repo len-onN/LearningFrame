@@ -145,3 +145,4 @@ Leituras principais:
 - `docs/plano-momento-8-testes-e2e.md`
 - `docs/prompt-proximo-chat-estabilizacao-mvp.md`
 - `docs/prompt-proximo-chat-audit-vitest-mvp.md`
+- `docs/prompt-proximo-chat-e2e-risk-flows-mvp.md`

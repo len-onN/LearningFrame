@@ -801,3 +801,35 @@ de abertura esta registrado em:
 ```txt
 docs/prompt-proximo-chat-audit-vitest-mvp.md
 ```
+
+### 13.7 Decisao do audit Vitest
+
+Data: 2026-06-07
+Branch observada: `codex/audit-vitest-decision`
+
+A pendencia critica de `npm audit` relacionada a `vitest <4.1.0` foi tratada em
+branch curta.
+
+Resultado:
+- `vitest` foi atualizado de `3.2.4` para `4.1.8`;
+- a alteracao ficou restrita ao frontend, em `frontend/package.json` e
+  `frontend/package-lock.json`;
+- a tentativa de manter uma correcao apenas na linha 3.x nao foi suficiente,
+  pois o `npm ci` do build E2E ainda reportava uma vulnerabilidade critica;
+- com `vitest@4.1.8`, o `npm ci` do build E2E reportou
+  `found 0 vulnerabilities`.
+
+Validacoes executadas:
+- `npm test`: 33 testes frontend passando;
+- `npm run build`: build frontend passando;
+- `npm run e2e`: 9 testes Playwright passando no Compose dedicado
+  `learningframe-e2e`, com teardown `down -v`.
+
+Atualizacao de prioridades:
+- a revisao do audit Vitest deixa de ser pendencia aberta;
+- a proxima frente recomendada passa a ser a expansao E2E de fluxos de maior
+  risco, em branch curta `codex/e2e-risk-flows`;
+- QA manual integrado e documentacao final continuam como prioridades da fase
+  de estabilizacao;
+- polimento do modo de estudo permanece desejavel, mas deve continuar limitado
+  para nao reabrir escopo grande antes da entrega.
