@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
+import { RouterView, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import {
   BarChart3,
   BookOpen,
@@ -29,17 +29,19 @@ import {
   localDeckToStudyCards,
   saveLocalStates
 } from './utils/localStudy'
-import AuthPage from './pages/AuthPage.vue'
-import CreateDeckPage from './pages/CreateDeckPage.vue'
-import ImportPage from './pages/ImportPage.vue'
-import LibraryPage from './pages/LibraryPage.vue'
-import ProgressPage from './pages/ProgressPage.vue'
-import StudyPage from './pages/StudyPage.vue'
 import CardEditorOverlay from './features/library/CardEditorOverlay.vue'
 import type { CardEditorMediaKind, CardEditorMode } from './features/library/cardEditorTypes'
 import type { LibrarySection, LibraryView, ManagedCardsViewState } from './features/library/libraryTypes'
 import { deckPageCountLabel, normalizeSearch, useDeckLibrary } from './features/library/useDeckLibrary'
 import type { PreviewFace } from './features/import/importTypes'
+import {
+  authRouteKey,
+  createDeckRouteKey,
+  importRouteKey,
+  libraryRouteKey,
+  progressRouteKey,
+  studyRouteKey
+} from './routes/routeContext'
 import { nextReview } from './utils/srs'
 import { extractRelativeMediaSources, safePreviewHtml, safeStudyHtml } from './utils/html'
 import { createApkgMediaIndex, normalizeMediaName, type ApkgMediaIndex } from './utils/apkgMedia'
@@ -53,6 +55,7 @@ type Tab = 'library' | 'study' | 'import' | 'create' | 'progress' | 'auth'
 const DECK_PAGE_SIZE = 8
 const CARD_PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 300
+const PUBLIC_STUDY_DECK_CACHE_LIMIT = 6
 
 const route = useRoute()
 const router = useRouter()
@@ -333,7 +336,6 @@ watch(tab, (nextTab) => {
 watch(() => route.fullPath, (nextFullPath, previousFullPath) => {
   clearFeedbackForRouteChange(previousFullPath, nextFullPath)
   clearImportStateForRouteChange(previousFullPath)
-  void syncRouteState()
 }, { immediate: true })
 
 onBeforeUnmount(() => {
@@ -351,7 +353,7 @@ async function navigateTo(to: RouteLocationRaw) {
   await router.push(to)
 }
 
-async function syncRouteState() {
+async function syncLibraryRoute() {
   if (route.name !== 'library-deck-manage' && managedDeck.value) {
     closeManagedDeck(true, false)
   }
@@ -384,9 +386,10 @@ async function syncRouteState() {
       return
     }
     await loadManagedDeckRoute(deckId)
-    return
   }
+}
 
+async function syncStudyRoute() {
   if (route.name === 'study') {
     resetStudySession()
     return
@@ -404,14 +407,24 @@ async function syncRouteState() {
 
   if (route.name === 'study-interleaved') {
     await loadInterleavedPractice()
-    return
   }
+}
 
+async function syncProgressRoute() {
   if (route.name === 'progress' && user.value) {
     await withFeedback(async () => {
       stats.value = await api.stats()
     }, { showLoading: false, clearOnStart: false })
   }
+}
+
+function cleanupLibraryRoute() {
+  closeManagedDeck(true, false)
+  exitDeckSelectionMode()
+}
+
+function cleanupStudyRoute() {
+  resetStudySession()
 }
 
 function routeDeckId() {
@@ -549,6 +562,7 @@ function resetAuthValidation() {
 async function logout() {
   closeManagedDeck(true, false)
   exitDeckSelectionMode()
+  publicStudyDeckCache.value = []
   clearSession()
   stats.value = null
   myDecks.value = []
@@ -679,6 +693,7 @@ async function reviewCurrent(rating: ReviewRating) {
 async function handleApkgChange(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0] ?? null
+  const requestId = ++importPreviewRequest
   resetImportPreviewState()
   selectedFile.value = file
 
@@ -692,10 +707,13 @@ async function handleApkgChange(event: Event) {
         api.previewApkg(file),
         createApkgMediaIndex(file).catch(() => null)
       ])
+      if (requestId !== importPreviewRequest) {
+        return
+      }
       previewMediaIndex.value = mediaIndex
-      const requestId = ++previewMediaRequest
+      const mediaRequestId = ++previewMediaRequest
       const urls = preview.cards[0] ? await readPreviewMediaUrls(preview.cards[0], 'front') : {}
-      if (requestId !== previewMediaRequest) {
+      if (mediaRequestId !== previewMediaRequest || requestId !== importPreviewRequest) {
         revokePreviewMediaUrls(urls)
         return
       }
@@ -762,6 +780,7 @@ function resetImportPreviewState() {
 }
 
 function clearImportWorkflowState() {
+  importPreviewRequest++
   resetImportPreviewState()
   selectedFile.value = null
   importSaving.value = false
@@ -853,6 +872,7 @@ function htmlSummary(html: string) {
 }
 
 let previewMediaRequest = 0
+let importPreviewRequest = 0
 
 async function showPreviewCard(index: number, face: PreviewFace) {
   const card = importPreview.value?.cards[index]
@@ -1235,12 +1255,17 @@ async function ensurePublicDeck(deckId: number) {
   const localId = `public:${deckId}`
   const existing = publicStudyDeckCache.value.find((deck) => deck.id === localId)
   if (existing) {
+    publicStudyDeckCache.value = [
+      existing,
+      ...publicStudyDeckCache.value.filter((deck) => deck.id !== localId)
+    ]
     return existing
   }
 
   const detail = await api.deck(deckId)
   const localDeck = deckDetailToLocal(detail)
   publicStudyDeckCache.value = [localDeck, ...publicStudyDeckCache.value]
+    .slice(0, PUBLIC_STUDY_DECK_CACHE_LIMIT)
   return localDeck
 }
 
@@ -1261,6 +1286,117 @@ function serverCardToStudyCard(card: StudyCardResponse): StudyCard {
     local: false
   }
 }
+
+provide(authRouteKey, {
+  authForm,
+  authMode,
+  authFieldError,
+  submitAuth,
+  goHome,
+  toggleAuthMode,
+  touchAuthField
+})
+
+provide(libraryRouteKey, {
+  librarySearch,
+  librarySection,
+  libraryView,
+  user,
+  activeLibraryCountLabel,
+  filteredPublicDecks,
+  filteredMyDecks,
+  publicDecksHasMore,
+  myDecksHasMore,
+  highlightedDeckId,
+  deckSelectionMode,
+  selectedMyDeckIds,
+  selectedMyDecksCount,
+  allVisibleMyDecksSelected,
+  managedDeck,
+  managedDeckForm,
+  managedDeckDirty,
+  managedCardsView,
+  managedCardsSearch,
+  deckFormatters,
+  cardTextSummary,
+  cardCountLabel,
+  navigateTo,
+  refreshAll,
+  startDeck,
+  savePublicDeck,
+  loadMorePublicDecks,
+  loadMoreMyDecks,
+  openManagedDeck,
+  toggleDeckSelectionMode,
+  toggleVisibleMyDeckSelection,
+  clearSelectedMyDecks,
+  deleteSelectedMyDecks,
+  toggleMyDeckSelection,
+  openAuth,
+  closeManagedDeck,
+  saveManagedDeck,
+  deleteManagedDeck,
+  updateManagedDeckForm,
+  openCreateCardEditor,
+  toggleVisibleManagedCardsSelection,
+  clearManagedCardSelection,
+  deleteSelectedManagedCards,
+  selectManagedCard,
+  toggleManagedCardSelection,
+  loadMoreManagedCards,
+  openEditCardEditor,
+  deleteManagedCard,
+  syncLibraryRoute,
+  cleanupLibraryRoute
+})
+
+provide(studyRouteKey, {
+  sessionTitle,
+  studyQueue,
+  currentCard,
+  currentDueLabel,
+  frontHtml,
+  backHtml,
+  answerVisible,
+  startInterleavedPractice,
+  reviewCurrent,
+  syncStudyRoute,
+  cleanupStudyRoute
+})
+
+provide(importRouteKey, {
+  importTitle,
+  importVisibility,
+  selectedFile,
+  loading,
+  importPreview,
+  currentPreviewCard,
+  previewCardIndex,
+  previewFace,
+  previewPickerOpen,
+  previewCardSearch,
+  previewCardOptions,
+  previewCardTitle,
+  currentPreviewHtml,
+  user,
+  handleApkgChange,
+  selectPreviewCard,
+  movePreviewCard,
+  togglePreviewFace,
+  persistImport
+})
+
+provide(createDeckRouteKey, {
+  deckForm,
+  user,
+  createDeck
+})
+
+provide(progressRouteKey, {
+  user,
+  stats,
+  syncProgressRoute
+})
 
 </script>
 
@@ -1289,126 +1425,7 @@ function serverCardToStudyCard(card: StudyCardResponse): StudyCard {
     @dismiss-error="dismissError"
   >
 
-      <AuthPage
-        v-if="tab === 'auth'"
-        v-model:display-name="authForm.displayName"
-        v-model:email="authForm.email"
-        v-model:password="authForm.password"
-        :mode="authMode"
-        :field-error="authFieldError"
-        @submit="submitAuth"
-        @close="goHome"
-        @toggle-mode="toggleAuthMode"
-        @touch-field="touchAuthField"
-      />
-
-      <LibraryPage
-        v-if="tab === 'library'"
-        v-model:search="librarySearch"
-        :section="librarySection"
-        :view="libraryView"
-        :user="user"
-        :active-count-label="activeLibraryCountLabel"
-        :public-decks="filteredPublicDecks"
-        :my-decks="filteredMyDecks"
-        :public-decks-has-more="publicDecksHasMore"
-        :my-decks-has-more="myDecksHasMore"
-        :highlighted-deck-id="highlightedDeckId"
-        :deck-selection-mode="deckSelectionMode"
-        :selected-my-deck-ids="selectedMyDeckIds"
-        :selected-my-decks-count="selectedMyDecksCount"
-        :all-visible-my-decks-selected="allVisibleMyDecksSelected"
-        :managed-deck="managedDeck"
-        :managed-deck-form="managedDeckForm"
-        :managed-deck-dirty="managedDeckDirty"
-        :managed-cards-view="managedCardsView"
-        :managed-cards-search="managedCardsSearch"
-        :deck-formatters="deckFormatters"
-        :card-text-summary="cardTextSummary"
-        :card-count-label="cardCountLabel"
-        @go-public="navigateTo({ name: 'library-public' })"
-        @go-mine="navigateTo({ name: 'library-mine' })"
-        @refresh="refreshAll"
-        @start-deck="startDeck"
-        @save-public-deck="savePublicDeck"
-        @load-more-public="loadMorePublicDecks"
-        @load-more-mine="loadMoreMyDecks"
-        @open-managed-deck="openManagedDeck"
-        @toggle-deck-selection-mode="toggleDeckSelectionMode"
-        @toggle-visible-deck-selection="toggleVisibleMyDeckSelection"
-        @clear-deck-selection="clearSelectedMyDecks"
-        @delete-selected-decks="deleteSelectedMyDecks"
-        @toggle-deck-selection="toggleMyDeckSelection"
-        @login="openAuth('login')"
-        @close-managed-deck="closeManagedDeck()"
-        @save-managed-deck="saveManagedDeck"
-        @delete-managed-deck="deleteManagedDeck"
-        @update:managed-deck-form="updateManagedDeckForm"
-        @update:managed-cards-search="managedCardsSearch = $event"
-        @create-card="openCreateCardEditor"
-        @toggle-visible-card-selection="toggleVisibleManagedCardsSelection"
-        @clear-card-selection="clearManagedCardSelection"
-        @delete-selected-cards="deleteSelectedManagedCards"
-        @select-card="selectManagedCard"
-        @toggle-card-selection="toggleManagedCardSelection"
-        @load-more-cards="loadMoreManagedCards"
-        @edit-card="openEditCardEditor"
-        @delete-card="deleteManagedCard"
-      />
-
-      <StudyPage
-        v-if="tab === 'study'"
-        :session-title="sessionTitle"
-        :queue-length="studyQueue.length"
-        :current-card="currentCard"
-        :current-due-label="currentDueLabel"
-        :front-html="frontHtml"
-        :back-html="backHtml"
-        :answer-visible="answerVisible"
-        @start-interleaved="startInterleavedPractice"
-        @reveal-answer="answerVisible = true"
-        @review="reviewCurrent"
-      />
-
-      <ImportPage
-        v-if="tab === 'import'"
-        v-model:import-title="importTitle"
-        v-model:import-visibility="importVisibility"
-        :selected-file="selectedFile"
-        :loading="loading"
-        :import-preview="importPreview"
-        :current-preview-card="currentPreviewCard"
-        :preview-card-index="previewCardIndex"
-        :preview-face="previewFace"
-        :preview-picker-open="previewPickerOpen"
-        :preview-card-search="previewCardSearch"
-        :preview-card-options="previewCardOptions"
-        :preview-card-title="previewCardTitle(previewCardIndex)"
-        :current-preview-html="currentPreviewHtml"
-        :user="user"
-        @file-change="handleApkgChange"
-        @update:preview-picker-open="previewPickerOpen = $event"
-        @update:preview-card-search="previewCardSearch = $event"
-        @select-preview-card="selectPreviewCard"
-        @move-preview-card="movePreviewCard"
-        @toggle-preview-face="togglePreviewFace"
-        @persist-import="persistImport"
-      />
-
-      <CreateDeckPage
-        v-if="tab === 'create'"
-        v-model:title="deckForm.title"
-        v-model:description="deckForm.description"
-        v-model:visibility="deckForm.visibility"
-        :user="user"
-        @submit="createDeck"
-      />
-
-      <ProgressPage
-        v-if="tab === 'progress'"
-        :user="user"
-        :stats="stats"
-      />
+      <RouterView />
 
       <CardEditorOverlay
         v-if="cardEditorOpen && managedDeck"

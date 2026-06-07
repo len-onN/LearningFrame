@@ -308,6 +308,12 @@ Validacao containerizada:
 - `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build` quando houver alteracao que precise refletir no ambiente;
 - checar `GET /api/decks/public` e frontend em `http://localhost:8080`.
 
+Ponte para o Momento 8:
+- apos concluir o Momento 7, transformar os fluxos manuais acima em uma suite Playwright;
+- usar banco MySQL dedicado para e2e, sem reutilizar dados de desenvolvimento;
+- automatizar subida e descida do ambiente e2e com Compose;
+- priorizar primeiro os fluxos que mais dependem das rotas reais: redirects de auth, refresh direto, gerenciamento por URL, limpeza ao sair de Estudo e Importacao.
+
 ## 11. Custos Arquiteturais
 
 ### Opção A: Route components com provide/inject tipado
@@ -461,3 +467,5 @@ O melhor primeiro passo e a Fase 7A:
 - preservar handlers atuais por contextos tipados.
 
 Depois disso, aplicar 7B e 7C com cuidado, porque limpeza de memoria e comportamento de back/forward sao areas onde regressao pode ser sutil.
+
+A proxima etapa recomendada apos a conclusao do Momento 7 e o Momento 8, descrito em `docs/plano-momento-8-testes-e2e.md`: testes E2E com banco dedicado para automatizar a validacao dos fluxos que hoje exigem checagem manual.
