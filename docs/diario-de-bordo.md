@@ -1042,3 +1042,105 @@ Decisoes preservadas:
 Validacoes:
 - build frontend em container Node com `vue-tsc` e `vite build`;
 - testes frontend em container Node com Vitest: 16 testes passando.
+
+## 48. Avaliacao Pos-Merge do Momento 8 e Entrada em Estabilizacao
+
+Data: 2026-06-07
+Branch base: `develop`
+Commit observado: `4a52077`
+
+Apos o merge da branch `frontend-refactor` em `develop`, foi feita uma avaliacao
+pos-merge para decidir a proxima etapa do MVP.
+
+Confirmacoes de historico:
+- `develop` contem o merge de `frontend-refactor`;
+- `frontend-refactor` contem o merge de `codex/e2e-dedicated-db`;
+- o Momento 8 esta presente em `develop`.
+
+Validacoes executadas na base atual:
+- `npm test`: 33 testes frontend passando;
+- `npm run build`: `vue-tsc` e `vite build` passando;
+- `npm run e2e`: 9 testes Playwright passando em Chromium;
+- testes backend via container Maven/Java 21: 27 testes passando.
+
+Tambem foi verificado que a suite E2E usa ambiente isolado:
+- Compose dedicado `learningframe-e2e`;
+- banco `learningframe_e2e`;
+- servico `db-e2e`;
+- porta host MySQL `3317`;
+- volume `mysql-e2e-data`;
+- teardown com `down -v`;
+- reset deterministico via endpoint interno `POST /api/e2e/reset`, habilitado
+  somente no profile backend `e2e` e protegido por token.
+
+Decisao:
+- o projeto ja pode entrar em fase de estabilizacao/finalizacao academica;
+- nao foi encontrado bloqueio funcional critico apos o merge;
+- a proxima fase deve evitar features grandes e focar hardening, documentacao,
+  QA integrado e, se couber, pequeno polimento do modo de estudo.
+
+Pendencias atuais registradas:
+- `npm audit` ainda aponta vulnerabilidade critica em `vitest <4.1.0`;
+- a correcao sugerida exige `npm audit fix --force` e atualizacao potencialmente
+  breaking para `vitest@4.1.8`;
+- a decisao deve ser tomada em branch curta, com validacao completa, ou
+  documentada conscientemente como risco aceito para o MVP local;
+- a suite E2E inicial e suficiente como rede de seguranca basica, mas pode ser
+  expandida em cenarios de maior risco, como refresh direto, back/forward,
+  edicao de metadata, exclusoes em lote e acessibilidade basica.
+
+Branch criada para a proxima fase:
+- `codex/mvp-finalization-planning`
+
+Objetivo inicial da branch:
+- consolidar documentacao pos-merge;
+- atualizar README;
+- registrar o prompt contextual do proximo chat;
+- iniciar a proxima conversa pela analise e pelo plano de implementacao antes
+  de alterar comportamento funcional.
+
+## 49. Estrategia Para as Proximas Branches de Estabilizacao
+
+Data: 2026-06-07
+Branch de registro: `codex/mvp-finalization-planning`
+
+Apos a leitura dos documentos obrigatorios e do estado real do repositorio, foi
+registrada a seguinte estrategia para a fase final do MVP:
+
+- manter esta branch como consolidacao documental e contextual da estabilizacao;
+- evitar uma fase grande de planejamento abstrato separada das implementacoes;
+- criar branches curtas por tema, sempre a partir da base ja consolidada;
+- em cada branch, iniciar por uma analise pequena e um plano local antes de
+  editar codigo ou dependencias;
+- preservar commits pequenos, em portugues e com Conventional Commits;
+- nao iniciar implementacao funcional sem confirmar branch, estado do Git,
+  mudancas pendentes e validacoes necessarias.
+
+Ordem recomendada para as proximas frentes:
+
+1. `codex/audit-vitest-decision`
+   - confirmar o alerta atual de `npm audit`;
+   - analisar impacto de atualizar `vitest` para a linha corrigida;
+   - decidir entre aplicar upgrade com validacao completa ou documentar o risco
+     aceito para o MVP academico/local.
+2. `codex/e2e-risk-flows`
+   - expandir E2E apenas em cenarios de maior risco:
+     refresh direto, back/forward, edicao de metadata, exclusoes em lote e
+     acessibilidade basica.
+3. `codex/study-session-polish`
+   - aplicar polimentos pequenos no modo de estudo se ainda couber:
+     progresso de sessao, feedback local apos rating e resumo de conclusao.
+4. QA manual integrado e documentacao final
+   - executar checklist em container;
+   - registrar resultados;
+   - corrigir apenas bloqueios reais;
+   - atualizar documentacao academica e tecnica final.
+
+Decisao:
+- a proxima branch criada sera `codex/audit-vitest-decision`;
+- o planejamento dessa branch nao sera iniciado neste chat;
+- foi preparado um prompt especifico para abrir o proximo chat com contexto,
+  documentos obrigatorios e criterios de decisao.
+
+Documento criado:
+- `docs/prompt-proximo-chat-audit-vitest-mvp.md`.

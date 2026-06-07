@@ -658,3 +658,146 @@ Se o estudo ganhar:
 - atalhos/ergonomia basica;
 
 o LearningFrame deve ficar em estado convincente de MVP funcional, demonstravel e tecnicamente defensavel.
+
+## 13. Adendo Pos-Merge do Momento 8 em `develop`
+
+Data da avaliacao: 2026-06-07
+Branch observada: `develop`
+Commit observado: `4a52077` (`Merge pull request #23 from len-onN/frontend-refactor`)
+
+Este adendo atualiza a leitura anterior deste documento. As secoes acima foram
+mantidas como registro historico da avaliacao pre-Momento 8, mas algumas
+preocupacoes ja foram superadas pelo merge de `frontend-refactor` em `develop`.
+
+### 13.1 O que mudou desde a avaliacao original
+
+O Momento 7 foi integrado e o frontend passou a usar rotas reais com
+`<RouterView />`, route adapters e ciclo de vida mais explicito por tela.
+
+O Momento 8 foi integrado e adicionou:
+- Playwright;
+- `docker-compose.e2e.yml`;
+- banco MySQL E2E dedicado;
+- profile backend `e2e`;
+- endpoint interno `POST /api/e2e/reset`, protegido por token;
+- seed deterministico;
+- primeira suite E2E cobrindo smoke publico, autenticacao, rotas privadas,
+  criacao/gerenciamento basico de baralho, cartas, estudo, importacao APKG e
+  progresso.
+
+Com isso, o ponto "Sem e2e" deixou de ser uma pendencia critica atual.
+
+### 13.2 Validacoes pos-merge executadas
+
+Na base `develop` atualizada:
+- `npm test`: 33 testes frontend passando;
+- `npm run build`: `vue-tsc` e `vite build` passando;
+- `npm run e2e`: 9 testes Playwright passando em Chromium;
+- testes backend via container Maven: 27 testes passando.
+
+O E2E confirmou uso de ambiente dedicado:
+- projeto Compose `learningframe-e2e`;
+- servico `db-e2e`;
+- banco `learningframe_e2e`;
+- porta MySQL host `3317`;
+- volume `mysql-e2e-data`;
+- teardown com `down -v`.
+
+Nao houve uso do banco dev nos testes E2E.
+
+### 13.3 Estado atual da decisao de MVP
+
+O projeto ja pode entrar em fase de estabilizacao/finalizacao academica.
+
+Nao foi identificado bloqueio funcional critico apos o merge. A prioridade agora
+deixa de ser adicionar capacidade nova ampla e passa a ser:
+- hardening pequeno;
+- documentacao final;
+- QA integrado;
+- polimento limitado do modo de estudo, se o custo se mantiver baixo.
+
+### 13.4 Pendencias atuais antes da entrega
+
+Prioridade alta:
+1. Revisar a vulnerabilidade critica indicada por `npm audit` em `vitest <4.1.0`.
+   - A correcao sugerida instala `vitest@4.1.8` via `npm audit fix --force`;
+   - como isso e potencialmente breaking, deve ocorrer em branch curta, com
+     validacao completa, ou ser documentado como risco aceito para MVP local.
+2. Fazer QA manual integrado em container.
+3. Garantir que a documentacao final reflita o estado atual do produto.
+
+Prioridade media:
+1. Expandir a suite E2E apenas em pontos de maior risco:
+   - refresh direto em rotas principais;
+   - back/forward;
+   - edicao de metadata de baralho;
+   - selecao/exclusao em lote;
+   - acessibilidade basica dos fluxos criticos.
+2. Polir o modo de estudo:
+   - progresso de sessao;
+   - feedback local apos rating;
+   - resumo de conclusao;
+   - atalhos simples, se nao gerarem complexidade.
+
+Fora da proxima fase:
+- favoritos;
+- filtros avancados;
+- rich text editor completo;
+- perfil e recuperacao de senha;
+- storage externo para midia;
+- busca full-text;
+- dashboard analitico avancado.
+
+### 13.5 Proxima branch recomendada
+
+Branch criada para iniciar a fase:
+
+```txt
+codex/mvp-finalization-planning
+```
+
+Objetivo inicial da branch:
+- consolidar documentacao pos-merge;
+- registrar o estado real de validacao;
+- preparar o prompt contextual para o proximo chat;
+- iniciar a proxima conversa pela analise e pelo plano de implementacao, antes
+  de qualquer mudanca funcional.
+
+### 13.6 Estrategia de planejamento por branch
+
+Apos a consolidacao pos-merge, a estrategia recomendada para a estabilizacao
+final e planejar e implementar por branches curtas, nao concentrar todo o
+planejamento em uma etapa grande e separada.
+
+Racional:
+- a fase atual ja tem escopo conhecido e riscos localizados;
+- cada tema tem natureza diferente: dependencia, E2E, UX de estudo, QA e
+  documentacao final;
+- planejar dentro da branch do proprio tema mantem a analise perto dos arquivos,
+  comandos e validacoes afetados;
+- reduz a chance de gerar um plano longo demais e descolado do estado real do
+  repositorio.
+
+Sequencia recomendada:
+
+1. Criar branch curta a partir da base consolidada.
+2. Confirmar branch, status do Git e mudancas pendentes.
+3. Ler a documentacao obrigatoria do tema.
+4. Fazer uma analise curta do estado real dos arquivos envolvidos.
+5. Propor plano local de implementacao e validacao.
+6. Implementar apenas depois desse plano.
+7. Validar, registrar resultado e fechar com commit pequeno.
+
+Para a proxima frente, a branch definida e:
+
+```txt
+codex/audit-vitest-decision
+```
+
+Essa branch deve comecar pela decisao sobre o alerta critico de `npm audit` em
+`vitest <4.1.0`, sem executar `npm audit fix --force` automaticamente. O prompt
+de abertura esta registrado em:
+
+```txt
+docs/prompt-proximo-chat-audit-vitest-mvp.md
+```
