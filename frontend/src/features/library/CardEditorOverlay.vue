@@ -129,6 +129,7 @@ function insertIntoEditor(face: CardEditorFace, text: string) {
               rows="10"
               maxlength="12000"
               required
+              aria-label="Frente da carta"
               @focus="activeEditorFace = 'front'"
             ></textarea>
           </section>
@@ -151,13 +152,14 @@ function insertIntoEditor(face: CardEditorFace, text: string) {
               rows="10"
               maxlength="12000"
               required
+              aria-label="Verso da carta"
               @focus="activeEditorFace = 'back'"
             ></textarea>
           </section>
 
           <label class="form-field">
             <span class="field-label">Tags</span>
-            <input v-model="tags" type="text" maxlength="400" placeholder="separadas por virgula" />
+            <input v-model="tags" type="text" maxlength="400" placeholder="separadas por virgula" aria-label="Tags da carta" />
           </label>
         </form>
 
