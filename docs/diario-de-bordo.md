@@ -1042,3 +1042,162 @@ Decisoes preservadas:
 Validacoes:
 - build frontend em container Node com `vue-tsc` e `vite build`;
 - testes frontend em container Node com Vitest: 16 testes passando.
+
+## 48. Avaliacao Pos-Merge do Momento 8 e Entrada em Estabilizacao
+
+Data: 2026-06-07
+Branch base: `develop`
+Commit observado: `4a52077`
+
+Apos o merge da branch `frontend-refactor` em `develop`, foi feita uma avaliacao
+pos-merge para decidir a proxima etapa do MVP.
+
+Confirmacoes de historico:
+- `develop` contem o merge de `frontend-refactor`;
+- `frontend-refactor` contem o merge de `codex/e2e-dedicated-db`;
+- o Momento 8 esta presente em `develop`.
+
+Validacoes executadas na base atual:
+- `npm test`: 33 testes frontend passando;
+- `npm run build`: `vue-tsc` e `vite build` passando;
+- `npm run e2e`: 9 testes Playwright passando em Chromium;
+- testes backend via container Maven/Java 21: 27 testes passando.
+
+Tambem foi verificado que a suite E2E usa ambiente isolado:
+- Compose dedicado `learningframe-e2e`;
+- banco `learningframe_e2e`;
+- servico `db-e2e`;
+- porta host MySQL `3317`;
+- volume `mysql-e2e-data`;
+- teardown com `down -v`;
+- reset deterministico via endpoint interno `POST /api/e2e/reset`, habilitado
+  somente no profile backend `e2e` e protegido por token.
+
+Decisao:
+- o projeto ja pode entrar em fase de estabilizacao/finalizacao academica;
+- nao foi encontrado bloqueio funcional critico apos o merge;
+- a proxima fase deve evitar features grandes e focar hardening, documentacao,
+  QA integrado e, se couber, pequeno polimento do modo de estudo.
+
+Pendencias atuais registradas:
+- `npm audit` ainda aponta vulnerabilidade critica em `vitest <4.1.0`;
+- a correcao sugerida exige `npm audit fix --force` e atualizacao potencialmente
+  breaking para `vitest@4.1.8`;
+- a decisao deve ser tomada em branch curta, com validacao completa, ou
+  documentada conscientemente como risco aceito para o MVP local;
+- a suite E2E inicial e suficiente como rede de seguranca basica, mas pode ser
+  expandida em cenarios de maior risco, como refresh direto, back/forward,
+  edicao de metadata, exclusoes em lote e acessibilidade basica.
+
+Branch criada para a proxima fase:
+- `codex/mvp-finalization-planning`
+
+Objetivo inicial da branch:
+- consolidar documentacao pos-merge;
+- atualizar README;
+- registrar o prompt contextual do proximo chat;
+- iniciar a proxima conversa pela analise e pelo plano de implementacao antes
+  de alterar comportamento funcional.
+
+## 49. Estrategia Para as Proximas Branches de Estabilizacao
+
+Data: 2026-06-07
+Branch de registro: `codex/mvp-finalization-planning`
+
+Apos a leitura dos documentos obrigatorios e do estado real do repositorio, foi
+registrada a seguinte estrategia para a fase final do MVP:
+
+- manter esta branch como consolidacao documental e contextual da estabilizacao;
+- evitar uma fase grande de planejamento abstrato separada das implementacoes;
+- criar branches curtas por tema, sempre a partir da base ja consolidada;
+- em cada branch, iniciar por uma analise pequena e um plano local antes de
+  editar codigo ou dependencias;
+- preservar commits pequenos, em portugues e com Conventional Commits;
+- nao iniciar implementacao funcional sem confirmar branch, estado do Git,
+  mudancas pendentes e validacoes necessarias.
+
+Ordem recomendada para as proximas frentes:
+
+1. `codex/audit-vitest-decision`
+   - confirmar o alerta atual de `npm audit`;
+   - analisar impacto de atualizar `vitest` para a linha corrigida;
+   - decidir entre aplicar upgrade com validacao completa ou documentar o risco
+     aceito para o MVP academico/local.
+2. `codex/e2e-risk-flows`
+   - expandir E2E apenas em cenarios de maior risco:
+     refresh direto, back/forward, edicao de metadata, exclusoes em lote e
+     acessibilidade basica.
+3. `codex/study-session-polish`
+   - aplicar polimentos pequenos no modo de estudo se ainda couber:
+     progresso de sessao, feedback local apos rating e resumo de conclusao.
+4. QA manual integrado e documentacao final
+   - executar checklist em container;
+   - registrar resultados;
+   - corrigir apenas bloqueios reais;
+   - atualizar documentacao academica e tecnica final.
+
+Decisao:
+- a proxima branch criada sera `codex/audit-vitest-decision`;
+- o planejamento dessa branch nao sera iniciado neste chat;
+- foi preparado um prompt especifico para abrir o proximo chat com contexto,
+  documentos obrigatorios e criterios de decisao.
+
+Documento criado:
+- `docs/prompt-proximo-chat-audit-vitest-mvp.md`.
+
+## 50. Decisao do Audit Vitest
+
+Data: 2026-06-07
+Branch de trabalho: `codex/audit-vitest-decision`
+
+A branch curta para decidir a pendencia do `npm audit` foi executada com foco em
+nao aplicar `npm audit fix --force` automaticamente.
+
+Confirmacoes iniciais:
+- branch atual confirmada como `codex/audit-vitest-decision`;
+- estado do Git inicialmente limpo;
+- `vitest` estava declarado como `^3.2.0`;
+- lockfile e instalacao local estavam em `vitest@3.2.4`;
+- nao havia `frontend/vitest.config.ts`; a configuracao de teste vinha de
+  `frontend/vite.config.ts`;
+- a suite de testes unitarios usava apenas APIs basicas de Vitest:
+  `describe`, `it`, `expect` e `vi.fn`.
+
+Analise:
+- a tentativa inicial de rodar `npm audit` foi bloqueada pelo sandbox, pois a
+  chamada ao registry externo exige envio da arvore de dependencias;
+- foi analisado o advisory `GHSA-5xrq-8626-4rwp`, relacionado a leitura e
+  execucao arbitraria quando o servidor UI/API do Vitest esta exposto;
+- uma primeira tentativa controlada de manter a linha 3.x atualizou Vitest para
+  `3.2.6`, mas o `npm ci` executado durante o build E2E ainda reportou uma
+  vulnerabilidade critica;
+- por isso, a decisao final foi atualizar para a faixa corrigida reconhecida
+  pelo advisory e pelo audit: `vitest@4.1.8`.
+
+Implementacao:
+- `frontend/package.json` passou a declarar `vitest` como `^4.1.8`;
+- `frontend/package-lock.json` foi regenerado para `vitest@4.1.8` e pacotes
+  relacionados `@vitest/*`;
+- um efeito colateral de `npm --prefix` que tentou adicionar
+  `learningframe: file:..` ao frontend foi removido antes do fechamento;
+- a alteracao final ficou restrita a `frontend/package.json` e
+  `frontend/package-lock.json`.
+
+Validacoes finais:
+- `npm test`: 33 testes frontend passando com Vitest `4.1.8`;
+- `npm run build`: `vue-tsc` e `vite build` passando;
+- `npm run e2e`: 9 testes Playwright passando em Chromium, usando Compose
+  dedicado `learningframe-e2e` e teardown com `down -v`;
+- durante o build E2E, `npm ci` reportou `found 0 vulnerabilities`;
+- `git diff --check`: sem problemas.
+
+Decisao:
+- a pendencia critica de `npm audit` em `vitest <4.1.0` foi tratada;
+- a correcao foi validada na bateria frontend e E2E;
+- nao foram executados testes backend Maven, pois a mudanca foi restrita a uma
+  dependencia dev-only do frontend e a suite E2E integrada passou;
+- a proxima frente recomendada permanece `codex/e2e-risk-flows`, para expandir
+  os cenarios E2E de maior risco antes do QA manual final.
+
+Documento criado para o proximo chat:
+- `docs/prompt-proximo-chat-e2e-risk-flows-mvp.md`.
