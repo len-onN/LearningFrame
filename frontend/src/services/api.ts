@@ -94,6 +94,9 @@ export const api = {
   deck(deckId: number) {
     return request<DeckDetail>(`/api/decks/${deckId}`)
   },
+  deckMetadata(deckId: number) {
+    return request<DeckSummary>(`/api/decks/${deckId}/metadata`)
+  },
   createDeck(title: string, description: string, visibility: DeckVisibility) {
     return request<DeckSummary>('/api/decks', {
       method: 'POST',
@@ -114,6 +117,12 @@ export const api = {
   deleteDeck(deckId: number) {
     return request<void>(`/api/decks/${deckId}`, {
       method: 'DELETE'
+    })
+  },
+  deleteDecks(deckIds: number[]) {
+    return request<void>('/api/decks/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ deckIds })
     })
   },
   createCard(deckId: number, frontHtml: string, backHtml: string, tags: string[]) {

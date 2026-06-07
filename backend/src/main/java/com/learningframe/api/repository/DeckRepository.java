@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface DeckRepository extends JpaRepository<Deck, Long> {
@@ -53,4 +55,10 @@ public interface DeckRepository extends JpaRepository<Deck, Long> {
             where d.id = :deckId and d.owner.id = :ownerId
             """)
     Optional<Deck> findOwned(@Param("deckId") Long deckId, @Param("ownerId") Long ownerId);
+
+    @Query("""
+            select d from Deck d
+            where d.owner.id = :ownerId and d.id in :deckIds
+            """)
+    List<Deck> findOwnedByIds(@Param("ownerId") Long ownerId, @Param("deckIds") Collection<Long> deckIds);
 }

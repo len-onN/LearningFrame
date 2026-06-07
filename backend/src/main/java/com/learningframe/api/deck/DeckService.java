@@ -7,6 +7,7 @@ import com.learningframe.api.deck.DeckDtos.CardPage;
 import com.learningframe.api.deck.DeckDtos.CardResponse;
 import com.learningframe.api.deck.DeckDtos.CardUpsertRequest;
 import com.learningframe.api.deck.DeckDtos.DeckDetail;
+import com.learningframe.api.deck.DeckDtos.DeckBulkDeleteRequest;
 import com.learningframe.api.deck.DeckDtos.DeckPage;
 import com.learningframe.api.deck.DeckDtos.DeckSummary;
 import com.learningframe.api.deck.DeckDtos.DeckUpsertRequest;
@@ -93,6 +94,14 @@ public class DeckService {
         return toDetail(deck);
     }
 
+    @Transactional(readOnly = true)
+    public DeckSummary deckMetadata(Long deckId, AuthenticatedUser principal) {
+        Long userId = principal == null ? null : principal.id();
+        Deck deck = decks.findAccessible(deckId, userId)
+                .orElseThrow(() -> ApiException.notFound("Baralho nao encontrado."));
+        return toSummary(deck, userId);
+    }
+
     @Transactional
     public DeckSummary createDeck(DeckUpsertRequest request, AuthenticatedUser principal) {
         AppUser owner = authService.requireUser(principal);
@@ -148,6 +157,17 @@ public class DeckService {
     public void deleteDeck(Long deckId, AuthenticatedUser principal) {
         AppUser owner = authService.requireUser(principal);
         decks.delete(ownedDeck(deckId, owner.getId()));
+    }
+
+    @Transactional
+    public void deleteDecks(DeckBulkDeleteRequest request, AuthenticatedUser principal) {
+        AppUser owner = authService.requireUser(principal);
+        List<Long> selectedIds = new ArrayList<>(new LinkedHashSet<>(request.deckIds()));
+        List<Deck> selectedDecks = decks.findOwnedByIds(owner.getId(), selectedIds);
+        if (selectedDecks.size() != selectedIds.size()) {
+            throw ApiException.notFound("Um ou mais baralhos nao foram encontrados.");
+        }
+        decks.deleteAll(selectedDecks);
     }
 
     @Transactional

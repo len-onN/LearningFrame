@@ -4,6 +4,7 @@ import com.learningframe.api.deck.DeckDtos.CardResponse;
 import com.learningframe.api.deck.DeckDtos.CardBulkDeleteRequest;
 import com.learningframe.api.deck.DeckDtos.CardPage;
 import com.learningframe.api.deck.DeckDtos.CardUpsertRequest;
+import com.learningframe.api.deck.DeckDtos.DeckBulkDeleteRequest;
 import com.learningframe.api.deck.DeckDtos.DeckDetail;
 import com.learningframe.api.deck.DeckDtos.DeckPage;
 import com.learningframe.api.deck.DeckDtos.DeckSummary;
@@ -52,6 +53,11 @@ public class DeckController {
         return deckService.myDecks(user, page, size, q);
     }
 
+    @GetMapping("/{deckId}/metadata")
+    DeckSummary deckMetadata(@PathVariable Long deckId, @AuthenticationPrincipal AuthenticatedUser user) {
+        return deckService.deckMetadata(deckId, user);
+    }
+
     @GetMapping("/{deckId}")
     DeckDetail getDeck(@PathVariable Long deckId, @AuthenticationPrincipal AuthenticatedUser user) {
         return deckService.getDeck(deckId, user);
@@ -78,6 +84,15 @@ public class DeckController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void deleteDeck(@PathVariable Long deckId, @AuthenticationPrincipal AuthenticatedUser user) {
         deckService.deleteDeck(deckId, user);
+    }
+
+    @PostMapping("/bulk-delete")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void deleteDecks(
+            @Valid @RequestBody DeckBulkDeleteRequest request,
+            @AuthenticationPrincipal AuthenticatedUser user
+    ) {
+        deckService.deleteDecks(request, user);
     }
 
     @PostMapping("/{deckId}/cards")

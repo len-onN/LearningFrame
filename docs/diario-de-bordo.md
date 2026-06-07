@@ -606,3 +606,439 @@ Com essa decisao, a ordem operacional passa a ser:
 4. integrar cada momento em `frontend-refactor`;
 5. validar a aplicacao integrada;
 6. promover `frontend-refactor` para `develop` apenas quando a frente estiver completa.
+
+## 30. Momento 1: Contrato Leve de Metadata de Baralho
+
+Apos o merge do planejamento, `develop` foi atualizada localmente por fast-forward. Em seguida, foi criada e publicada a branch intermediaria `frontend-refactor`, que passa a ser a base de integracao da frente de roteamento, componentizacao e memoria.
+
+A branch `codex/backend-deck-route-contracts` foi criada a partir de `frontend-refactor` para o Momento 1.
+
+Implementacao realizada:
+- novo endpoint `GET /api/decks/{deckId}/metadata`;
+- retorno reaproveitando `DeckSummary`, sem lista de cartas;
+- resolucao por `findAccessible`, permitindo metadata anonima apenas para baralhos publicos e preservando isolamento de baralhos privados;
+- regra de seguranca explicita para permitir `GET /api/decks/*/metadata`;
+- wrapper `deckMetadata(deckId)` em `frontend/src/services/api.ts`;
+- testes de servico cobrindo metadata leve, metadata publica anonima e bloqueio de baralho inacessivel;
+- teste de controller cobrindo delegacao do contrato ao servico.
+
+Decisoes:
+- nao criar DTO novo enquanto `DeckSummary` cobre o contrato sem carregar cartas;
+- nao alterar `GET /api/decks/{deckId}`, pois ele ainda atende estudo publico anonimo no curto prazo;
+- nao mover endpoints de cartas para controller separado neste momento, mantendo o escopo do Momento 1 pequeno;
+- manter a rota direta de gerenciamento dependente de metadata leve e listagem paginada de cartas.
+
+Validacoes:
+- testes focados de backend via container Maven: `DeckServiceTest` e `DeckControllerTest`;
+- build do frontend via container Node, validando `vue-tsc` e `vite build`.
+
+## 31. Planejamento Fino do Momento 2
+
+Apos o merge do Momento 1, a branch `frontend-refactor` foi atualizada localmente por fast-forward e recebeu o contrato leve de metadata de baralho. Em seguida, foi criada a branch `codex/frontend-router-foundation` a partir dela.
+
+Foi feita uma investigacao fina do estado atual do frontend antes da implementacao do roteamento:
+- `App.vue` segue como arquivo monolitico, concentrando navegacao, layout, telas, estado e fluxos;
+- `main.ts` ainda monta apenas `App`, sem router;
+- `package.json` ainda nao possui `vue-router`;
+- `nginx.conf` ja possui fallback SPA adequado para history mode;
+- a navegacao principal ainda depende de `tab`, `librarySection`, `libraryView` e `authMode`;
+- o Momento 1 ja disponibilizou `api.deckMetadata(deckId)`, necessario para a rota direta de gerenciamento.
+
+Foi criado o documento `docs/plano-momento-2-roteamento-frontend.md`, detalhando:
+- estado atual confirmado;
+- mapa de rotas do Momento 2;
+- substituicoes planejadas para `tab`, `librarySection`, `libraryView`, `authMode` e `currentTitle`;
+- novos elementos tecnicos (`vue-router`, `router/index.ts`, route meta, guard de auth);
+- funcoes atuais afetadas por navegacao roteada;
+- lateralidades em backend, container, build, testes, UX e memoria;
+- estrategia de implementacao em passos pequenos;
+- criterios de aceite e riscos.
+
+Decisao mantida:
+- o Momento 2 deve introduzir o router como fonte de verdade da navegacao principal, mas nao deve ainda extrair todas as paginas nem criar store global. A componentizacao pesada fica para os momentos seguintes.
+
+## 32. Implementacao do Momento 2: Router Principal
+
+O Momento 2 foi implementado na branch `codex/frontend-router-foundation`, mantendo `frontend-refactor` como destino do PR.
+
+Implementacoes:
+- instalacao de `vue-router`;
+- criacao de `frontend/src/router/index.ts`;
+- registro do router em `frontend/src/main.ts`;
+- rotas reais para biblioteca publica, meus baralhos, gerenciamento de baralho, estudo, estudo por baralho, pratica intercalada, importacao, criacao, progresso, login e cadastro;
+- guard simples de autenticacao baseado no token local;
+- redirect de rotas privadas para `/entrar?redirect=<rota-original>`;
+- catch-all redirecionando rotas desconhecidas para `/biblioteca/publicos`;
+- sidebar convertida para links roteados com `RouterLink custom`;
+- `tab`, `librarySection`, `libraryView` e `authMode` passaram a ser derivados da rota;
+- workflows principais passaram a navegar por `router.push`/`router.replace`;
+- rota direta de gerenciamento passou a carregar metadata via `api.deckMetadata(deckId)` e cartas via `api.deckCards`;
+- estudo por deck passou a ser carregado por rota, mantendo estudo anonimo com detalhe completo apenas quando necessario;
+- rota de pratica intercalada passou a carregar a fila tambem em refresh direto.
+
+Decisoes preservadas:
+- nao extrair paginas ainda;
+- nao criar store global;
+- nao transformar busca, paginacao, selecao multipla, editor de carta ou preview APKG em rotas;
+- nao mexer no Nginx, pois o fallback SPA ja estava configurado;
+- nao aplicar `npm audit fix --force`, apesar do alerta critico do npm, para evitar mudancas de dependencia fora do escopo.
+
+Validacoes:
+- build frontend em container Node com `vue-tsc` e `vite build`;
+- testes frontend em container Node com Vitest: 16 testes passando;
+- frontend containerizado respondendo `200` em `/biblioteca/publicos` e `/importar`;
+- backend respondendo `200` em `GET /api/decks/public` via `127.0.0.1:8081`.
+
+## 38. Planejamento Fino do Momento 4B
+
+Apos o merge do Momento 4A, `frontend-refactor` foi atualizada localmente por fast-forward. Foi criada a branch unica `codex/frontend-card-editor-overlay`, que deve conter tanto o planejamento quanto a futura implementacao do proximo passo.
+
+Estado atual:
+- `App.vue` esta com cerca de 1602 linhas;
+- Biblioteca e Importacao ja foram extraidas;
+- o `CardEditorOverlay` segue como ultimo grande bloco visual dentro do `App.vue`;
+- o editor ainda concentra refs de textarea/input, foco inicial, upload de midia, insercao no cursor, dirty state e preview sanitizado.
+
+Foi criado o documento `docs/plano-momento-4b-editor-cartas.md`, detalhando:
+- objetivo da extracao do editor;
+- fronteira entre responsabilidades locais de UI/DOM e responsabilidades de orquestracao/API;
+- proposta de `CardEditorOverlay.vue` e `cardEditorTypes.ts`;
+- contrato por props, `v-model`, eventos e callback controlado de upload;
+- preservacao do dirty confirmation no pai;
+- preservacao de preview sanitizado no pai;
+- lateralidades com Biblioteca, API, memoria, UX, acessibilidade, CSS, seguranca, testes e container;
+- criterios de aceite e riscos principais.
+
+Decisao proposta:
+- mover para o componente apenas DOM, foco, cursor, input de arquivo e layout visual;
+- manter no `App.vue` salvar/criar/atualizar, dirty state, notificacoes e chamadas API;
+- usar callback `uploadMedia(file, kind): Promise<string>` para permitir que o componente insira o marcador no cursor sem importar `api.ts`;
+- nao alterar backend, rotas, CSS global, UX visual, WYSIWYG ou politica de midias orfas nesta fatia.
+
+## 39. Implementacao do Momento 4B: Editor de Cartas
+
+Apos o commit local do planejamento, a extracao do editor foi implementada na mesma branch `codex/frontend-card-editor-overlay`.
+
+Implementacoes:
+- criado `frontend/src/features/library/cardEditorTypes.ts` com os tipos do editor;
+- criado `frontend/src/features/library/CardEditorOverlay.vue`;
+- o componente passou a concentrar layout do overlay, foco inicial, refs de textarea, input de arquivo, face ativa, tipo de midia, upload em andamento e insercao do marcador no cursor;
+- `App.vue` manteve a orquestracao de criar/editar/salvar carta, dirty state, preview sanitizado, notificacoes e chamadas API;
+- o upload de midia passou a usar callback controlado `uploadCardEditorMedia(file, kind)`, sem importar `api.ts` no componente;
+- removidos do `App.vue` os refs e helpers locais de DOM/cursor do editor;
+- `App.vue` caiu para cerca de 1488 linhas.
+
+Decisoes preservadas:
+- nao alterar backend, rotas ou estilos globais;
+- nao criar store global nem composable de dominio ainda;
+- nao alterar UX visual do editor;
+- nao resolver midias orfas nesta fatia;
+- manter dirty confirmation no pai.
+
+Validacoes:
+- build frontend em container Node com `vue-tsc` e `vite build`;
+- testes frontend em container Node com Vitest: 16 testes passando.
+
+## 45. Implementacao Parcial do Momento 7: Rotas Reais e Ciclo de Vida
+
+Na branch `codex/frontend-moment-7-route-lifecycle`, foi iniciada a implementacao do Momento 7 a partir do plano de rotas reais e ciclo de vida por tela.
+
+Implementacoes:
+- criado `frontend/src/routes/routeContext.ts` com contextos tipados por superficie de rota;
+- criados route adapters reais em `frontend/src/routes/`: `AuthRoute`, `LibraryRoute`, `StudyRoute`, `ImportRoute`, `CreateDeckRoute` e `ProgressRoute`;
+- o router deixou de usar o `RouteSurface` vazio e passou a apontar cada rota para seu componente real;
+- `App.vue` passou a renderizar `<RouterView />` dentro do `AppShell`, mantendo os workflows e estados de dominio no integrador por enquanto;
+- as paginas visuais existentes continuaram controladas por props/eventos, sem mover chamadas API para `pages/`;
+- a sincronizacao inicial de Biblioteca, Estudo e Progresso passou a ser acionada pelos route adapters;
+- ao sair da Biblioteca, o gerenciamento contextual e a selecao de baralhos sao limpos;
+- ao sair das rotas de Estudo, a fila e a resposta visivel sao descartadas;
+- o cache anonimo de baralhos publicos usados no estudo passou a ter limite LRU simples de 6 baralhos;
+- o preview APKG ganhou controle de sequencia para evitar que uma resposta antiga sobrescreva o arquivo selecionado mais recentemente.
+
+Decisoes preservadas:
+- nao criar Pinia/store global;
+- nao mover os workflows de API para os componentes visuais;
+- manter `CardEditorOverlay` no `App.vue` nesta fatia;
+- nao alterar backend, endpoints nem CSS.
+
+Validacoes:
+- testes frontend com Vitest: 33 testes passando;
+- build frontend com `vue-tsc` e `vite build` passando.
+
+## 46. Planejamento do Momento 8: Testes E2E com Banco Dedicado
+
+Apos a implementacao parcial do Momento 7, foi decidido planejar uma etapa propria de testes end-to-end. A motivacao e que rotas reais, guards de autenticacao, limpeza de estado, importacao APKG, estudo e gerenciamento de baralhos dependem de interacoes entre navegador, frontend, backend e banco que nao sao totalmente cobertas por testes unitarios.
+
+Decisao:
+- criar o Momento 8 apos o Momento 7;
+- usar Playwright como ferramenta e2e;
+- criar um MySQL dedicado para testes, separado do banco dev;
+- subir e descer o ambiente e2e automaticamente durante a execucao da suite;
+- usar Compose proprio, portas proprias e volume descartavel;
+- adicionar reset/seed deterministico para que cada teste comece previsivel;
+- cobrir primeiro smoke, autenticacao/redirect, criacao e gerenciamento de baralho, cartas, estudo, importacao APKG pequena e progresso.
+
+Documento criado:
+- `docs/plano-momento-8-testes-e2e.md`.
+
+Tambem foram atualizados:
+- `docs/arquitetura-frontend-roteamento-ciclo-de-vida.md`, encaixando o Momento 8 antes da validacao final da branch `frontend-refactor`;
+- `docs/plano-momento-7-rotas-ciclo-de-vida.md`, registrando a ponte entre validacao manual do Momento 7 e a futura suite e2e.
+
+## 47. Implementacao do Momento 8: Testes E2E com Banco Dedicado
+
+Na branch `codex/e2e-dedicated-db`, foi implementada a primeira suite end-to-end com Playwright e ambiente Compose isolado.
+
+Implementacoes:
+- criado `docker-compose.e2e.yml` com `db-e2e`, `backend-e2e` e `frontend-e2e`;
+- o banco e2e usa MySQL dedicado, credenciais proprias, porta `3317`, volume proprio e remocao com `down -v`;
+- o backend e2e sobe em `18081` com `SPRING_PROFILES_ACTIVE=e2e`;
+- o frontend e2e sobe em `18080` e recebe `VITE_API_BASE_URL` no build da imagem;
+- criado `package.json` raiz com `npm test`, `npm run build`, `npm run e2e`, `npm run e2e:up`, `npm run e2e:test` e `npm run e2e:down`;
+- criado script `scripts/e2e/run-e2e.mjs` para subir, aguardar readiness, executar Playwright e derrubar o ambiente em `finally`;
+- adicionado profile `e2e` no backend com endpoint interno `POST /api/e2e/reset`;
+- o reset e2e e protegido por `X-E2E-Token` e `E2E_RESET_TOKEN`;
+- o seed e2e cria usuarios, baralhos publicos e privados, cartas, tags e estados de revisao previsiveis;
+- adicionada fixture APKG pequena real para exercitar preview, preservacao durante login, persistencia e limpeza de estado ao sair da rota;
+- adicionados nomes acessiveis em campos sem label estavel para favorecer testes por `getByLabel`;
+- o Vitest passou a ignorar `frontend/e2e/**`.
+
+Suite inicial:
+- smoke da Biblioteca publica;
+- redirect de rota privada para login e retorno;
+- login/logout com limpeza de dados privados;
+- criacao de baralho com navegacao para gerenciamento;
+- criacao, edicao e exclusao basica de carta;
+- estudo anonimo de baralho publico;
+- estudo autenticado com atualizacao de progresso;
+- importacao APKG pequena com preservacao ao login e limpeza ao sair da importacao.
+
+Validacoes:
+- `npm test`: 33 testes passando;
+- `npm run build`: `vue-tsc` e `vite build` passando;
+- `npm run e2e`: 9 testes Playwright passando em Chromium, com Compose e2e subindo e derrubando o volume do MySQL ao final.
+
+## 44. Exclusao Multipla de Baralhos e Refinamento de Selecao
+
+Na branch `codex/frontend-domain-composables-plan`, a fatia em andamento do Momento 6 recebeu uma feature transversal para resolver a exclusao de varios baralhos em `Meus baralhos`, preservando o modelo de listas paginadas e evitando carregar conteudo desnecessario em memoria.
+
+Implementacoes:
+- criado o contrato backend `POST /api/decks/bulk-delete`, com payload `{ deckIds }`, limite de ate 100 ids e resposta `204`;
+- adicionada validacao transacional de ownership no backend: se algum baralho selecionado nao existir ou nao pertencer ao usuario autenticado, a operacao falha antes de excluir qualquer item;
+- adicionada consulta `findOwnedByIds` no repositorio de decks para buscar apenas baralhos do usuario logado;
+- criado wrapper `api.deleteDecks()` no frontend;
+- expandido `useDeckLibrary` para controlar selecao de `Meus baralhos` com `selectedMyDeckIds`, contagem, selecao dos itens visiveis, limpeza e modo de selecao;
+- integrada toolbar contextual na Biblioteca com `Selecionar`, `Selecionar visiveis`, `Limpar` e `Excluir`, mantendo confirmacao antes da remocao;
+- adicionado botao flutuante de voltar ao topo da Biblioteca como apoio ao fluxo de listas paginadas com `Carregar mais`;
+- refinado `DeckListPanel` para que, no modo selecao, o card inteiro seja selecionavel por clique e teclado, enquanto botoes internos de acao ficam desativados para evitar execucoes acidentais.
+
+Decisoes:
+- a selecao multipla fica restrita a `Meus baralhos`; baralhos publicos continuam com acoes de estudar e salvar;
+- a acao em lote atua apenas sobre itens carregados/visiveis, sem semantica de "selecionar todos os resultados da busca";
+- a toolbar contextual fica sticky durante o modo selecao para evitar que a acao de exclusao se perca quando a lista crescer;
+- o backend mantem a exclusao em lote como endpoint proprio, sem alterar o contrato unitario `DELETE /api/decks/{deckId}`.
+
+Validacoes:
+- testes frontend com Vitest: 33 testes passando;
+- build frontend com `vue-tsc` e `vite build`;
+- testes backend em container Maven/Java 21: 27 testes passando;
+- containers reconstruidos e reiniciados via Docker Compose;
+- backend respondendo `200` em `GET /api/decks/public`;
+- frontend respondendo `200` em `http://127.0.0.1:8080/`.
+
+## 40. Bugfix: Ciclo de Vida de Notificacoes
+
+Durante a validacao do gerenciamento de baralhos, foi identificado que a notificacao de exclusao permanecia visivel mesmo apos trocar de pagina. A investigacao mostrou que `notice/error` eram globais no `App.vue`, sem uma politica explicita de ciclo de vida por rota, e que a exclusao chamava navegacao sem aguardar a conclusao antes de exibir a mensagem.
+
+Implementacoes:
+- criado controle leve de lifetime para feedbacks: `route`, `next-route` e `sticky`;
+- adicionados helpers `showNotice`, `showError`, `clearFeedback` e limpeza de feedback ao trocar de rota;
+- cargas disparadas pelo roteamento passaram a preservar feedback existente, evitando apagar mensagens recem-criadas no destino;
+- fluxos de login, logout, copia de baralho publico, importacao APKG, criacao/atualizacao/exclusao de baralhos e edicao/exclusao de cartas passaram a usar os helpers;
+- `closeManagedDeck` passou a aguardar a navegacao quando ela e solicitada, removendo a corrida observada na exclusao de baralho.
+
+Decisoes:
+- manter a solucao no `App.vue` enquanto notificacoes ainda nao foram extraidas para composable/store;
+- nao introduzir biblioteca de toast nesta etapa;
+- tratar mensagens comuns como route-scoped por padrao, limpando-as na proxima navegacao.
+
+## 41. Implementacao do Momento 5: Composables de Infraestrutura
+
+Apos atualizar `frontend-refactor`, foi criada a branch `codex/frontend-next-refactor-plan` para planejar e implementar a proxima fatia da refatoracao.
+
+Implementacoes:
+- criado `docs/plano-momento-5-composables-infraestrutura.md`;
+- criado `frontend/src/composables/useFeedback.ts` para centralizar `notice`, `error`, `loading`, lifetime e `withFeedback`;
+- criado `frontend/src/composables/useTheme.ts` para concentrar preferencia de tema, persistencia e aplicacao no documento;
+- criado `frontend/src/composables/useAuthSession.ts` para leitura, persistencia e limpeza da sessao local;
+- `App.vue` passou a consumir esses composables, preservando os workflows de dominio ainda no componente raiz;
+- adicionados testes unitarios para o ciclo de vida das notificacoes em `useFeedback.test.ts`.
+
+Decisoes:
+- nao transformar o router em `RouterView` real nesta etapa;
+- nao mover Biblioteca, Importacao, Estudo ou Gerenciamento para composables de dominio ainda;
+- manter a assinatura nova de `withFeedback` com opcoes explicitas, preservando compatibilidade booleana temporaria no composable.
+
+## 42. Planejamento Fino do Momento 6: Composables de Dominio
+
+Apos o merge do Momento 5, a branch `frontend-refactor` foi atualizada localmente por fast-forward e foi criada a branch `codex/frontend-domain-composables-plan` para planejar a proxima etapa da refatoracao.
+
+Foi criado o documento `docs/plano-momento-6-composables-dominio.md`, detalhando:
+- estado atual do `App.vue` apos infraestrutura global extraida;
+- proposta de composables de dominio por feature: Biblioteca, Gerenciamento, Importacao APKG, Estudo e Auth Flow;
+- decisao de nao trocar `RouteSurface` por `RouterView` real ainda;
+- fronteiras de dependencia entre dominio, router, auth, feedback, stats, memoria e API;
+- lateralidades de UX, performance, memoria, testes e validacao manual;
+- matriz explicita de "faca" e "nao faca";
+- regras de controle de carga computacional para evitar carregamentos completos, watchers amplos, caches globais ou processamento desnecessario;
+- refinamento da sequencia para iniciar por 6A1 `useDeckLibrary`, validar, e so depois seguir para 6A2 `useDeckManagement`.
+
+Decisoes:
+- tratar o Momento 6 como uma etapa de alto risco arquitetural, com implementacao fatiada;
+- manter `App.vue` como integrador temporario das orquestracoes transversais;
+- extrair primeiro estado, computeds e helpers puros antes de mover workflows com API;
+- manter `stats` e auth flow no `App.vue` ate as fronteiras de Biblioteca/Importacao/Estudo estarem mais estaveis;
+- adiar route components reais para o Momento 7.
+
+## 43. Implementacao do Momento 6A1: useDeckLibrary
+
+Com base no planejamento do Momento 6, a primeira fatia implementada foi a extracao do dominio de listas da Biblioteca para `frontend/src/features/library/useDeckLibrary.ts`.
+
+Implementacoes:
+- criado `useDeckLibrary` para concentrar busca da Biblioteca, listas de baralhos publicos e meus baralhos, paginas, queries aplicadas, labels de contagem, `hasMore`, listas filtradas e destaque temporario de deck;
+- adicionados helpers exportados `mergeDeckPages`, `deckPageCountLabel` e `normalizeSearch`;
+- `App.vue` passou a consumir o composable, preservando nele as orquestracoes transversais como `savePublicDeck`, `refreshAll`, router, feedback, auth e stats;
+- o debounce da busca continuou no integrador para manter ownership claro sobre rota, usuario e feedback;
+- adicionados testes unitarios em `frontend/src/features/library/useDeckLibrary.test.ts`.
+
+Decisoes preservadas:
+- nao mover `useDeckManagement` nesta fatia;
+- nao alterar router, URLs, backend ou componentes visuais;
+- nao transformar listas paginadas em carregamento completo;
+- manter `App.vue` como integrador temporario para a proxima fatia 6A2.
+
+Validacoes:
+- testes frontend em container Node com Vitest: 30 testes passando;
+- build frontend em container Node com `vue-tsc` e `vite build`.
+
+## 33. Ajuste de Rotulo Para Cartas Sem Texto
+
+Durante a validacao manual do gerenciamento de cartas, foi identificado que cartas compostas apenas por midia ou HTML sem texto extraivel apareciam como "Carta sem texto". Isso era correto tecnicamente, mas ruim para uso repetido, pois varias cartas ficavam com o mesmo rotulo.
+
+Decisao:
+- no gerenciamento de cartas, o fallback passa a usar a ordem visivel/carregada: `Carta 1`, `Carta 2`, etc.;
+- o comportamento fica alinhado ao preview de importacao APKG, que ja usava numeracao quando nao havia texto na carta;
+- a busca, a selecao multipla, a edicao e a exclusao nao mudam de contrato.
+
+Validacoes:
+- testes frontend em container Node com Vitest: 16 testes passando;
+- build frontend em container Node com `vue-tsc` e `vite build`.
+
+## 34. Planejamento Fino do Momento 3
+
+Apos o merge do Momento 2, a branch `frontend-refactor` foi atualizada localmente por fast-forward. Foi criada a branch `codex/frontend-page-shell-plan` apenas para investigacao e desenho do proximo passo.
+
+Estado atual:
+- o roteamento principal esta implementado e integrado;
+- `App.vue` segue com cerca de 2077 linhas;
+- `App.vue` ainda concentra shell, sidebar, topbar, status, paginas, overlays, estado, watchers e workflows;
+- `frontend/src/router/index.ts` ja fornece a fonte de verdade da navegacao;
+- ainda nao existem `layouts/`, `pages/`, `components/` ou `features/`.
+
+Conclusao:
+- nao estamos no final da refatoracao;
+- os bloqueios de contrato e roteamento foram resolvidos;
+- a proxima etapa deve separar estrutura visual sem mover regra de negocio de dominio.
+
+Foi criado o documento `docs/plano-momento-3-shell-paginas.md`, definindo:
+- objetivo do Momento 3;
+- o que extrair agora e o que adiar;
+- estrutura recomendada com `layouts/AppShell.vue` e paginas principais;
+- estrategia para reduzir props sem introduzir store global;
+- lateralidades com router, API, tipos, CSS, acessibilidade, memoria, testes e container;
+- criterios de aceite e ordem recomendada de commits.
+
+Decisao arquitetural:
+- `App.vue` deve continuar como orquestrador temporario;
+- componentes novos devem ser controlados por props/eventos;
+- chamadas API, caches, limpeza profunda de memoria e composables de dominio ficam para momentos posteriores;
+- `CardEditorOverlay` preferencialmente fica para o Momento 4, por estar acoplado ao modulo Biblioteca.
+
+## 35. Implementacao do Momento 3: Shell e Paginas Simples
+
+Apos o merge do planejamento do Momento 3, a branch `frontend-refactor` foi atualizada e foi criada a branch `codex/frontend-page-shell` para a primeira fatia de implementacao.
+
+Implementacoes:
+- extracao do casco visual para `frontend/src/layouts/AppShell.vue`;
+- sidebar, navegacao principal, botao de pratica intercalada, controle de tema, area de conta e mensagens globais passaram a ser controlados por props/eventos;
+- extracao das paginas simples para `frontend/src/pages/AuthPage.vue`, `StudyPage.vue`, `CreateDeckPage.vue` e `ProgressPage.vue`;
+- `App.vue` permanece como orquestrador temporario de estado, rotas, chamadas API, watchers e fluxos principais;
+- Biblioteca, Importacao e editor de cartas permanecem no `App.vue` nesta fatia por concentrarem mais estado lateral e merecerem extracao propria no proximo momento.
+
+Decisoes:
+- nao criar store global ainda;
+- nao mover chamadas API para os novos componentes;
+- nao alterar contratos do backend nem rotas existentes;
+- manter componentes novos controlados por props, modelos e eventos para preservar previsibilidade durante a refatoracao;
+- deixar Biblioteca/Importacao para uma etapa separada, reduzindo o risco sobre busca, paginacao, selecao multipla, preview APKG e editor de cartas.
+
+Validacoes:
+- `npm ci` em container Node;
+- build frontend em container Node com `vue-tsc` e `vite build`;
+- testes frontend em container Node com Vitest: 16 testes passando;
+- containers de dev ativos via Docker Compose;
+- frontend respondendo `200` em `/` e `/biblioteca/publicos`;
+- backend respondendo `200` em `GET /api/decks/public` via `127.0.0.1:8081`.
+
+Observacao:
+- o `npm audit` continua apontando uma vulnerabilidade critica herdada; nao foi aplicado `npm audit fix --force` para evitar mudancas de dependencia fora do escopo desta refatoracao.
+
+## 36. Planejamento Fino do Momento 4
+
+Apos o merge do Momento 3, a branch `frontend-refactor` foi atualizada localmente por fast-forward e recebeu a extracao do `AppShell` e das paginas simples. Foi criada a branch `codex/frontend-library-import-plan` para investigacao e desenho da proxima etapa.
+
+Estado atual:
+- `App.vue` caiu para cerca de 1864 linhas, mas ainda concentra Biblioteca, Importacao, gerenciamento de cartas e `CardEditorOverlay`;
+- o router ja cobre as rotas necessarias e nao exige alteracoes para esta etapa;
+- o backend ja possui os contratos necessarios para listas paginadas, metadata leve, cartas paginadas e importacao APKG;
+- a Importacao ainda retem estado pesado enquanto o app esta aberto, exigindo politica explicita de limpeza ao sair da rota.
+
+Foi criado o documento `docs/plano-momento-4-biblioteca-importacao.md`, detalhando:
+- diagnostico das superficies restantes;
+- proposta de extracao para `LibraryPage`, listas, gerenciamento de deck/cartas e `ImportPage`;
+- estrategia de view models e componentes controlados por props/eventos;
+- decisao recomendada de deixar `CardEditorOverlay` para uma fatia propria;
+- politica de ciclo de vida para limpar APKG, indice de midia e object URLs ao sair de `/importar`, preservando somente o fluxo "Entrar para salvar";
+- colateralidades com router, API, memoria, UX, acessibilidade, CSS, testes e container;
+- criterios de aceite e divisao recomendada em PR 4A e PR 4B.
+
+Decisao proposta:
+- implementar primeiro as superficies de Biblioteca e Importacao, mantendo `App.vue` como orquestrador temporario;
+- nao reestruturar backend, rotas ou store global;
+- tratar a limpeza de estado pesado da Importacao como ajuste obrigatorio do Momento 4A;
+- extrair `CardEditorOverlay` em PR separado caso o contrato de upload/insercao no cursor continue nao trivial.
+
+## 37. Implementacao do Momento 4A: Biblioteca e Importacao
+
+A implementacao foi iniciada na branch `codex/frontend-library-import-surfaces`, criada a partir do planejamento do Momento 4.
+
+Implementacoes:
+- criados tipos leves de view model para a Biblioteca em `frontend/src/features/library/libraryTypes.ts`;
+- criada `frontend/src/pages/LibraryPage.vue` como superficie controlada da Biblioteca;
+- criada `frontend/src/features/library/DeckListPanel.vue` para reutilizar a exibicao de baralhos publicos e meus baralhos;
+- criada `frontend/src/features/library/DeckManagementView.vue` para metadata, busca paginada de cartas, selecao multipla e preview;
+- criada `frontend/src/pages/ImportPage.vue` como superficie controlada da importacao APKG;
+- criado `frontend/src/features/import/ImportPreviewPicker.vue` e `importTypes.ts` para o seletor de cartas do preview;
+- `App.vue` segue como orquestrador de rotas, API, estado e workflows, caindo para cerca de 1602 linhas;
+- adicionada limpeza explicita do estado pesado de Importacao ao sair de `/importar`, revogando object URLs e descartando arquivo/preview/indice, exceto no fluxo "Entrar para salvar".
+
+Decisoes preservadas:
+- nao alterar rotas nem backend;
+- nao criar store global;
+- nao mover chamadas API para componentes visuais;
+- nao extrair `CardEditorOverlay` nesta fatia, mantendo o contrato de upload/foco/insercao no cursor para PR proprio;
+- manter CSS global e classes existentes para reduzir risco visual.
+
+Validacoes:
+- build frontend em container Node com `vue-tsc` e `vite build`;
+- testes frontend em container Node com Vitest: 16 testes passando.

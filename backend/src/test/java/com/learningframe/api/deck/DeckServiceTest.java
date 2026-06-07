@@ -3,6 +3,7 @@ package com.learningframe.api.deck;
 import com.learningframe.api.auth.AuthService;
 import com.learningframe.api.common.ApiException;
 import com.learningframe.api.deck.DeckDtos.CardBulkDeleteRequest;
+import com.learningframe.api.deck.DeckDtos.DeckBulkDeleteRequest;
 import com.learningframe.api.model.AppUser;
 import com.learningframe.api.model.Card;
 import com.learningframe.api.model.Deck;
@@ -69,6 +70,59 @@ class DeckServiceTest {
     }
 
     @Test
+    @DisplayName("retorna metadata leve sem carregar cartas")
+    void retornaMetadataLeveSemCarregarCartas() {
+        when(decks.findAccessible(10L, 7L)).thenReturn(Optional.of(deck));
+        when(cards.countByDeckId(10L)).thenReturn(3L);
+        when(cards.countDueForDeck(eq(7L), eq(10L), any())).thenReturn(0L);
+        when(reviewStates.findNextDueAtForDeck(7L, 10L)).thenReturn(Optional.empty());
+
+        var metadata = service.deckMetadata(10L, principal);
+
+        assertThat(metadata.id()).isEqualTo(10L);
+        assertThat(metadata.title()).isEqualTo("Anatomia");
+        assertThat(metadata.cardCount()).isEqualTo(3L);
+        assertThat(metadata.dueCount()).isEqualTo(0L);
+        assertThat(metadata.ownerName()).isEqualTo("Ana");
+
+        verify(decks).findAccessible(10L, 7L);
+        verify(cards, never()).findByDeckIdOrderByCreatedAtAsc(anyLong());
+    }
+
+    @Test
+    @DisplayName("retorna metadata publica anonima sem contagem de revisao")
+    void retornaMetadataPublicaAnonimaSemContagemDeRevisao() {
+        Deck publicDeck = deck(20L, null, DeckVisibility.PUBLIC, ImportFormat.APKG);
+        when(decks.findAccessible(20L, null)).thenReturn(Optional.of(publicDeck));
+        when(cards.countByDeckId(20L)).thenReturn(2L);
+
+        var metadata = service.deckMetadata(20L, null);
+
+        assertThat(metadata.id()).isEqualTo(20L);
+        assertThat(metadata.visibility()).isEqualTo(DeckVisibility.PUBLIC);
+        assertThat(metadata.sourceFormat()).isEqualTo(ImportFormat.APKG);
+        assertThat(metadata.cardCount()).isEqualTo(2L);
+        assertThat(metadata.dueCount()).isNull();
+        assertThat(metadata.ownerName()).isEqualTo("LearningFrame");
+
+        verify(cards, never()).countDueForDeck(anyLong(), anyLong(), any());
+        verify(cards, never()).findByDeckIdOrderByCreatedAtAsc(anyLong());
+    }
+
+    @Test
+    @DisplayName("bloqueia metadata de baralho inacessivel")
+    void bloqueiaMetadataDeBaralhoInacessivel() {
+        when(decks.findAccessible(10L, 7L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.deckMetadata(10L, principal))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("Baralho nao encontrado.");
+
+        verify(cards, never()).countByDeckId(anyLong());
+        verify(cards, never()).findByDeckIdOrderByCreatedAtAsc(anyLong());
+    }
+
+    @Test
     @DisplayName("pagina cartas pesquisadas sem carregar o baralho inteiro")
     void paginaCartasPesquisadasSemCarregarBaralhoInteiro() {
         Card card = card(100L, deck, "Nervo trigemeo", "Sensibilidade da face", "anatomia");
@@ -118,6 +172,33 @@ class DeckServiceTest {
                 .hasMessage("Uma ou mais cartas nao foram encontradas.");
 
         verify(cards, never()).deleteAll(any());
+    }
+
+    @Test
+    @DisplayName("exclui baralhos selecionados do usuario")
+    void excluiBaralhosSelecionadosDoUsuario() {
+        Deck first = deck(11L, owner);
+        Deck second = deck(12L, owner);
+        List<Long> ids = List.of(11L, 12L);
+        when(decks.findOwnedByIds(7L, ids)).thenReturn(List.of(first, second));
+
+        service.deleteDecks(new DeckBulkDeleteRequest(ids), principal);
+
+        verify(decks).deleteAll(List.of(first, second));
+    }
+
+    @Test
+    @DisplayName("bloqueia exclusao em lote com baralho ausente ou de outro usuario")
+    void bloqueiaExclusaoEmLoteComBaralhoAusenteOuDeOutroUsuario() {
+        Deck selected = deck(11L, owner);
+        List<Long> ids = List.of(11L, 99L);
+        when(decks.findOwnedByIds(7L, ids)).thenReturn(List.of(selected));
+
+        assertThatThrownBy(() -> service.deleteDecks(new DeckBulkDeleteRequest(ids), principal))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("Um ou mais baralhos nao foram encontrados.");
+
+        verify(decks, never()).deleteAll(any());
     }
 
     @Test
