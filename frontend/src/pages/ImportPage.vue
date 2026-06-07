@@ -48,7 +48,7 @@ const importVisibility = defineModel<DeckVisibility>('importVisibility', { requi
         <label class="file-drop">
           <Upload :size="22" aria-hidden="true" />
           <span>{{ selectedFile?.name ?? 'Selecionar arquivo .apkg' }}</span>
-          <input type="file" accept=".apkg" @change="$emit('file-change', $event)" />
+          <input type="file" accept=".apkg" aria-label="Arquivo APKG" @change="$emit('file-change', $event)" />
         </label>
 
         <div v-if="loading && selectedFile && !importPreview" class="pending-card import-loading">
@@ -128,8 +128,8 @@ const importVisibility = defineModel<DeckVisibility>('importVisibility', { requi
         <div class="section-title">
           <h2>{{ user ? 'Salvar em Meus baralhos' : 'Entrar para salvar' }}</h2>
         </div>
-        <input v-model="importTitle" type="text" placeholder="Titulo do baralho" />
-        <select v-model="importVisibility" :disabled="!user">
+        <input v-model="importTitle" type="text" placeholder="Titulo do baralho" aria-label="Titulo do baralho importado" />
+        <select v-model="importVisibility" aria-label="Visibilidade do baralho importado" :disabled="!user">
           <option value="PRIVATE">Privado</option>
           <option value="PUBLIC">Publico</option>
         </select>
