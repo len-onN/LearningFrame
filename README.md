@@ -7,6 +7,17 @@ O produto permite que visitantes estudem baralhos publicos sem conta, facam
 preview de arquivos Anki `.apkg` antes de salvar e usem uma conta opcional para
 persistir baralhos, cartas, midias, revisoes e progresso essencial.
 
+## Status do MVP
+
+Estado atual:
+
+- MVP funcional e validado para entrega academica;
+- QA manual final com 18 de 18 fluxos passando;
+- suite frontend com 33 testes passando;
+- suite E2E com 14 testes Playwright em Chromium e banco dedicado;
+- testes backend Maven com 27 testes passando;
+- sugestao de marco final: `v0.1.0-mvp`.
+
 ## Stack
 
 - Java 21, Spring Boot 4.0.x e Maven
@@ -137,17 +148,22 @@ Fora do MVP imediato:
 
 ## Documentacao de Projeto
 
-Leituras principais:
+Guias finais do MVP:
 
-- `docs/diario-de-bordo.md`
-- `docs/arquitetura-frontend-roteamento-ciclo-de-vida.md`
-- `docs/consideracoes-pre-finalizacao.md`
-- `docs/plano-momento-8-testes-e2e.md`
-- `docs/prompt-proximo-chat-estabilizacao-mvp.md`
-- `docs/prompt-proximo-chat-audit-vitest-mvp.md`
-- `docs/prompt-proximo-chat-e2e-risk-flows-mvp.md`
-- `docs/prompt-proximo-chat-study-session-polish-mvp.md`
-- `docs/prompt-proximo-chat-qa-manual-final-mvp.md`
-- `docs/prompt-proximo-chat-finalizacao-documentacao-mvp.md`
-- `docs/plano-qa-manual-final-mvp.md`
-- `docs/relatorio-qa-manual-final-mvp.md`
+- [Principios e padroes do MVP](docs/principios-e-padroes-mvp.md)
+- [Guia de uso do MVP](docs/guia-de-uso-mvp.md)
+- [Guia de integracao com Anki/APKG](docs/guia-anki-apkg-mvp.md)
+- [Guia de execucao local](docs/guia-execucao-local-mvp.md)
+- [Estado final do MVP](docs/estado-final-mvp.md)
+- [Relatorio de QA manual final](docs/relatorio-qa-manual-final-mvp.md)
+- [Diario de bordo](docs/diario-de-bordo.md)
+
+Contexto historico e de desenvolvimento assistido:
+
+- [README do contexto de IA](docs/ai_context/README.md)
+- [Linha do tempo](docs/ai_context/linha-do-tempo.md)
+- [Memoria de decisoes](docs/ai_context/memoria-de-decisoes.md)
+- [Planos](docs/ai_context/planos/)
+- [Prompts](docs/ai_context/prompts/)
+- [Arquitetura e decisoes historicas](docs/ai_context/arquitetura-e-decisoes/)
+- [Snapshots](docs/ai_context/snapshots/)
