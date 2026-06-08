@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { BookOpen, Brain, Eye, Maximize2, Minimize2, Shuffle } from '@lucide/vue'
+import { ALargeSmall, BookOpen, Brain, Eye, Maximize2, Minimize2, Shuffle } from '@lucide/vue'
 import { ref } from 'vue'
 import type { ReviewRating, StudyCard } from '../types/api'
 import type {
@@ -30,6 +30,7 @@ defineEmits<{
 }>()
 
 const fitMediaToScreen = ref(false)
+const studyFontSize = ref<'compact' | 'default' | 'large'>('default')
 
 function emptyTitle(reason: StudyEmptyReason) {
   if (reason === 'completed') {
@@ -66,6 +67,39 @@ function emptyCopy(reason: StudyEmptyReason) {
         <p v-if="progress.initialTotal > 0" class="study-progress-copy">{{ progress.remaining }} restantes</p>
       </div>
       <div class="study-header-actions">
+        <div class="font-size-control" aria-label="Tamanho da fonte">
+          <ALargeSmall :size="16" aria-hidden="true" />
+          <button
+            class="font-size-option"
+            type="button"
+            title="Fonte menor"
+            :aria-pressed="studyFontSize === 'compact'"
+            :class="{ active: studyFontSize === 'compact' }"
+            @click="studyFontSize = 'compact'"
+          >
+            A-
+          </button>
+          <button
+            class="font-size-option"
+            type="button"
+            title="Fonte padrão"
+            :aria-pressed="studyFontSize === 'default'"
+            :class="{ active: studyFontSize === 'default' }"
+            @click="studyFontSize = 'default'"
+          >
+            A
+          </button>
+          <button
+            class="font-size-option"
+            type="button"
+            title="Fonte maior"
+            :aria-pressed="studyFontSize === 'large'"
+            :class="{ active: studyFontSize === 'large' }"
+            @click="studyFontSize = 'large'"
+          >
+            A+
+          </button>
+        </div>
         <button
           class="ghost compact"
           type="button"
@@ -95,7 +129,7 @@ function emptyCopy(reason: StudyEmptyReason) {
       <span :style="{ width: `${progress.percent}%` }"></span>
     </div>
 
-    <article v-if="currentCard" :class="['study-card', { 'media-fit': fitMediaToScreen }]">
+    <article v-if="currentCard" :class="['study-card', `font-${studyFontSize}`, { 'media-fit': fitMediaToScreen }]">
       <div class="card-meta">
         <span>{{ currentCard.deckTitle }}</span>
         <span>{{ currentCard.newCard ? 'Novo' : `${currentCard.intervalDays} dias` }} · volta {{ currentDueLabel }}</span>
