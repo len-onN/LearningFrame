@@ -148,5 +148,6 @@ Leituras principais:
 - `docs/prompt-proximo-chat-e2e-risk-flows-mvp.md`
 - `docs/prompt-proximo-chat-study-session-polish-mvp.md`
 - `docs/prompt-proximo-chat-qa-manual-final-mvp.md`
+- `docs/prompt-proximo-chat-finalizacao-documentacao-mvp.md`
 - `docs/plano-qa-manual-final-mvp.md`
 - `docs/relatorio-qa-manual-final-mvp.md`

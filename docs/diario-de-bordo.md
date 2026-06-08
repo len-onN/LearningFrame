@@ -1493,3 +1493,31 @@ Decisao:
 - o MVP nao apresentou bloqueio funcional nos fluxos principais testados;
 - a branch pode seguir para fechamento documental final, mantendo correcoes
   funcionais apenas se surgir regressao objetiva em revisao posterior.
+
+## 56. Preparacao da Proxima Branch: Finalizacao e Documentacao
+
+Data: 2026-06-08
+Branch de registro: `codex/qa-manual-final`
+
+Apos o QA manual final, a proxima etapa recomendada passou a ser uma branch
+curta de fechamento documental do MVP.
+
+Proxima branch prevista:
+- `codex/mvp-final-documentation`.
+
+Condicao de entrada:
+- partir de `develop` atualizado;
+- confirmar que `codex/qa-manual-final` ja foi integrada na base antes de
+  iniciar a nova implementacao documental.
+
+Objetivo:
+- consolidar a documentacao final do MVP com base no produto real validado;
+- revisar README, diario, consideracoes finais e documentos principais para
+  evitar promessas fora do escopo entregue;
+- registrar estado final, validacoes, riscos aceitos, limites do MVP e itens
+  pos-MVP;
+- sugerir o marco/tag final do MVP, como `v0.1.0-mvp`;
+- nao adicionar feature nova.
+
+Documento criado para o proximo chat:
+- `docs/prompt-proximo-chat-finalizacao-documentacao-mvp.md`.
