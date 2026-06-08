@@ -12,6 +12,7 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.Instant;
@@ -39,6 +40,7 @@ public class Card {
     private String sourceNoteId;
 
     @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @BatchSize(size = 50)
     @JoinTable(
             name = "card_tags",
             joinColumns = @JoinColumn(name = "card_id"),

@@ -30,7 +30,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/e2e/reset").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/decks/public").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/decks/*/metadata").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/decks/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/decks/*/media/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/import/apkg/preview").permitAll()
@@ -51,7 +53,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.stream(allowedOrigins.split(",")).map(String::trim).toList());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-E2E-Token"));
         configuration.setExposedHeaders(List.of("Authorization"));
         configuration.setAllowCredentials(false);
 

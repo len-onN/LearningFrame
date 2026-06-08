@@ -1,6 +1,7 @@
 package com.learningframe.api.repository;
 
 import com.learningframe.api.model.Card;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -34,6 +35,35 @@ public interface CardRepository extends JpaRepository<Card, Long> {
 
     @EntityGraph(attributePaths = {"tags", "deck"})
     List<Card> findByDeckIdOrderByCreatedAtAsc(Long deckId);
+
+    @EntityGraph(attributePaths = {"deck"})
+    Page<Card> findPageByDeckIdOrderByCreatedAtDesc(Long deckId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"deck"})
+    @Query(
+            value = """
+                    select distinct c from Card c
+                    left join c.tags t
+                    where c.deck.id = :deckId
+                      and (
+                        lower(c.frontHtml) like lower(concat('%', :query, '%'))
+                        or lower(c.backHtml) like lower(concat('%', :query, '%'))
+                        or lower(t.name) like lower(concat('%', :query, '%'))
+                      )
+                    order by c.createdAt desc
+                    """,
+            countQuery = """
+                    select count(distinct c) from Card c
+                    left join c.tags t
+                    where c.deck.id = :deckId
+                      and (
+                        lower(c.frontHtml) like lower(concat('%', :query, '%'))
+                        or lower(c.backHtml) like lower(concat('%', :query, '%'))
+                        or lower(t.name) like lower(concat('%', :query, '%'))
+                      )
+                    """
+    )
+    Page<Card> searchPageByDeckId(@Param("deckId") Long deckId, @Param("query") String query, Pageable pageable);
 
     @EntityGraph(attributePaths = {"tags", "deck"})
     @Query("""

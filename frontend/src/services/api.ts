@@ -2,9 +2,13 @@ import type {
   ApkgImportResponse,
   ApkgPreviewResponse,
   AuthResponse,
+  CardPageResponse,
+  CardResponse,
   DeckDetail,
   DeckSummary,
   DeckVisibility,
+  MediaUploadResponse,
+  PageResponse,
   DueResponse,
   ReviewRating,
   ReviewResult,
@@ -12,18 +16,27 @@ import type {
   StudyMode
 } from '../types/api'
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8081'
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
+export const API_BASE_URL = configuredApiBaseUrl || 'http://127.0.0.1:8081'
 
-let authToken = localStorage.getItem('learningframe.token') ?? ''
+let authToken = readStoredToken()
 
 export function setAuthToken(token: string) {
   authToken = token
-  localStorage.setItem('learningframe.token', token)
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('learningframe.token', token)
+  }
 }
 
 export function clearAuthToken() {
   authToken = ''
-  localStorage.removeItem('learningframe.token')
+  if (typeof localStorage !== 'undefined') {
+    localStorage.removeItem('learningframe.token')
+  }
+}
+
+export function getAuthToken() {
+  return authToken
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -65,14 +78,25 @@ export const api = {
       body: JSON.stringify({ email, password })
     })
   },
-  publicDecks() {
-    return request<DeckSummary[]>('/api/decks/public')
+  publicDecks(page = 0, size = 8, query = '') {
+    const params = new URLSearchParams({ page: String(page), size: String(size) })
+    if (query.trim()) {
+      params.set('q', query.trim())
+    }
+    return request<PageResponse<DeckSummary>>(`/api/decks/public?${params.toString()}`)
   },
-  myDecks() {
-    return request<DeckSummary[]>('/api/decks/mine')
+  myDecks(page = 0, size = 8, query = '') {
+    const params = new URLSearchParams({ page: String(page), size: String(size) })
+    if (query.trim()) {
+      params.set('q', query.trim())
+    }
+    return request<PageResponse<DeckSummary>>(`/api/decks/mine?${params.toString()}`)
   },
   deck(deckId: number) {
     return request<DeckDetail>(`/api/decks/${deckId}`)
+  },
+  deckMetadata(deckId: number) {
+    return request<DeckSummary>(`/api/decks/${deckId}/metadata`)
   },
   createDeck(title: string, description: string, visibility: DeckVisibility) {
     return request<DeckSummary>('/api/decks', {
@@ -80,10 +104,64 @@ export const api = {
       body: JSON.stringify({ title, description, visibility })
     })
   },
+  copyPublicDeck(deckId: number) {
+    return request<DeckSummary>(`/api/decks/${deckId}/copy`, {
+      method: 'POST'
+    })
+  },
+  updateDeck(deckId: number, title: string, description: string, visibility: DeckVisibility) {
+    return request<DeckSummary>(`/api/decks/${deckId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ title, description, visibility })
+    })
+  },
+  deleteDeck(deckId: number) {
+    return request<void>(`/api/decks/${deckId}`, {
+      method: 'DELETE'
+    })
+  },
+  deleteDecks(deckIds: number[]) {
+    return request<void>('/api/decks/bulk-delete', {
+      method: 'POST',
+      body: JSON.stringify({ deckIds })
+    })
+  },
   createCard(deckId: number, frontHtml: string, backHtml: string, tags: string[]) {
-    return request(`/api/decks/${deckId}/cards`, {
+    return request<CardResponse>(`/api/decks/${deckId}/cards`, {
       method: 'POST',
       body: JSON.stringify({ frontHtml, backHtml, tags })
+    })
+  },
+  deckCards(deckId: number, page = 0, size = 20, query = '') {
+    const params = new URLSearchParams({ page: String(page), size: String(size) })
+    if (query.trim()) {
+      params.set('q', query.trim())
+    }
+    return request<CardPageResponse>(`/api/decks/${deckId}/cards?${params.toString()}`)
+  },
+  updateCard(deckId: number, cardId: number, frontHtml: string, backHtml: string, tags: string[]) {
+    return request<CardResponse>(`/api/decks/${deckId}/cards/${cardId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ frontHtml, backHtml, tags })
+    })
+  },
+  deleteCard(deckId: number, cardId: number) {
+    return request<void>(`/api/decks/${deckId}/cards/${cardId}`, {
+      method: 'DELETE'
+    })
+  },
+  deleteCards(deckId: number, cardIds: number[]) {
+    return request<void>(`/api/decks/${deckId}/cards/bulk-delete`, {
+      method: 'POST',
+      body: JSON.stringify({ cardIds })
+    })
+  },
+  uploadMedia(deckId: number, file: File) {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request<MediaUploadResponse>(`/api/decks/${deckId}/media`, {
+      method: 'POST',
+      body: formData
     })
   },
   due(mode: StudyMode, deckId?: number) {
@@ -128,4 +206,10 @@ export const api = {
       body: formData
     })
   }
+}
+
+function readStoredToken() {
+  return typeof localStorage === 'undefined'
+    ? ''
+    : localStorage.getItem('learningframe.token') ?? ''
 }

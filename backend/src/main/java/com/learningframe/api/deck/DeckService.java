@@ -2,9 +2,13 @@ package com.learningframe.api.deck;
 
 import com.learningframe.api.auth.AuthService;
 import com.learningframe.api.common.ApiException;
+import com.learningframe.api.deck.DeckDtos.CardBulkDeleteRequest;
+import com.learningframe.api.deck.DeckDtos.CardPage;
 import com.learningframe.api.deck.DeckDtos.CardResponse;
 import com.learningframe.api.deck.DeckDtos.CardUpsertRequest;
 import com.learningframe.api.deck.DeckDtos.DeckDetail;
+import com.learningframe.api.deck.DeckDtos.DeckBulkDeleteRequest;
+import com.learningframe.api.deck.DeckDtos.DeckPage;
 import com.learningframe.api.deck.DeckDtos.DeckSummary;
 import com.learningframe.api.deck.DeckDtos.DeckUpsertRequest;
 import com.learningframe.api.model.AppUser;
@@ -12,12 +16,16 @@ import com.learningframe.api.model.Card;
 import com.learningframe.api.model.Deck;
 import com.learningframe.api.model.DeckVisibility;
 import com.learningframe.api.model.ImportFormat;
+import com.learningframe.api.model.MediaAsset;
 import com.learningframe.api.model.Tag;
 import com.learningframe.api.repository.CardRepository;
 import com.learningframe.api.repository.DeckRepository;
+import com.learningframe.api.repository.MediaAssetRepository;
 import com.learningframe.api.repository.ReviewStateRepository;
 import com.learningframe.api.repository.TagRepository;
 import com.learningframe.api.security.AuthenticatedUser;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,34 +39,51 @@ import java.util.Set;
 
 @Service
 public class DeckService {
+    private static final int MAX_PAGE_SIZE = 24;
+
     private final DeckRepository decks;
     private final CardRepository cards;
+    private final MediaAssetRepository mediaAssets;
     private final ReviewStateRepository reviewStates;
     private final TagRepository tags;
     private final AuthService authService;
 
-    public DeckService(DeckRepository decks, CardRepository cards, ReviewStateRepository reviewStates, TagRepository tags, AuthService authService) {
+    public DeckService(
+            DeckRepository decks,
+            CardRepository cards,
+            MediaAssetRepository mediaAssets,
+            ReviewStateRepository reviewStates,
+            TagRepository tags,
+            AuthService authService
+    ) {
         this.decks = decks;
         this.cards = cards;
+        this.mediaAssets = mediaAssets;
         this.reviewStates = reviewStates;
         this.tags = tags;
         this.authService = authService;
     }
 
     @Transactional(readOnly = true)
-    public List<DeckSummary> publicDecks(AuthenticatedUser principal) {
+    public DeckPage publicDecks(AuthenticatedUser principal, int page, int size, String query) {
         Long userId = principal == null ? null : principal.id();
-        return decks.findByVisibilityOrderByUpdatedAtDesc(DeckVisibility.PUBLIC).stream()
-                .map(deck -> toSummary(deck, userId))
-                .toList();
+        String normalizedQuery = normalizeSearchQuery(query);
+        PageRequest pageRequest = pageRequest(page, size);
+        Page<Deck> result = normalizedQuery == null
+                ? decks.findByVisibilityOrderByUpdatedAtDesc(DeckVisibility.PUBLIC, pageRequest)
+                : decks.searchByVisibility(DeckVisibility.PUBLIC, normalizedQuery, pageRequest);
+        return toPage(result, userId);
     }
 
     @Transactional(readOnly = true)
-    public List<DeckSummary> myDecks(AuthenticatedUser principal) {
+    public DeckPage myDecks(AuthenticatedUser principal, int page, int size, String query) {
         AppUser user = authService.requireUser(principal);
-        return decks.findByOwnerIdOrderByUpdatedAtDesc(user.getId()).stream()
-                .map(deck -> toSummary(deck, user.getId()))
-                .toList();
+        String normalizedQuery = normalizeSearchQuery(query);
+        PageRequest pageRequest = pageRequest(page, size);
+        Page<Deck> result = normalizedQuery == null
+                ? decks.findByOwnerIdOrderByUpdatedAtDesc(user.getId(), pageRequest)
+                : decks.searchByOwnerId(user.getId(), normalizedQuery, pageRequest);
+        return toPage(result, user.getId());
     }
 
     @Transactional(readOnly = true)
@@ -67,6 +92,14 @@ public class DeckService {
         Deck deck = decks.findAccessible(deckId, userId)
                 .orElseThrow(() -> ApiException.notFound("Baralho nao encontrado."));
         return toDetail(deck);
+    }
+
+    @Transactional(readOnly = true)
+    public DeckSummary deckMetadata(Long deckId, AuthenticatedUser principal) {
+        Long userId = principal == null ? null : principal.id();
+        Deck deck = decks.findAccessible(deckId, userId)
+                .orElseThrow(() -> ApiException.notFound("Baralho nao encontrado."));
+        return toSummary(deck, userId);
     }
 
     @Transactional
@@ -80,6 +113,34 @@ public class DeckService {
                 ImportFormat.MANUAL
         ));
         return toSummary(deck, owner.getId());
+    }
+
+    @Transactional
+    public DeckSummary copyPublicDeck(Long sourceDeckId, AuthenticatedUser principal) {
+        AppUser owner = authService.requireUser(principal);
+        Deck source = decks.findById(sourceDeckId)
+                .filter(deck -> deck.getVisibility() == DeckVisibility.PUBLIC)
+                .orElseThrow(() -> ApiException.notFound("Baralho publico nao encontrado."));
+
+        Deck copy = decks.save(new Deck(
+                owner,
+                source.getTitle(),
+                source.getDescription(),
+                DeckVisibility.PRIVATE,
+                source.getSourceFormat()
+        ));
+
+        List<Card> copiedCards = cards.findByDeckIdOrderByCreatedAtAsc(source.getId()).stream()
+                .map(sourceCard -> copyCard(sourceCard, copy))
+                .toList();
+        cards.saveAll(copiedCards);
+
+        List<MediaAsset> copiedMedia = mediaAssets.findByDeckId(source.getId()).stream()
+                .map(asset -> new MediaAsset(copy, asset.getFileName(), asset.getContentType(), asset.getContent().clone()))
+                .toList();
+        mediaAssets.saveAll(copiedMedia);
+
+        return toSummary(copy, owner.getId());
     }
 
     @Transactional
@@ -99,12 +160,35 @@ public class DeckService {
     }
 
     @Transactional
+    public void deleteDecks(DeckBulkDeleteRequest request, AuthenticatedUser principal) {
+        AppUser owner = authService.requireUser(principal);
+        List<Long> selectedIds = new ArrayList<>(new LinkedHashSet<>(request.deckIds()));
+        List<Deck> selectedDecks = decks.findOwnedByIds(owner.getId(), selectedIds);
+        if (selectedDecks.size() != selectedIds.size()) {
+            throw ApiException.notFound("Um ou mais baralhos nao foram encontrados.");
+        }
+        decks.deleteAll(selectedDecks);
+    }
+
+    @Transactional
     public CardResponse createCard(Long deckId, CardUpsertRequest request, AuthenticatedUser principal) {
         AppUser owner = authService.requireUser(principal);
         Deck deck = ownedDeck(deckId, owner.getId());
         Card card = new Card(deck, request.frontHtml().trim(), request.backHtml().trim(), null);
         replaceTags(card, request.tags());
         return toCard(cards.save(card));
+    }
+
+    @Transactional(readOnly = true)
+    public CardPage deckCards(Long deckId, AuthenticatedUser principal, int page, int size, String query) {
+        AppUser owner = authService.requireUser(principal);
+        ownedDeck(deckId, owner.getId());
+        String normalizedQuery = normalizeSearchQuery(query);
+        PageRequest pageRequest = pageRequest(page, size);
+        Page<Card> result = normalizedQuery == null
+                ? cards.findPageByDeckIdOrderByCreatedAtDesc(deckId, pageRequest)
+                : cards.searchPageByDeckId(deckId, normalizedQuery, pageRequest);
+        return toCardPage(result);
     }
 
     @Transactional
@@ -130,6 +214,19 @@ public class DeckService {
         cards.delete(card);
     }
 
+    @Transactional
+    public void deleteCards(Long deckId, CardBulkDeleteRequest request, AuthenticatedUser principal) {
+        AppUser owner = authService.requireUser(principal);
+        ownedDeck(deckId, owner.getId());
+        List<Card> selectedCards = cards.findAllById(request.cardIds()).stream()
+                .filter(card -> card.getDeck().getId().equals(deckId))
+                .toList();
+        if (selectedCards.size() != new LinkedHashSet<>(request.cardIds()).size()) {
+            throw ApiException.notFound("Uma ou mais cartas nao foram encontradas.");
+        }
+        cards.deleteAll(selectedCards);
+    }
+
     private Deck ownedDeck(Long deckId, Long ownerId) {
         return decks.findOwned(deckId, ownerId)
                 .orElseThrow(() -> ApiException.forbidden("Este baralho nao pertence ao usuario logado."));
@@ -151,6 +248,43 @@ public class DeckService {
                 deck.getOwner() == null ? "LearningFrame" : deck.getOwner().getDisplayName(),
                 deck.getUpdatedAt()
         );
+    }
+
+    private DeckPage toPage(Page<Deck> page, Long userId) {
+        return new DeckPage(
+                page.getContent().stream().map(deck -> toSummary(deck, userId)).toList(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isFirst(),
+                page.isLast()
+        );
+    }
+
+    private CardPage toCardPage(Page<Card> page) {
+        return new CardPage(
+                page.getContent().stream().map(this::toCard).toList(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages(),
+                page.isFirst(),
+                page.isLast()
+        );
+    }
+
+    private PageRequest pageRequest(int page, int size) {
+        int normalizedPage = Math.max(page, 0);
+        int normalizedSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        return PageRequest.of(normalizedPage, normalizedSize);
+    }
+
+    private String normalizeSearchQuery(String query) {
+        if (query == null || query.isBlank()) {
+            return null;
+        }
+        return query.trim();
     }
 
     private Instant nextDueAtForDeck(Long userId, Long deckId, Instant now, Long dueCount) {
@@ -181,6 +315,12 @@ public class DeckService {
                 card.getBackHtml(),
                 card.getTags().stream().map(Tag::getName).sorted().toList()
         );
+    }
+
+    private Card copyCard(Card source, Deck targetDeck) {
+        Card copy = new Card(targetDeck, source.getFrontHtml(), source.getBackHtml(), source.getSourceNoteId());
+        copy.getTags().addAll(source.getTags());
+        return copy;
     }
 
     private void replaceTags(Card card, List<String> requestedTags) {

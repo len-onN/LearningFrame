@@ -27,12 +27,27 @@ export interface DeckSummary {
   updatedAt: string
 }
 
+export interface PageResponse<T> {
+  content: T[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  first: boolean
+  last: boolean
+}
+
 export interface CardResponse {
   id: number
   deckId: number
   frontHtml: string
   backHtml: string
   tags: string[]
+}
+
+export interface MediaUploadResponse {
+  fileName: string
+  contentType: string
 }
 
 export interface DeckDetail {
@@ -44,6 +59,8 @@ export interface DeckDetail {
   ownerName: string
   cards: CardResponse[]
 }
+
+export type CardPageResponse = PageResponse<CardResponse>
 
 export interface StudyCardResponse {
   cardId: number
@@ -110,7 +127,7 @@ export interface LocalDeck {
   id: string
   title: string
   description: string
-  source: 'PUBLIC' | 'APKG'
+  source: 'PUBLIC'
   cards: LocalCard[]
 }
 

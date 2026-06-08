@@ -27,12 +27,34 @@ public final class DeckDtos {
     ) {
     }
 
+    public record DeckPage(
+            List<DeckSummary> content,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages,
+            boolean first,
+            boolean last
+    ) {
+    }
+
     public record CardResponse(
             Long id,
             Long deckId,
             String frontHtml,
             String backHtml,
             List<String> tags
+    ) {
+    }
+
+    public record CardPage(
+            List<CardResponse> content,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages,
+            boolean first,
+            boolean last
     ) {
     }
 
@@ -58,6 +80,22 @@ public final class DeckDtos {
             @NotBlank @Size(max = 12000) String frontHtml,
             @NotBlank @Size(max = 12000) String backHtml,
             List<@Size(max = 80) String> tags
+    ) {
+    }
+
+    public record CardBulkDeleteRequest(
+            @NotNull @Size(min = 1, max = 100) List<@NotNull Long> cardIds
+    ) {
+    }
+
+    public record DeckBulkDeleteRequest(
+            @NotNull @Size(min = 1, max = 100) List<@NotNull Long> deckIds
+    ) {
+    }
+
+    public record MediaUploadResponse(
+            String fileName,
+            String contentType
     ) {
     }
 }
