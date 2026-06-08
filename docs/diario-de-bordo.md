@@ -1443,3 +1443,53 @@ Validacoes planejadas:
 - `git diff --check`;
 - testes backend Maven se houver alteracao backend ou se a bateria completa
   final exigir.
+
+## 55. Execucao do QA Manual Final
+
+Data: 2026-06-08
+Branch de trabalho: `codex/qa-manual-final`
+Commit base testado: `0bb77cf`
+
+O QA manual final do MVP foi executado em ambiente Docker principal, com apoio de
+Playwright headless para percorrer o checklist de forma rastreavel.
+
+Ambiente validado:
+- `docker compose up -d --build`;
+- frontend em `http://localhost:8080`;
+- backend em `http://localhost:8081`;
+- banco dev `learningframe` em `localhost:3307`;
+- frontend respondeu `200` em `http://127.0.0.1:8080/`;
+- API publica respondeu `200` em `http://127.0.0.1:8081/api/decks/public`.
+
+Validacoes automatizadas executadas:
+- `npm test`: 33 testes frontend passando;
+- `npm run build`: `vue-tsc` e `vite build` passando;
+- `npm run e2e`: 14 testes Playwright passando em Chromium, com Compose
+  dedicado `learningframe-e2e` e teardown com `down -v`;
+- testes backend via container Maven: 27 testes passando;
+- `git diff --check`: sem problemas.
+
+Resultado do checklist:
+- 18 de 18 fluxos manuais planejados passaram;
+- nenhum bug bloqueante foi encontrado;
+- nenhum erro de console ou `pageerror` foi observado nas rodadas assistidas;
+- importacao APKG, salvamento autenticado, estudo anonimo/autenticado,
+  gerenciamento de baralhos/cartas, midias, pratica intercalada, progresso,
+  rotas diretas, back/forward, tema e responsivo mobile foram cobertos.
+
+Observacoes:
+- a primeira rodada assistida teve falhas de seletor do proprio roteiro de QA,
+  nao do produto; os itens foram repetidos com seletores ajustados e passaram;
+- a rodada criou dados descartaveis no banco dev local, como usuarios
+  `qa-final-*` e baralhos `QA Final Manual` / `QA APKG Final`;
+- os avisos do Maven sobre carregamento dinamico de agente do Mockito foram
+  registrados como observacao nao bloqueante para ajuste futuro, pois a suite
+  atual finalizou com sucesso.
+
+Documento criado:
+- `docs/relatorio-qa-manual-final-mvp.md`.
+
+Decisao:
+- o MVP nao apresentou bloqueio funcional nos fluxos principais testados;
+- a branch pode seguir para fechamento documental final, mantendo correcoes
+  funcionais apenas se surgir regressao objetiva em revisao posterior.
