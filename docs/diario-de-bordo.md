@@ -1594,3 +1594,50 @@ Decisão:
 - usar a linha do tempo como mapa da memória histórica;
 - usar [Princípios e padrões do MVP](principios-e-padroes-mvp.md) como fonte
   atual de padrões para desenvolvimentos futuros.
+
+## 59. Refatoração Pós-MVP do App.vue
+
+Data: 2026-06-08
+Branch de trabalho: `codex/refactor-app-vue-responsibilities`
+
+Após o fechamento funcional do MVP, foi iniciada uma frente específica para
+reduzir a concentração de responsabilidades em `frontend/src/App.vue`, sem
+alterar comportamento, rotas, UX, contratos de API, regras de SRS ou fluxo de
+importação APKG.
+
+Motivação:
+- `App.vue` continuava atuando como composition root, provider dos contextos de
+  rota e implementação de diversos domínios;
+- a mistura de biblioteca, gerenciamento, importação, estudo, auth, progresso e
+  limpeza de estados temporários aumentava custo cognitivo;
+- a redução precisava preservar ciclos de vida, callbacks transversais
+  explícitos e paginação, não apenas diminuir linhas.
+
+Primeira fatia aplicada:
+- helpers puros extraídos para estudo, importação e biblioteca;
+- testes unitários adicionados para esses helpers;
+- `useDeckManagement` criado para concentrar gerenciamento de deck/cartas;
+- `App.vue` passou de aproximadamente 1548 para 1168 linhas;
+- `App.vue` permaneceu como integrador explícito de auth, router, feedback,
+  stats e providers de rota.
+
+Validações executadas:
+- `cd frontend && npm test`;
+- `cd frontend && npm run build`;
+- `git diff --check`.
+
+Documentos criados:
+- [Plano de refatoração pós-MVP do App.vue](ai_context/planos/plano-refatoracao-app-vue-pos-mvp.md);
+- [Prompt inicial da refatoração pós-MVP](ai_context/prompts/prompt-proximo-chat-refatoracao-app-vue-pos-mvp.md);
+- [Plano de continuação pós-primeira fatia](ai_context/planos/plano-refatoracao-app-vue-continuacao-pos-primeira-fatia.md);
+- [Prompt de continuação pós-primeira fatia](ai_context/prompts/prompt-proximo-chat-refatoracao-app-vue-continuacao-pos-primeira-fatia.md).
+
+Decisão:
+- seguir com refatoração incremental, priorizando `useStatsSummary`,
+  `useAppNavigation`, `useRouteLifecycle` e depois extrações cuidadosas de
+  estudo e importação APKG;
+- não introduzir store global nesta frente;
+- manter efeitos transversais por callbacks nomeados;
+- manter estado pesado perto de sua limpeza;
+- aceitar que `App.vue` ainda fique grande temporariamente, desde que cada
+  rodada reduza implementação de domínio sem esconder comportamento crítico.

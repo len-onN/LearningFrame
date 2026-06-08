@@ -265,3 +265,38 @@ Decisão sobre prática intercalada:
 Estado atual:
 - consolidado no
   [Roadmap de profissionalização pós-MVP](../roadmap-profissionalizacao-pos-mvp.md).
+
+## 13. Refatoração pós-MVP do App.vue por fatias
+
+Problema:
+- `frontend/src/App.vue` voltou a acumular responsabilidades demais após o MVP;
+- o arquivo misturava shell, navegação, auth, biblioteca, gerenciamento,
+  importação APKG, estudo, progresso e limpezas de estados temporários;
+- reduzir linhas sem preservar ciclos de vida poderia esconder efeitos
+  transversais importantes.
+
+Alternativas consideradas:
+- mover tudo rapidamente para composables;
+- introduzir Pinia/store global para organizar estado;
+- manter `App.vue` grande até uma refatoração ampla futura.
+
+Problemas:
+- mover tudo de uma vez aumentaria risco de regressão em APKG, estudo e auth;
+- store global criaria ownership artificial para estados temporários e pesados;
+- adiar toda a refatoração manteria alto custo cognitivo para evoluções
+  pós-MVP.
+
+Decisão:
+- refatorar por fatias pequenas e verificáveis;
+- começar por helpers puros e gerenciamento de deck/cartas;
+- manter `App.vue` como composition root enquanto os domínios ganham fronteiras
+  claras;
+- passar dependências transversais por callbacks nomeados, como `refreshStats`,
+  `navigateToMyDecks`, `showNotice`, `showError` e `withFeedback`;
+- não introduzir store global nesta frente.
+
+Estado atual:
+- helpers puros extraídos para estudo, importação e biblioteca;
+- `useDeckManagement` criado;
+- próximos passos planejados em
+  [plano de continuação da refatoração do App.vue](planos/plano-refatoracao-app-vue-continuacao-pos-primeira-fatia.md).

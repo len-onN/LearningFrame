@@ -17,9 +17,7 @@ import type {
   DeckSummary,
   DeckVisibility,
   LocalDeck,
-  PageResponse,
   ReviewRating,
-  ReviewResult,
   StatsSummary,
   StudyCard,
   StudyCardResponse
@@ -31,10 +29,25 @@ import {
   saveLocalStates
 } from './utils/localStudy'
 import CardEditorOverlay from './features/library/CardEditorOverlay.vue'
-import type { CardEditorMediaKind, CardEditorMode } from './features/library/cardEditorTypes'
-import type { LibrarySection, LibraryView, ManagedCardsViewState } from './features/library/libraryTypes'
-import { deckPageCountLabel, normalizeSearch, useDeckLibrary } from './features/library/useDeckLibrary'
+import type { LibrarySection, LibraryView } from './features/library/libraryTypes'
+import { normalizeSearch, useDeckLibrary } from './features/library/useDeckLibrary'
+import { cardCountLabel, deckDueLabel } from './features/library/deckFormatters'
+import { cardTextSummary as summarizeCardText } from './features/library/cardText'
+import { useDeckManagement } from './features/library/useDeckManagement'
 import type { PreviewFace } from './features/import/importTypes'
+import {
+  htmlSummary,
+  previewCardOptionLabel,
+  previewCardSearchText,
+  previewCardTitle as formatPreviewCardTitle
+} from './features/import/importPreview'
+import {
+  emptyStudyRatingCounts,
+  studyFeedbackFromResult,
+  studyFeedbackFromReviewResult,
+  type StudyRatingCounts,
+  type StudyReviewFeedback
+} from './features/study/studyFeedback'
 import {
   authRouteKey,
   createDeckRouteKey,
@@ -42,14 +55,12 @@ import {
   libraryRouteKey,
   progressRouteKey,
   studyRouteKey,
-  type StudyEmptyReason,
-  type StudyReviewFeedback,
-  type StudyRatingCounts
+  type StudyEmptyReason
 } from './routes/routeContext'
 import { nextReview } from './utils/srs'
 import { extractRelativeMediaSources, safePreviewHtml, safeStudyHtml } from './utils/html'
 import { createApkgMediaIndex, normalizeMediaName, type ApkgMediaIndex } from './utils/apkgMedia'
-import { formatDueIn, nextDueLabel } from './utils/dueTime'
+import { formatDueIn } from './utils/dueTime'
 import { validateAuthForm, type AuthErrors, type AuthField, type AuthMode } from './utils/authValidation'
 import { useAuthSession } from './composables/useAuthSession'
 import { useFeedback } from './composables/useFeedback'
@@ -142,30 +153,47 @@ const deckForm = ref({
   visibility: 'PRIVATE' as DeckVisibility
 })
 
-const managedDeck = ref<DeckSummary | null>(null)
-const managedDeckForm = ref({
-  title: '',
-  description: '',
-  visibility: 'PRIVATE' as DeckVisibility
-})
-const managedCards = ref<CardResponse[]>([])
-const managedCardsPage = ref<PageResponse<CardResponse> | null>(null)
-const managedCardsSearch = ref('')
-const selectedManagedCardId = ref<number | null>(null)
-const selectedManagedCardIds = ref<Set<number>>(new Set())
-
-const cardEditorOpen = ref(false)
-const cardEditorMode = ref<CardEditorMode>('create')
-const cardEditorCardId = ref<number | null>(null)
-const cardEditorForm = ref({
-  frontHtml: '',
-  backHtml: '',
-  tags: ''
-})
-const cardEditorInitial = ref({
-  frontHtml: '',
-  backHtml: '',
-  tags: ''
+const {
+  managedDeck,
+  managedDeckForm,
+  managedDeckDirty,
+  managedCards,
+  managedCardsSearch,
+  selectedManagedCardIds,
+  managedCardsView,
+  cardEditorOpen,
+  cardEditorForm,
+  cardEditorTitle,
+  cardEditorFrontPreview,
+  cardEditorBackPreview,
+  setManagedDeck,
+  updateManagedDeckForm,
+  loadManagedDeckRoute,
+  closeManagedDeck,
+  loadManagedCards,
+  loadMoreManagedCards,
+  saveManagedDeck,
+  deleteManagedDeck,
+  openCreateCardEditor,
+  openEditCardEditor,
+  closeCardEditor,
+  saveCardEditor,
+  deleteManagedCard,
+  deleteSelectedManagedCards,
+  selectManagedCard,
+  toggleManagedCardSelection,
+  toggleVisibleManagedCardsSelection,
+  clearManagedCardSelection,
+  uploadCardEditorMedia,
+  handleCardEditorUploadError
+} = useDeckManagement({
+  pageSize: CARD_PAGE_SIZE,
+  showNotice,
+  showError,
+  withFeedback,
+  loadMyDecks,
+  refreshStats,
+  navigateToMyDecks
 })
 
 const selectedFile = ref<File | null>(null)
@@ -216,61 +244,11 @@ const studySummary = computed(() => studyEmptyReason.value === 'completed' && st
 const authErrors = computed<AuthErrors>(() => validateAuthForm(authForm.value, authMode.value))
 const sidebarToggleLabel = computed(() => sidebarCollapsed.value ? 'Expandir menu' : 'Recolher menu')
 const userDisplayName = computed(() => user.value?.displayName ?? 'Visitante')
-const managedCardsHasMore = computed(() => managedCardsPage.value ? !managedCardsPage.value.last : false)
-const managedCardsCountLabel = computed(() => deckPageCountLabel(managedCards.value.length, managedCardsPage.value, 'cartas'))
-const selectedManagedCard = computed(() => managedCards.value.find((card) => card.id === selectedManagedCardId.value) ?? null)
-const selectedManagedCardsCount = computed(() => selectedManagedCardIds.value.size)
-const allVisibleManagedCardsSelected = computed(() => (
-  managedCards.value.length > 0
-  && managedCards.value.every((card) => selectedManagedCardIds.value.has(card.id))
-))
-const selectedManagedCardFrontPreview = computed(() => managedDeck.value && selectedManagedCard.value
-  ? safeStudyHtml(selectedManagedCard.value.frontHtml, managedDeck.value.id)
-  : ''
-)
-const selectedManagedCardBackPreview = computed(() => managedDeck.value && selectedManagedCard.value
-  ? safeStudyHtml(selectedManagedCard.value.backHtml, managedDeck.value.id)
-  : ''
-)
-const managedCardsView = computed<ManagedCardsViewState>(() => ({
-  cards: managedCards.value,
-  selectedCard: selectedManagedCard.value,
-  selectedCardId: selectedManagedCardId.value,
-  selectedCardIds: selectedManagedCardIds.value,
-  selectedCount: selectedManagedCardsCount.value,
-  allVisibleSelected: allVisibleManagedCardsSelected.value,
-  hasMore: managedCardsHasMore.value,
-  countLabel: managedCardsCountLabel.value,
-  frontPreview: selectedManagedCardFrontPreview.value,
-  backPreview: selectedManagedCardBackPreview.value
-}))
 const deckFormatters = {
   cardCount: cardCountLabel,
-  due: deckDueLabel
+  due: (deck: DeckSummary) => deckDueLabel(deck, Boolean(user.value))
 }
-const managedDeckDirty = computed(() => {
-  const deck = managedDeck.value
-  return Boolean(deck)
-    && (
-      managedDeckForm.value.title !== deck?.title
-      || managedDeckForm.value.description !== (deck?.description ?? '')
-      || managedDeckForm.value.visibility !== deck?.visibility
-    )
-})
-const cardEditorDirty = computed(() => (
-  cardEditorForm.value.frontHtml !== cardEditorInitial.value.frontHtml
-  || cardEditorForm.value.backHtml !== cardEditorInitial.value.backHtml
-  || cardEditorForm.value.tags !== cardEditorInitial.value.tags
-))
-const cardEditorTitle = computed(() => cardEditorMode.value === 'edit' ? 'Editar carta' : 'Nova carta')
-const cardEditorFrontPreview = computed(() => managedDeck.value
-  ? safeStudyHtml(cardEditorForm.value.frontHtml, managedDeck.value.id)
-  : safePreviewHtml(cardEditorForm.value.frontHtml)
-)
-const cardEditorBackPreview = computed(() => managedDeck.value
-  ? safeStudyHtml(cardEditorForm.value.backHtml, managedDeck.value.id)
-  : safePreviewHtml(cardEditorForm.value.backHtml)
-)
+const cardTextSummary = (card: CardResponse) => summarizeCardText(card, managedCards.value, htmlSummary)
 const loadingMessage = computed(() => importSaving.value ? 'Preparando seu baralho com mídia...' : 'Carregando...')
 const currentPreviewCard = computed(() => importPreview.value?.cards[previewCardIndex.value] ?? null)
 const currentPreviewHtml = computed(() => {
@@ -294,6 +272,7 @@ const previewCardOptions = computed(() => {
     }))
     .filter((card) => !query || card.searchText.includes(query))
 })
+const previewCardTitle = (index: number) => formatPreviewCardTitle(index, importPreview.value?.cards.length ?? 0)
 const navTabs = [
   { id: 'library' as const, label: 'Biblioteca', icon: BookOpen, to: { name: 'library-public' } },
   { id: 'study' as const, label: 'Estudo', icon: Brain, to: { name: 'study' } },
@@ -380,6 +359,10 @@ async function navigateTo(to: RouteLocationRaw) {
   await router.push(to)
 }
 
+async function navigateToMyDecks() {
+  await router.push({ name: 'library-mine' })
+}
+
 async function syncLibraryRoute() {
   if (route.name !== 'library-deck-manage' && managedDeck.value) {
     closeManagedDeck(true, false)
@@ -412,6 +395,10 @@ async function syncLibraryRoute() {
       await router.replace({ name: 'library-mine' })
       return
     }
+    if (!user.value) {
+      return
+    }
+    librarySearch.value = ''
     await loadManagedDeckRoute(deckId)
   }
 }
@@ -440,8 +427,14 @@ async function syncStudyRoute() {
 async function syncProgressRoute() {
   if (route.name === 'progress' && user.value) {
     await withFeedback(async () => {
-      stats.value = await api.stats()
+      await refreshStats()
     }, { showLoading: false, clearOnStart: false })
+  }
+}
+
+async function refreshStats() {
+  if (user.value) {
+    stats.value = await api.stats()
   }
 }
 
@@ -746,48 +739,6 @@ function setStudySessionCards(cards: StudyCard[], emptyReason: StudyEmptyReason)
   answerVisible.value = false
 }
 
-function emptyStudyRatingCounts(): StudyRatingCounts {
-  return {
-    AGAIN: 0,
-    HARD: 0,
-    GOOD: 0,
-    EASY: 0
-  }
-}
-
-function studyFeedbackFromReviewResult(result: ReviewResult) {
-  return studyFeedbackFromResult(result.rating, result.nextDueAt, result.intervalDays)
-}
-
-function studyFeedbackFromResult(rating: ReviewRating, nextDueAt: string, intervalDays: number): StudyReviewFeedback {
-  return {
-    rating,
-    ratingLabel: ratingLabel(rating),
-    nextDueLabel: formatDueIn(nextDueAt),
-    intervalLabel: intervalLabel(intervalDays)
-  }
-}
-
-function ratingLabel(rating: ReviewRating) {
-  const labels: Record<ReviewRating, string> = {
-    AGAIN: 'De novo',
-    HARD: 'Difícil',
-    GOOD: 'Bom',
-    EASY: 'Fácil'
-  }
-  return labels[rating]
-}
-
-function intervalLabel(intervalDays: number) {
-  if (intervalDays <= 0) {
-    return 'intervalo menor que 1 dia'
-  }
-  if (intervalDays === 1) {
-    return 'intervalo de 1 dia'
-  }
-  return `intervalo de ${intervalDays} dias`
-}
-
 async function handleApkgChange(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0] ?? null
@@ -932,43 +883,6 @@ async function togglePreviewFace() {
   await showPreviewCard(previewCardIndex.value, previewFace.value === 'front' ? 'back' : 'front')
 }
 
-function previewCardTitle(index: number) {
-  const total = importPreview.value?.cards.length ?? 0
-  return total ? `Carta ${index + 1} de ${total}` : `Carta ${index + 1}`
-}
-
-function previewCardOptionLabel(card: { frontHtml: string; backHtml: string }, index: number) {
-  const text = htmlSummary(card.frontHtml) || htmlSummary(card.backHtml)
-  if (!text) {
-    return `Carta ${index + 1}`
-  }
-  return `${index + 1} - ${text}`
-}
-
-function previewCardSearchText(card: { frontHtml: string; backHtml: string; tags: string[] }, index: number) {
-  const mediaSources = [
-    ...extractRelativeMediaSources(card.frontHtml),
-    ...extractRelativeMediaSources(card.backHtml)
-  ]
-  return normalizeSearch([
-    index + 1,
-    `carta ${index + 1}`,
-    card.frontHtml,
-    card.backHtml,
-    card.tags.join(' '),
-    mediaSources.join(' ')
-  ].join(' '))
-}
-
-function htmlSummary(html: string) {
-  const text = html
-    .replace(/\[sound:[^\]]+]/gi, 'audio')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-  return text.length > 64 ? `${text.slice(0, 61)}...` : text
-}
-
 let previewMediaRequest = 0
 let importPreviewRequest = 0
 
@@ -1053,300 +967,6 @@ async function openManagedDeck(deck: DeckSummary, showLoading = true) {
     librarySearch.value = ''
     await router.push({ name: 'library-deck-manage', params: { deckId: deck.id } })
   }, showLoading)
-}
-
-async function loadManagedDeckRoute(deckId: number) {
-  if (!user.value) {
-    return
-  }
-  await withFeedback(async () => {
-    const deck = await api.deckMetadata(deckId)
-    setManagedDeck(deck)
-    librarySearch.value = ''
-    await loadManagedCards(true)
-  }, { clearOnStart: false })
-}
-
-function setManagedDeck(deck: DeckSummary) {
-  managedDeck.value = deck
-  managedDeckForm.value = {
-    title: deck.title,
-    description: deck.description ?? '',
-    visibility: deck.visibility
-  }
-}
-
-function updateManagedDeckForm(nextForm: typeof managedDeckForm.value) {
-  managedDeckForm.value = nextForm
-}
-
-async function closeManagedDeck(force = false, navigateToList = true) {
-  if (!force && managedDeckDirty.value && !window.confirm('Descartar alteracoes do baralho?')) {
-    return false
-  }
-  closeCardEditor(true)
-  managedDeck.value = null
-  managedDeckForm.value = { title: '', description: '', visibility: 'PRIVATE' }
-  managedCards.value = []
-  managedCardsPage.value = null
-  managedCardsSearch.value = ''
-  selectedManagedCardId.value = null
-  selectedManagedCardIds.value = new Set()
-  if (navigateToList) {
-    await router.push({ name: 'library-mine' })
-  }
-  return true
-}
-
-async function loadManagedCards(reset = false) {
-  const deckId = managedDeck.value?.id
-  if (!deckId) {
-    return
-  }
-  const page = reset ? 0 : (managedCardsPage.value?.page ?? -1) + 1
-  const query = managedCardsSearch.value.trim()
-  const response = await api.deckCards(deckId, page, CARD_PAGE_SIZE, query)
-  managedCards.value = reset ? response.content : mergeCardsPages(managedCards.value, response.content)
-  managedCardsPage.value = response
-  selectedManagedCardIds.value = new Set([...selectedManagedCardIds.value].filter((id) => (
-    managedCards.value.some((card) => card.id === id)
-  )))
-  if (!selectedManagedCardId.value || !managedCards.value.some((card) => card.id === selectedManagedCardId.value)) {
-    selectedManagedCardId.value = managedCards.value[0]?.id ?? null
-  }
-}
-
-async function loadMoreManagedCards() {
-  await withFeedback(async () => {
-    await loadManagedCards()
-  }, { showLoading: false })
-}
-
-async function saveManagedDeck() {
-  const deck = managedDeck.value
-  if (!deck) {
-    return
-  }
-  if (!managedDeckForm.value.title.trim()) {
-    showError('Informe o titulo do baralho.')
-    return
-  }
-
-  await withFeedback(async () => {
-    const updated = await api.updateDeck(
-      deck.id,
-      managedDeckForm.value.title,
-      managedDeckForm.value.description,
-      managedDeckForm.value.visibility
-    )
-    setManagedDeck(updated)
-    await loadMyDecks(true)
-    showNotice('Baralho atualizado.')
-  })
-}
-
-async function deleteManagedDeck() {
-  const deck = managedDeck.value
-  if (!deck || !window.confirm(`Excluir o baralho "${deck.title}" e todas as suas cartas?`)) {
-    return
-  }
-
-  await withFeedback(async () => {
-    await api.deleteDeck(deck.id)
-    await closeManagedDeck(true)
-    await loadMyDecks(true)
-    if (user.value) {
-      stats.value = await api.stats()
-    }
-    selectedManagedCardIds.value = new Set()
-    showNotice('Baralho excluido.')
-  })
-}
-
-function openCreateCardEditor() {
-  if (!managedDeck.value) {
-    return
-  }
-  openCardEditor('create')
-}
-
-function openEditCardEditor(card: CardResponse) {
-  openCardEditor('edit', card)
-}
-
-function openCardEditor(mode: CardEditorMode, card?: CardResponse) {
-  cardEditorMode.value = mode
-  cardEditorCardId.value = card?.id ?? null
-  cardEditorForm.value = {
-    frontHtml: card?.frontHtml ?? '',
-    backHtml: card?.backHtml ?? '',
-    tags: card ? card.tags.join(', ') : ''
-  }
-  cardEditorInitial.value = { ...cardEditorForm.value }
-  cardEditorOpen.value = true
-}
-
-function closeCardEditor(force = false) {
-  if (!cardEditorOpen.value) {
-    return
-  }
-  if (!force && cardEditorDirty.value && !window.confirm('Descartar alteracoes desta carta?')) {
-    return
-  }
-  cardEditorOpen.value = false
-  cardEditorCardId.value = null
-  cardEditorForm.value = { frontHtml: '', backHtml: '', tags: '' }
-  cardEditorInitial.value = { frontHtml: '', backHtml: '', tags: '' }
-}
-
-async function saveCardEditor() {
-  const deck = managedDeck.value
-  if (!deck) {
-    return
-  }
-  if (!cardEditorForm.value.frontHtml.trim() || !cardEditorForm.value.backHtml.trim()) {
-    showError('Preencha frente e verso da carta.')
-    return
-  }
-
-  await withFeedback(async () => {
-    const tags = splitTags(cardEditorForm.value.tags)
-    let savedCard: CardResponse
-    if (cardEditorMode.value === 'edit' && cardEditorCardId.value) {
-      savedCard = await api.updateCard(deck.id, cardEditorCardId.value, cardEditorForm.value.frontHtml, cardEditorForm.value.backHtml, tags)
-      showNotice('Carta atualizada.')
-    } else {
-      savedCard = await api.createCard(deck.id, cardEditorForm.value.frontHtml, cardEditorForm.value.backHtml, tags)
-      showNotice('Carta adicionada.')
-    }
-    closeCardEditor(true)
-    selectedManagedCardId.value = savedCard.id
-    await Promise.all([
-      loadManagedCards(true),
-      loadMyDecks(true)
-    ])
-  })
-}
-
-async function deleteManagedCard(card: CardResponse) {
-  const deck = managedDeck.value
-  if (!deck || !window.confirm('Excluir esta carta?')) {
-    return
-  }
-  await withFeedback(async () => {
-    await api.deleteCard(deck.id, card.id)
-    await Promise.all([
-      loadManagedCards(true),
-      loadMyDecks(true)
-    ])
-    selectedManagedCardIds.value = new Set([...selectedManagedCardIds.value].filter((id) => id !== card.id))
-    showNotice('Carta excluida.')
-  })
-}
-
-async function deleteSelectedManagedCards() {
-  const deck = managedDeck.value
-  const cardIds = [...selectedManagedCardIds.value]
-  if (!deck || cardIds.length === 0) {
-    return
-  }
-  if (!window.confirm(`Excluir ${cardIds.length} ${cardIds.length === 1 ? 'carta selecionada' : 'cartas selecionadas'}?`)) {
-    return
-  }
-
-  await withFeedback(async () => {
-    await api.deleteCards(deck.id, cardIds)
-    selectedManagedCardIds.value = new Set()
-    selectedManagedCardId.value = null
-    await Promise.all([
-      loadManagedCards(true),
-      loadMyDecks(true)
-    ])
-    showNotice('Cartas selecionadas excluidas.')
-  })
-}
-
-function selectManagedCard(card: CardResponse) {
-  selectedManagedCardId.value = card.id
-}
-
-function toggleManagedCardSelection(cardId: number) {
-  const selected = new Set(selectedManagedCardIds.value)
-  if (selected.has(cardId)) {
-    selected.delete(cardId)
-  } else {
-    selected.add(cardId)
-  }
-  selectedManagedCardIds.value = selected
-}
-
-function toggleVisibleManagedCardsSelection() {
-  if (allVisibleManagedCardsSelected.value) {
-    const selected = new Set(selectedManagedCardIds.value)
-    managedCards.value.forEach((card) => selected.delete(card.id))
-    selectedManagedCardIds.value = selected
-    return
-  }
-  selectedManagedCardIds.value = new Set([
-    ...selectedManagedCardIds.value,
-    ...managedCards.value.map((card) => card.id)
-  ])
-}
-
-function clearManagedCardSelection() {
-  selectedManagedCardIds.value = new Set()
-}
-
-async function uploadCardEditorMedia(file: File, kind: CardEditorMediaKind) {
-  const deck = managedDeck.value
-  if (!deck) {
-    throw new Error('Abra um baralho antes de inserir midia.')
-  }
-
-  const uploaded = await api.uploadMedia(deck.id, file)
-  showNotice(kind === 'image'
-    ? 'Imagem inserida na carta.'
-    : 'Audio inserido na carta.')
-
-  return kind === 'image'
-    ? `<img src="${uploaded.fileName}" alt="">`
-    : `[sound:${uploaded.fileName}]`
-}
-
-function handleCardEditorUploadError(message: string) {
-  showError(message)
-}
-
-function splitTags(tags: string) {
-  return tags.split(',').map((tag) => tag.trim()).filter(Boolean)
-}
-
-function cardTextSummary(card: CardResponse) {
-  return htmlSummary(card.frontHtml) || htmlSummary(card.backHtml) || fallbackCardLabel(card)
-}
-
-function fallbackCardLabel(card: CardResponse) {
-  const index = managedCards.value.findIndex((managedCard) => managedCard.id === card.id)
-  return index >= 0 ? `Carta ${index + 1}` : 'Carta'
-}
-
-function mergeCardsPages(current: CardResponse[], incoming: CardResponse[]) {
-  const merged = new Map<number, CardResponse>()
-  for (const card of [...current, ...incoming]) {
-    merged.set(card.id, card)
-  }
-  return [...merged.values()]
-}
-
-function cardCountLabel(count: number) {
-  return `${count} ${count === 1 ? 'carta' : 'cartas'}`
-}
-
-function deckDueLabel(deck: DeckSummary) {
-  if (!user.value && deck.dueCount == null) {
-    return 'disponivel agora'
-  }
-  return nextDueLabel(deck.dueCount, deck.nextDueAt)
 }
 
 async function ensurePublicDeck(deckId: number) {
