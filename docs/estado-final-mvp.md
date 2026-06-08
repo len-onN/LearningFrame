@@ -14,6 +14,10 @@ intercalada, preservando conta opcional para reduzir atrito inicial. Visitantes
 podem estudar baralhos publicos e fazer preview de APKG. Usuarios autenticados
 podem persistir baralhos, cartas, midias, revisoes e progresso essencial.
 
+Como narrativa de produto, o MVP pode representar uma aplicacao gratuita de
+suporte ao aprendizado ofertada por uma instituicao de ensino. A integracao com
+dados institucionais reais fica fora do MVP e pertence ao roadmap pos-MVP.
+
 O MVP nao tenta replicar o Anki. Ele usa `.apkg` como interoperabilidade basica
 e inicia uma agenda propria de revisao.
 
@@ -156,6 +160,8 @@ O E2E usou:
 ## 8. Trabalhos futuros
 
 Possiveis evolucoes:
+- selecao de baralhos para pratica intercalada;
+- intercalamento mais sofisticado por tags, topicos ou disciplinas;
 - storage externo para midias;
 - hardening de autenticacao e sessoes;
 - recuperacao de senha;
@@ -215,6 +221,7 @@ Documentos principais:
 - [Guia de integracao com Anki/APKG](guia-anki-apkg-mvp.md);
 - [Guia de execucao local](guia-execucao-local-mvp.md);
 - [Relatorio de QA manual final](relatorio-qa-manual-final-mvp.md);
+- [Roadmap de profissionalizacao pos-MVP](roadmap-profissionalizacao-pos-mvp.md);
 - [Diario de bordo](diario-de-bordo.md).
 
 Contexto historico e de desenvolvimento assistido:
