@@ -26,6 +26,7 @@ Para o estado atual, consulte:
 | 2026-06-08 | QA manual final | [Plano de QA manual final](planos/plano-qa-manual-final-mvp.md) | Checklist final em container | 18 de 18 fluxos passaram |
 | 2026-06-08 | Relatorio QA | [Relatorio de QA manual final](../relatorio-qa-manual-final-mvp.md) | Evidencias, comandos e riscos aceitos | Sem bug bloqueante |
 | 2026-06-08 | Documentacao final | [Plano de documentacao final](planos/plano-finalizacao-documentacao-mvp.md) | Guias finais, estado final e reorganizacao documental | Documentacao separou uso atual de contexto historico |
+| 2026-06-08 | Roadmap pos-MVP | [Roadmap de profissionalizacao pos-MVP](../roadmap-profissionalizacao-pos-mvp.md) | Contexto institucional, pratica intercalada e profissionalizacao | Base para proximas branches de ajuste e produto |
 
 ## 2. Sequencia arquitetural do frontend
 

@@ -7,6 +7,11 @@ O produto permite que visitantes estudem baralhos publicos sem conta, facam
 preview de arquivos Anki `.apkg` antes de salvar e usem uma conta opcional para
 persistir baralhos, cartas, midias, revisoes e progresso essencial.
 
+Como horizonte de produto, o LearningFrame pode ser entendido como uma aplicacao
+gratuita de suporte ao aprendizado ofertada por uma instituicao de ensino. A
+integracao institucional real fica fora do MVP e e tratada no roadmap
+pos-MVP.
+
 ## Status do MVP
 
 Estado atual:
@@ -156,6 +161,7 @@ Guias finais do MVP:
 - [Guia de execucao local](docs/guia-execucao-local-mvp.md)
 - [Estado final do MVP](docs/estado-final-mvp.md)
 - [Relatorio de QA manual final](docs/relatorio-qa-manual-final-mvp.md)
+- [Roadmap de profissionalizacao pos-MVP](docs/roadmap-profissionalizacao-pos-mvp.md)
 - [Diario de bordo](docs/diario-de-bordo.md)
 
 Contexto historico e de desenvolvimento assistido:
