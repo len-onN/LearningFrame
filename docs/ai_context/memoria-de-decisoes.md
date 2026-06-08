@@ -238,3 +238,30 @@ Estado atual:
 - documentado no [guia de uso do MVP](../guia-de-uso-mvp.md);
 - planejado historicamente no
   [plano de polimento do estudo](planos/plano-study-session-polish-mvp.md).
+
+## 12. Contexto institucional e pratica intercalada pos-MVP
+
+Problema percebido:
+- a documentacao final descrevia bem o MVP academico, mas deixava implicito o
+  contexto de produto;
+- a pratica intercalada existia como fluxo simples, mas sem selecao explicita
+  de baralhos no frontend;
+- o backend ja aceitava `deckIds` no modo `MIXED_DUE`, mas essa capacidade nao
+  estava exposta na interface.
+
+Decisao de contexto:
+- apresentar o LearningFrame como uma aplicacao gratuita de suporte ao
+  aprendizado ofertada por uma instituicao de ensino;
+- manter a integracao real com sistemas institucionais fora do MVP;
+- tratar integracao institucional como roadmap de profissionalizacao.
+
+Decisao sobre pratica intercalada:
+- classificar selecao de baralhos para pratica intercalada como candidata forte
+  a ajuste de MVP/MVP+;
+- manter a logica atual por baralho como aceitavel para o MVP academico;
+- classificar intercalamento por tags, topicos ou variabilidade pedagogica como
+  pos-MVP, pois exige heuristica, testes e decisao propria.
+
+Estado atual:
+- consolidado no
+  [Roadmap de profissionalizacao pos-MVP](../roadmap-profissionalizacao-pos-mvp.md).

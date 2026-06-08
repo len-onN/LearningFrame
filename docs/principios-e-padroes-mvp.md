@@ -18,6 +18,12 @@ LearningFrame e um MVP academico para estudo com:
 O objetivo e demonstrar uma aplicacao funcional, explicavel e defensavel, nao
 criar uma plataforma completa de aprendizagem.
 
+Como contexto de produto, o LearningFrame pode ser apresentado como uma
+aplicacao gratuita de suporte ao aprendizado ofertada por uma instituicao de
+ensino. A integracao real com sistemas institucionais fica fora do MVP e esta
+registrada no
+[Roadmap de profissionalizacao pos-MVP](roadmap-profissionalizacao-pos-mvp.md).
+
 ## 2. Escopo atual
 
 Incluido:
@@ -139,12 +145,16 @@ Regras atuais:
 - ratings sao `AGAIN`, `HARD`, `GOOD`, `EASY`;
 - estudo autenticado persiste revisoes no backend;
 - estudo anonimo usa estado local do navegador;
-- pratica intercalada existe como fluxo simples;
+- pratica intercalada existe como fluxo simples por baralho;
 - sessao de estudo mostra progresso, feedback local e resumo final;
 - controles de fonte e ajuste de midia sao locais ao estudo.
 
 Ao evoluir:
 - nao trocar o algoritmo de revisao como efeito colateral de UI;
+- tratar selecao de baralhos para pratica intercalada como candidata forte a
+  ajuste de MVP/MVP+;
+- tratar variabilidade por tags/topicos como pos-MVP, com decisao e testes
+  proprios;
 - configurador de sessao, metas, pausar/retomar e dashboards ficam pos-MVP;
 - preservar acessibilidade basica dos controles de estudo.
 
@@ -176,6 +186,7 @@ Documentacao canonica atual:
 - [Guia de execucao local](guia-execucao-local-mvp.md);
 - [Estado final do MVP](estado-final-mvp.md);
 - [Relatorio de QA manual final](relatorio-qa-manual-final-mvp.md);
+- [Roadmap de profissionalizacao pos-MVP](roadmap-profissionalizacao-pos-mvp.md);
 - [Diario de bordo](diario-de-bordo.md).
 
 Contexto historico e de IA:
