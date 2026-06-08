@@ -1,20 +1,20 @@
-# Guia de Execucao Local do MVP
+# Guia de Execução Local do MVP
 
-Este guia mostra como executar o LearningFrame com Docker Compose e tambem com
+Este guia mostra como executar o LearningFrame com Docker Compose e também com
 backend/frontend em modo direto de desenvolvimento.
 
 ## 1. Requisitos
 
 Requisitos principais:
 - Docker e Docker Compose;
-- Node.js compativel com o frontend;
+- Node.js compatível com o frontend;
 - npm;
 - Java 21;
 - Maven, quando rodar o backend fora do container.
 
 Para o fluxo mais simples, Docker Compose e suficiente.
 
-Em ambiente novo, instale as dependencias locais do frontend antes de rodar
+Em ambiente novo, instale as dependências locais do frontend antes de rodar
 testes ou o servidor Vite:
 
 ```powershell
@@ -23,9 +23,9 @@ npm install
 cd ..
 ```
 
-## 2. Execucao principal com Docker Compose
+## 2. Execução principal com Docker Compose
 
-Na raiz do repositorio:
+Na raiz do repositório:
 
 ```powershell
 docker compose up --build
@@ -64,7 +64,7 @@ docker compose down -v
 
 Use `down -v` com cuidado, pois remove o volume `mysql-data`.
 
-## 3. Variaveis de ambiente principais
+## 3. Variáveis de ambiente principais
 
 O Compose usa defaults de desenvolvimento, mas aceita `.env`.
 
@@ -79,7 +79,7 @@ JWT_SECRET=change-this-dev-secret-at-least-32-chars
 CORS_ALLOWED_ORIGINS=http://localhost:8080
 ```
 
-Variaveis relevantes do backend:
+Variáveis relevantes do backend:
 - `DB_HOST`;
 - `DB_PORT`;
 - `DB_NAME`;
@@ -91,9 +91,9 @@ Variaveis relevantes do backend:
 - `MAX_APKG_UPLOAD_SIZE`;
 - `MAX_APKG_BYTES`.
 
-## 4. Execucao local direta
+## 4. Execução local direta
 
-Este modo e util para desenvolvimento.
+Este modo e útil para desenvolvimento.
 
 ### 4.1 Subir apenas o banco com Docker
 
@@ -103,7 +103,7 @@ Na raiz:
 docker compose up -d db
 ```
 
-O banco fica disponivel no host em:
+O banco fica disponível no host em:
 
 ```txt
 localhost:3307
@@ -147,7 +147,7 @@ Frontend Vite:
 http://localhost:5173
 ```
 
-O frontend usa `VITE_API_BASE_URL` quando configurado. Sem essa variavel, o
+O frontend usa `VITE_API_BASE_URL` quando configurado. Sem essa variável, o
 fallback atual aponta para:
 
 ```txt
@@ -176,7 +176,7 @@ Esse modo:
 - executa um `frontend-builder` com `npm run build -- --watch`;
 - permite validar o frontend containerizado em `http://localhost:8080`.
 
-## 6. Testes e validacoes
+## 6. Testes e validações
 
 Na raiz:
 
@@ -199,7 +199,7 @@ docker run --rm -v C:\Users\lenon\OneDrive\Documentos\LearningFrame\backend:/wor
 
 Em outro ambiente, ajuste o caminho absoluto antes de `:/workspace`.
 
-Se o Playwright ainda nao tiver o navegador local instalado, rode dentro de
+Se o Playwright ainda não tiver o navegador local instalado, rode dentro de
 `frontend`:
 
 ```powershell
@@ -239,9 +239,9 @@ npm run e2e:test
 npm run e2e:down
 ```
 
-Regra critica: testes E2E nao devem usar o banco dev.
+Regra critica: testes E2E não devem usar o banco dev.
 
-## 8. Troubleshooting rapido
+## 8. Troubleshooting rápido
 
 ### Porta ocupada
 
@@ -268,17 +268,17 @@ docker compose up -d --build
 
 Isso remove o volume local do MySQL.
 
-### Frontend nao reflete mudanca local
+### Frontend não reflete mudança local
 
-O frontend servido por Nginx usa o `dist` construido na imagem. Para iterar em
+O frontend servido por Nginx usa o `dist` construído na imagem. Para iterar em
 desenvolvimento:
 - use `npm run dev` no frontend; ou
 - use o Compose dev com `docker-compose.dev.yml`.
 
-### Backend direto nao conecta no banco
+### Backend direto não conecta no banco
 
 Se o banco foi iniciado pelo Compose principal, lembre que a porta no host e
-`3307`, nao `3306`.
+`3307`, não `3306`.
 
 Configure:
 

@@ -1,39 +1,39 @@
-# Principios e Padroes do MVP
+# Princípios e Padrões do MVP
 
 Este documento registra o estado normativo atual do LearningFrame para futuras
-branches. Ele resume decisoes que devem ser preservadas enquanto o produto
+branches. Ele resume decisões que devem ser preservadas enquanto o produto
 evolui a partir do MVP.
 
-Quando houver duvida entre um plano antigo e este documento, siga este
-documento e consulte a [memoria de decisoes](ai_context/memoria-de-decisoes.md)
-para entender a origem da decisao.
+Quando houver dúvida entre um plano antigo e este documento, siga este
+documento e consulte a [memória de decisões](ai_context/memoria-de-decisoes.md)
+para entender a origem da decisão.
 
-## 1. Visao do produto
+## 1. Visão do produto
 
-LearningFrame e um MVP academico para estudo com:
-- recordacao ativa;
-- repeticao espacada;
-- pratica intercalada.
+LearningFrame é um MVP acadêmico para estudo com:
+- recordação ativa;
+- repetição espaçada;
+- prática intercalada.
 
-O objetivo e demonstrar uma aplicacao funcional, explicavel e defensavel, nao
+O objetivo é demonstrar uma aplicação funcional, explicável e defensável, não
 criar uma plataforma completa de aprendizagem.
 
 Como contexto de produto, o LearningFrame pode ser apresentado como uma
-aplicacao gratuita de suporte ao aprendizado ofertada por uma instituicao de
-ensino. A integracao real com sistemas institucionais fica fora do MVP e esta
+aplicação gratuita de suporte ao aprendizado ofertada por uma instituição de
+ensino. A integração real com sistemas institucionais fica fora do MVP e esta
 registrada no
-[Roadmap de profissionalizacao pos-MVP](roadmap-profissionalizacao-pos-mvp.md).
+[Roadmap de profissionalização pós-MVP](roadmap-profissionalizacao-pos-mvp.md).
 
 ## 2. Escopo atual
 
-Incluido:
-- estudo anonimo de baralhos publicos;
+Incluído:
+- estudo anônimo de baralhos públicos;
 - conta opcional;
-- persistencia autenticada de baralhos, cartas, midias, revisoes e progresso;
+- persistência autenticada de baralhos, cartas, mídias, revisões e progresso;
 - gerenciamento de baralhos e cartas;
-- importacao APKG basica;
+- importação APKG básica;
 - estudo por baralho;
-- pratica intercalada;
+- prática intercalada;
 - progresso essencial;
 - E2E dedicado;
 - QA manual final aprovado.
@@ -41,38 +41,38 @@ Incluido:
 Fora do MVP:
 - clone completo do Anki;
 - `.colpkg`;
-- cloze avancado;
+- cloze avançado;
 - templates complexos;
-- historico e scheduler original do Anki;
+- histórico e scheduler original do Anki;
 - marketplace;
 - favoritos;
-- filtros avancados;
+- filtros avançados;
 - busca full-text;
-- dashboard avancado;
+- dashboard avançado;
 - perfil e recuperacao de senha;
-- storage externo de midia;
+- storage externo de mídia;
 - text-to-speech.
 
-## 3. Principios de produto
+## 3. Princípios de produto
 
-- Experimentar deve ser possivel sem conta.
+- Experimentar deve ser possível sem conta.
 - Persistir conhecimento exige conta.
-- Biblioteca deve conter baralhos prontos para uso, nao rascunhos temporarios.
-- Importacao APKG deve ser honesta sobre limites.
-- Estudo deve priorizar foco, clareza e baixa friccao.
-- Funcionalidades futuras devem respeitar a narrativa academica do MVP.
+- Biblioteca deve conter baralhos prontos para uso, não rascunhos temporários.
+- Importação APKG deve ser honesta sobre limites.
+- Estudo deve priorizar foco, clareza e baixa fricção.
+- Funcionalidades futuras devem respeitar a narrativa acadêmica do MVP.
 
-## 4. Principios de UX
+## 4. Princípios de UX
 
-- Preferir superficies simples e operacionais.
+- Preferir superfícies simples e operacionais.
 - Evitar telas de marketing dentro do app.
 - Manter Biblioteca como entrada principal.
-- Manter `Meus baralhos` como area de gerenciamento do usuario.
-- Manter estudo como sessao guiada, nao dashboard.
-- Usar mensagens curtas e proximas da acao.
-- Evitar controles avancados antes de haver necessidade real.
+- Manter `Meus baralhos` como área de gerenciamento do usuário.
+- Manter estudo como sessão guiada, não dashboard.
+- Usar mensagens curtas e próximas da ação.
+- Evitar controles avançados antes de haver necessidade real.
 
-## 5. Padroes frontend
+## 5. Padrões frontend
 
 Stack:
 - Vue 3;
@@ -80,23 +80,23 @@ Stack:
 - TypeScript;
 - Vue Router.
 
-Padroes atuais:
-- paginas principais ficam em `frontend/src/pages`;
+Padrões atuais:
+- páginas principais ficam em `frontend/src/pages`;
 - route adapters ficam em `frontend/src/routes`;
-- paginas visuais devem ser controladas por props/eventos;
-- `App.vue` ainda atua como orquestrador temporario de estado e workflows;
+- páginas visuais devem ser controladas por props/eventos;
+- `App.vue` ainda atua como orquestrador temporário de estado e workflows;
 - evitar store global nesta fase;
 - preferir composables locais quando reduzirem complexidade real;
 - preservar limpeza de estados pesados ao sair de rotas;
-- manter HTML de cartas passando pela sanitizacao existente.
+- manter HTML de cartas passando pela sanitização existente.
 
 Ao evoluir:
-- nao transformar paginas visuais em donas de estado transversal sem decisao
-  explicita;
-- nao introduzir Pinia/store global apenas por organizacao;
-- nao reabrir refatoracao ampla perto de entrega sem plano e validacao.
+- não transformar páginas visuais em donas de estado transversal sem decisão
+  explícita;
+- não introduzir Pinia/store global apenas por organização;
+- não reabrir refatoração ampla perto de entrega sem plano e validação.
 
-## 6. Padroes backend
+## 6. Padrões backend
 
 Stack:
 - Java 21;
@@ -106,59 +106,59 @@ Stack:
 - Flyway;
 - JPA.
 
-Padroes atuais:
+Padrões atuais:
 - API REST simples e direta;
-- ownership validado em operacoes privadas;
-- DTOs explicitos para contratos principais;
-- paginacao em listas potencialmente grandes;
-- midias persistidas como BLOB no MySQL para o MVP;
+- ownership validado em operações privadas;
+- DTOs explícitos para contratos principais;
+- páginação em listas potencialmente grandes;
+- mídias persistidas como BLOB no MySQL para o MVP;
 - endpoint E2E de reset apenas no profile `e2e`;
-- scheduler/SRS simplificado proprio.
+- scheduler/SRS simplificado próprio.
 
 Ao evoluir:
 - backend novo deve responder a necessidade real;
-- nao alterar scheduler/SRS sem testes e decisao documentada;
-- manter limites de upload e sanitizacao sob revisao;
-- migracao de midias para storage externo e pos-MVP.
+- não alterar scheduler/SRS sem testes e decisão documentada;
+- manter limites de upload e sanitização sob revisão;
+- migração de mídias para storage externo e pós-MVP.
 
 ## 7. APKG e Anki
 
 Regras atuais:
-- `.apkg` e formato de interoperabilidade basica;
-- preview anonimo e temporario;
-- salvar APKG exige autenticacao;
+- `.apkg` é formato de interoperabilidade básica;
+- preview é anônimo e temporário;
+- salvar APKG exige autenticação;
 - o fluxo `entrar para salvar` preserva o preview intencionalmente;
-- ao sair da importacao, limpar arquivo, preview, indice de midia e object URLs;
-- ao salvar, o LearningFrame inicia agenda propria de revisao.
+- ao sair da importação, limpar arquivo, preview, índice de mídia e object URLs;
+- ao salvar, o LearningFrame inicia agenda própria de revisão.
 
 Fora do suporte atual:
 - `.colpkg`;
-- cloze avancado;
+- cloze avançado;
 - templates complexos;
 - agenda original do Anki;
-- historico de revisoes;
+- histórico de revisões;
 - add-ons.
 
 ## 8. Estudo e SRS
 
 Regras atuais:
-- ratings sao `AGAIN`, `HARD`, `GOOD`, `EASY`;
-- estudo autenticado persiste revisoes no backend;
-- estudo anonimo usa estado local do navegador;
-- pratica intercalada existe como fluxo simples por baralho;
-- sessao de estudo mostra progresso, feedback local e resumo final;
-- controles de fonte e ajuste de midia sao locais ao estudo.
+- ratings são `AGAIN`, `HARD`, `GOOD`, `EASY`;
+- estudo autenticado persiste revisões no backend;
+- estudo anônimo usa estado local do navegador;
+- prática intercalada existe como fluxo simples por baralho;
+- sessão de estudo mostra progresso, feedback local e resumo final;
+- controles de fonte e ajuste de mídia são locais ao estudo.
 
 Ao evoluir:
-- nao trocar o algoritmo de revisao como efeito colateral de UI;
-- tratar selecao de baralhos para pratica intercalada como candidata forte a
+- não trocar o algoritmo de revisão como efeito colateral de UI;
+- tratar seleção de baralhos para prática intercalada como candidata forte a
   ajuste de MVP/MVP+;
-- tratar variabilidade por tags/topicos como pos-MVP, com decisao e testes
-  proprios;
-- configurador de sessao, metas, pausar/retomar e dashboards ficam pos-MVP;
-- preservar acessibilidade basica dos controles de estudo.
+- tratar variabilidade por tags/tópicos como pós-MVP, com decisão e testes
+  próprios;
+- configurador de sessão, metas, pausar/retomar e dashboards ficam pós-MVP;
+- preservar acessibilidade básica dos controles de estudo.
 
-## 9. E2E e validacao
+## 9. E2E e validação
 
 Regra critica:
 - E2E nunca deve usar banco dev.
@@ -172,37 +172,37 @@ Ambiente E2E:
 - backend `18081`;
 - teardown com `down -v`.
 
-Validacoes esperadas:
-- documentacao pura: `git diff --check` e revisao manual;
+Validações esperadas:
+- documentação pura: `git diff --check` e revisão manual;
 - frontend: `npm test` e `npm run build`;
 - fluxos integrados: `npm run e2e`;
-- backend: testes Maven quando houver alteracao backend.
+- backend: testes Maven quando houver alteração backend.
 
-## 10. Documentacao
+## 10. Documentação
 
-Documentacao canonica atual:
+Documentação canônica atual:
 - [Guia de uso do MVP](guia-de-uso-mvp.md);
-- [Guia de integracao com Anki/APKG](guia-anki-apkg-mvp.md);
-- [Guia de execucao local](guia-execucao-local-mvp.md);
+- [Guia de integração com Anki/APKG](guia-anki-apkg-mvp.md);
+- [Guia de execução local](guia-execucao-local-mvp.md);
 - [Estado final do MVP](estado-final-mvp.md);
-- [Relatorio de QA manual final](relatorio-qa-manual-final-mvp.md);
-- [Roadmap de profissionalizacao pos-MVP](roadmap-profissionalizacao-pos-mvp.md);
-- [Diario de bordo](diario-de-bordo.md).
+- [Relatório de QA manual final](relatorio-qa-manual-final-mvp.md);
+- [Roadmap de profissionalização pós-MVP](roadmap-profissionalizacao-pos-mvp.md);
+- [Diário de bordo](diario-de-bordo.md).
 
-Contexto historico e de IA:
+Contexto histórico e de IA:
 - [README do contexto de IA](ai_context/README.md);
 - [Linha do tempo](ai_context/linha-do-tempo.md);
-- [Memoria de decisoes](ai_context/memoria-de-decisoes.md);
+- [Memória de decisões](ai_context/memoria-de-decisoes.md);
 - [Planos](ai_context/planos/);
 - [Prompts](ai_context/prompts/);
-- [Arquitetura e decisoes historicas](ai_context/arquitetura-e-decisoes/);
+- [Arquitetura e decisões históricas](ai_context/arquitetura-e-decisoes/);
 - [Snapshots](ai_context/snapshots/).
 
 Ao criar nova frente:
-1. Se a mudanca altera principio atual, atualize este documento.
-2. Se a mudanca muda uma decisao relevante, atualize a
-   [memoria de decisoes](ai_context/memoria-de-decisoes.md).
-3. Se a mudanca tem planejamento proprio, registre em
+1. Se a mudança altera princípio atual, atualize este documento.
+2. Se a mudança muda uma decisão relevante, atualize a
+   [memória de decisões](ai_context/memoria-de-decisoes.md).
+3. Se a mudança tem planejamento próprio, registre em
    [planos](ai_context/planos/).
 4. Se houver prompt de continuidade, registre em
    [prompts](ai_context/prompts/).
