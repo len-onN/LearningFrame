@@ -23,6 +23,30 @@ import type {
 } from '../features/library/libraryTypes'
 import type { PreviewCardOption, PreviewFace } from '../features/import/importTypes'
 
+export type StudyEmptyReason = 'idle' | 'no-due' | 'completed' | 'empty-deck'
+
+export interface StudySessionProgress {
+  initialTotal: number
+  reviewed: number
+  remaining: number
+  percent: number
+}
+
+export type StudyRatingCounts = Record<ReviewRating, number>
+
+export interface StudyReviewFeedback {
+  rating: ReviewRating
+  ratingLabel: string
+  nextDueLabel: string
+  intervalLabel: string
+}
+
+export interface StudySessionSummary {
+  reviewed: number
+  ratingCounts: StudyRatingCounts
+  lastFeedback: StudyReviewFeedback | null
+}
+
 export interface AuthRouteContext {
   authForm: Ref<{
     displayName: string
@@ -98,6 +122,11 @@ export interface StudyRouteContext {
   frontHtml: ComputedRef<string>
   backHtml: ComputedRef<string>
   answerVisible: Ref<boolean>
+  studyProgress: ComputedRef<StudySessionProgress>
+  studyEmptyReason: Ref<StudyEmptyReason>
+  lastStudyFeedback: Ref<StudyReviewFeedback | null>
+  studySummary: ComputedRef<StudySessionSummary | null>
+  goToLibrary: () => Promise<void>
   startInterleavedPractice: () => Promise<void>
   reviewCurrent: (rating: ReviewRating) => Promise<void>
   syncStudyRoute: () => Promise<void>

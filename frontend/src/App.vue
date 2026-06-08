@@ -19,6 +19,7 @@ import type {
   LocalDeck,
   PageResponse,
   ReviewRating,
+  ReviewResult,
   StatsSummary,
   StudyCard,
   StudyCardResponse
@@ -40,7 +41,10 @@ import {
   importRouteKey,
   libraryRouteKey,
   progressRouteKey,
-  studyRouteKey
+  studyRouteKey,
+  type StudyEmptyReason,
+  type StudyReviewFeedback,
+  type StudyRatingCounts
 } from './routes/routeContext'
 import { nextReview } from './utils/srs'
 import { extractRelativeMediaSources, safePreviewHtml, safeStudyHtml } from './utils/html'
@@ -181,11 +185,34 @@ const importSaving = ref(false)
 const studyQueue = ref<StudyCard[]>([])
 const sessionTitle = ref('Selecione um baralho ou inicie a prática intercalada.')
 const answerVisible = ref(false)
+const studyInitialTotal = ref(0)
+const studyReviewedCount = ref(0)
+const studyRatingCounts = ref<StudyRatingCounts>(emptyStudyRatingCounts())
+const lastStudyFeedback = ref<StudyReviewFeedback | null>(null)
+const studyEmptyReason = ref<StudyEmptyReason>('idle')
 
 const currentCard = computed(() => studyQueue.value[0])
 const frontHtml = computed(() => currentCard.value ? safeStudyHtml(currentCard.value.frontHtml, currentCard.value.deckId) : '')
 const backHtml = computed(() => currentCard.value ? safeStudyHtml(currentCard.value.backHtml, currentCard.value.deckId) : '')
 const currentDueLabel = computed(() => currentCard.value ? formatDueIn(currentCard.value.dueAt) : '')
+const studyProgress = computed(() => {
+  const initialTotal = studyInitialTotal.value
+  const reviewed = studyReviewedCount.value
+  return {
+    initialTotal,
+    reviewed,
+    remaining: Math.max(0, initialTotal - reviewed),
+    percent: initialTotal > 0 ? Math.round((reviewed / initialTotal) * 100) : 0
+  }
+})
+const studySummary = computed(() => studyEmptyReason.value === 'completed' && studyReviewedCount.value > 0
+  ? {
+      reviewed: studyReviewedCount.value,
+      ratingCounts: studyRatingCounts.value,
+      lastFeedback: lastStudyFeedback.value
+    }
+  : null
+)
 const authErrors = computed<AuthErrors>(() => validateAuthForm(authForm.value, authMode.value))
 const sidebarToggleLabel = computed(() => sidebarCollapsed.value ? 'Expandir menu' : 'Recolher menu')
 const userDisplayName = computed(() => user.value?.displayName ?? 'Visitante')
@@ -622,15 +649,17 @@ async function loadStudyDeck(deckId: number) {
   await withFeedback(async () => {
     const metadata = await api.deckMetadata(deckId).catch(() => null)
     sessionTitle.value = metadata?.title ?? 'Baralho'
+    let cards: StudyCard[]
     if (user.value) {
       const due = await api.due('SINGLE_DECK', deckId)
-      studyQueue.value = due.cards.map(serverCardToStudyCard)
+      cards = due.cards.map(serverCardToStudyCard)
     } else {
       const localDeck = await ensurePublicDeck(deckId)
       sessionTitle.value = localDeck.title
-      studyQueue.value = localDeckToStudyCards(localDeck, localStates.value)
+      cards = localDeckToStudyCards(localDeck, localStates.value)
     }
-    if (studyQueue.value.length === 0) {
+    setStudySessionCards(cards, metadata?.cardCount === 0 ? 'empty-deck' : 'no-due')
+    if (cards.length === 0) {
       showNotice('Nenhum card vencido agora para esta sessao.')
     }
   })
@@ -641,20 +670,22 @@ async function loadInterleavedPractice() {
   answerVisible.value = false
 
   await withFeedback(async () => {
+    let cards: StudyCard[]
     if (user.value) {
       const due = await api.due('MIXED_DUE')
-      studyQueue.value = due.cards.map(serverCardToStudyCard)
+      cards = due.cards.map(serverCardToStudyCard)
     } else {
       if (publicDecks.value.length === 0) {
         await loadPublicDecks(true)
       }
-      studyQueue.value = []
+      cards = []
       for (const deck of publicDecks.value.slice(0, 4)) {
         const localDeck = await ensurePublicDeck(deck.id)
-        studyQueue.value.push(...localDeckToStudyCards(localDeck, localStates.value))
+        cards.push(...localDeckToStudyCards(localDeck, localStates.value))
       }
     }
-    if (studyQueue.value.length === 0) {
+    setStudySessionCards(cards, 'no-due')
+    if (cards.length === 0) {
       showNotice('Prática intercalada sem cards vencidos agora.')
     }
   })
@@ -664,6 +695,11 @@ function resetStudySession() {
   studyQueue.value = []
   sessionTitle.value = 'Selecione um baralho ou inicie a prática intercalada.'
   answerVisible.value = false
+  studyInitialTotal.value = 0
+  studyReviewedCount.value = 0
+  studyRatingCounts.value = emptyStudyRatingCounts()
+  lastStudyFeedback.value = null
+  studyEmptyReason.value = 'idle'
 }
 
 async function reviewCurrent(rating: ReviewRating) {
@@ -673,21 +709,83 @@ async function reviewCurrent(rating: ReviewRating) {
   }
 
   await withFeedback(async () => {
+    let feedback: StudyReviewFeedback | null = null
     if (card.local) {
-      localStates.value[card.clientId] = nextReview(localStates.value[card.clientId], rating)
+      const result = nextReview(localStates.value[card.clientId], rating)
+      localStates.value[card.clientId] = result
       saveLocalStates(localStates.value)
+      feedback = studyFeedbackFromResult(rating, result.dueAt, result.intervalDays)
     } else if (card.cardId) {
-      await api.review(card.cardId, rating)
+      const result = await api.review(card.cardId, rating)
+      feedback = studyFeedbackFromReviewResult(result)
       if (user.value) {
         stats.value = await api.stats()
       }
     }
+    studyReviewedCount.value += 1
+    studyRatingCounts.value = {
+      ...studyRatingCounts.value,
+      [rating]: studyRatingCounts.value[rating] + 1
+    }
+    lastStudyFeedback.value = feedback
     studyQueue.value.shift()
     answerVisible.value = false
     if (studyQueue.value.length === 0) {
-      showNotice('Sessao concluida.')
+      studyEmptyReason.value = 'completed'
     }
   }, false)
+}
+
+function setStudySessionCards(cards: StudyCard[], emptyReason: StudyEmptyReason) {
+  studyQueue.value = cards
+  studyInitialTotal.value = cards.length
+  studyReviewedCount.value = 0
+  studyRatingCounts.value = emptyStudyRatingCounts()
+  lastStudyFeedback.value = null
+  studyEmptyReason.value = cards.length > 0 ? 'idle' : emptyReason
+  answerVisible.value = false
+}
+
+function emptyStudyRatingCounts(): StudyRatingCounts {
+  return {
+    AGAIN: 0,
+    HARD: 0,
+    GOOD: 0,
+    EASY: 0
+  }
+}
+
+function studyFeedbackFromReviewResult(result: ReviewResult) {
+  return studyFeedbackFromResult(result.rating, result.nextDueAt, result.intervalDays)
+}
+
+function studyFeedbackFromResult(rating: ReviewRating, nextDueAt: string, intervalDays: number): StudyReviewFeedback {
+  return {
+    rating,
+    ratingLabel: ratingLabel(rating),
+    nextDueLabel: formatDueIn(nextDueAt),
+    intervalLabel: intervalLabel(intervalDays)
+  }
+}
+
+function ratingLabel(rating: ReviewRating) {
+  const labels: Record<ReviewRating, string> = {
+    AGAIN: 'De novo',
+    HARD: 'Difícil',
+    GOOD: 'Bom',
+    EASY: 'Fácil'
+  }
+  return labels[rating]
+}
+
+function intervalLabel(intervalDays: number) {
+  if (intervalDays <= 0) {
+    return 'intervalo menor que 1 dia'
+  }
+  if (intervalDays === 1) {
+    return 'intervalo de 1 dia'
+  }
+  return `intervalo de ${intervalDays} dias`
 }
 
 async function handleApkgChange(event: Event) {
@@ -1358,6 +1456,11 @@ provide(studyRouteKey, {
   frontHtml,
   backHtml,
   answerVisible,
+  studyProgress,
+  studyEmptyReason,
+  lastStudyFeedback,
+  studySummary,
+  goToLibrary: goHome,
   startInterleavedPractice,
   reviewCurrent,
   syncStudyRoute,
