@@ -1144,6 +1144,13 @@ textarea {
   margin-bottom: 16px;
 }
 
+.study-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .study-progress-copy {
   margin: 6px 0 0;
   color: var(--color-muted);
@@ -1222,6 +1229,16 @@ textarea {
   height: auto;
   margin: 0 auto;
   border-radius: 6px;
+}
+
+.study-card.media-fit .prompt img,
+.study-card.media-fit .answer img {
+  max-height: min(58vh, 620px);
+  object-fit: contain;
+}
+
+.study-card.media-fit .answer img {
+  max-height: min(44vh, 520px);
 }
 
 .prompt audio,
@@ -1910,6 +1927,15 @@ textarea {
 
   .study-card {
     min-height: 420px;
+  }
+
+  .study-header-actions {
+    justify-content: flex-start;
+  }
+
+  .study-card.media-fit .prompt img,
+  .study-card.media-fit .answer img {
+    max-height: 52vh;
   }
 
   .study-summary-actions {

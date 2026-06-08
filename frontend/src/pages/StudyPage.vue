@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { BookOpen, Brain, Eye, Shuffle } from '@lucide/vue'
+import { BookOpen, Brain, Eye, Maximize2, Minimize2, Shuffle } from '@lucide/vue'
+import { ref } from 'vue'
 import type { ReviewRating, StudyCard } from '../types/api'
 import type {
   StudyEmptyReason,
@@ -27,6 +28,8 @@ defineEmits<{
   'reveal-answer': []
   review: [rating: ReviewRating]
 }>()
+
+const fitMediaToScreen = ref(false)
 
 function emptyTitle(reason: StudyEmptyReason) {
   if (reason === 'completed') {
@@ -62,10 +65,22 @@ function emptyCopy(reason: StudyEmptyReason) {
         <h2 v-else>{{ emptyTitle(emptyReason) }}</h2>
         <p v-if="progress.initialTotal > 0" class="study-progress-copy">{{ progress.remaining }} restantes</p>
       </div>
-      <button class="ghost compact" type="button" @click="$emit('start-interleaved')">
-        <Shuffle :size="16" aria-hidden="true" />
-        Prática intercalada
-      </button>
+      <div class="study-header-actions">
+        <button
+          class="ghost compact"
+          type="button"
+          :aria-pressed="fitMediaToScreen"
+          @click="fitMediaToScreen = !fitMediaToScreen"
+        >
+          <Minimize2 v-if="fitMediaToScreen" :size="16" aria-hidden="true" />
+          <Maximize2 v-else :size="16" aria-hidden="true" />
+          {{ fitMediaToScreen ? 'Mídia natural' : 'Ajustar mídia' }}
+        </button>
+        <button class="ghost compact" type="button" @click="$emit('start-interleaved')">
+          <Shuffle :size="16" aria-hidden="true" />
+          Prática intercalada
+        </button>
+      </div>
     </div>
 
     <div
@@ -80,7 +95,7 @@ function emptyCopy(reason: StudyEmptyReason) {
       <span :style="{ width: `${progress.percent}%` }"></span>
     </div>
 
-    <article v-if="currentCard" class="study-card">
+    <article v-if="currentCard" :class="['study-card', { 'media-fit': fitMediaToScreen }]">
       <div class="card-meta">
         <span>{{ currentCard.deckTitle }}</span>
         <span>{{ currentCard.newCard ? 'Novo' : `${currentCard.intervalDays} dias` }} · volta {{ currentDueLabel }}</span>
