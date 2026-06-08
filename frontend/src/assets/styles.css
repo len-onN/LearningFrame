@@ -708,6 +708,7 @@ textarea {
 
 .panel,
 .study-card,
+.study-summary,
 .empty-state {
   border: 1px solid var(--color-border);
   border-radius: 8px;
@@ -1143,11 +1144,52 @@ textarea {
   margin-bottom: 16px;
 }
 
+.study-progress-copy {
+  margin: 6px 0 0;
+  color: var(--color-muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.study-progress {
+  height: 8px;
+  margin-bottom: 14px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+}
+
+.study-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+  transition: width 160ms ease;
+}
+
 .study-card {
   display: grid;
   gap: 20px;
   min-height: 460px;
   padding: clamp(20px, 4vw, 42px);
+}
+
+.study-feedback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  border: 1px solid var(--color-success-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--color-success);
+  background: var(--color-success-surface);
+}
+
+.study-feedback strong,
+.study-feedback span {
+  font-size: 0.92rem;
 }
 
 .card-meta {
@@ -1224,6 +1266,71 @@ textarea {
 
 .rating.easy {
   background: var(--color-rating-easy);
+}
+
+.study-summary {
+  display: grid;
+  gap: 18px;
+  min-height: 360px;
+  align-content: center;
+  justify-items: center;
+  padding: clamp(24px, 4vw, 42px);
+  text-align: center;
+}
+
+.study-summary h2 {
+  margin: 4px 0 0;
+}
+
+.study-rating-summary {
+  display: grid;
+  width: min(100%, 620px);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.rating-count {
+  display: grid;
+  gap: 4px;
+  min-height: 74px;
+  align-content: center;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 10px;
+  color: var(--color-rating-text);
+}
+
+.rating-count span {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.rating-count strong {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.rating-count.again {
+  background: var(--color-rating-again);
+}
+
+.rating-count.hard {
+  background: var(--color-rating-hard);
+}
+
+.rating-count.good {
+  background: var(--color-rating-good);
+}
+
+.rating-count.easy {
+  background: var(--color-rating-easy);
+}
+
+.study-summary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
 }
 
 .empty-state {
@@ -1739,6 +1846,10 @@ textarea {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .study-rating-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .stats-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1799,6 +1910,14 @@ textarea {
 
   .study-card {
     min-height: 420px;
+  }
+
+  .study-summary-actions {
+    width: 100%;
+  }
+
+  .study-summary-actions .compact {
+    width: 100%;
   }
 
   .managed-card-row {

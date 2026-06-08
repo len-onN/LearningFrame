@@ -1267,3 +1267,90 @@ Decisao:
 
 Documento criado para o proximo chat:
 - `docs/prompt-proximo-chat-study-session-polish-mvp.md`.
+
+## 52. Planejamento do Polimento Limitado do Modo de Estudo
+
+Data: 2026-06-07
+Branch de trabalho: `codex/study-session-polish`
+
+A branch curta para polir o modo de estudo foi criada a partir de `develop`
+atualizada ate `bec6648`, apos o merge da expansao E2E de fluxos de risco.
+
+Confirmacoes iniciais:
+- a branch `codex/e2e-risk-flows` ja estava integrada em `develop`;
+- `develop` foi atualizado por fast-forward antes da nova branch;
+- a nova branch `codex/study-session-polish` foi criada sem mudancas locais
+  pendentes.
+
+Planejamento:
+- foi criado `docs/plano-study-session-polish-mvp.md`;
+- o escopo foi limitado a progresso de sessao, feedback local apos rating,
+  resumo simples ao finalizar e empty states mais especificos;
+- atalhos de teclado ficaram como opcao secundaria, apenas se o custo se manter
+  baixo;
+- ficaram fora de escopo dashboard, novo scheduler/SRS, configurador avancado de
+  sessao, backend novo, store global e refatoracao ampla do estudo.
+
+Decisoes preservadas:
+- `StudyPage.vue` deve continuar como superficie visual controlada por
+  props/eventos;
+- `App.vue` permanece como orquestrador temporario nesta branch, recebendo
+  apenas estado pequeno de sessao;
+- o estudo autenticado deve usar o `ReviewResult` retornado pelo backend para
+  feedback local;
+- o estudo anonimo deve continuar usando `nextReview()` local e
+  `learningframe.localStates`;
+- conclusao normal de sessao deve virar estado da pagina, nao notificacao global
+  repetitiva.
+
+Validacao planejada:
+- `npm test`;
+- `npm run build`;
+- `npm run e2e`, caso o comportamento observavel do estudo seja alterado ou
+  novos testes E2E sejam adicionados;
+- `git diff --check`.
+
+Implementacao:
+- o modo de estudo ganhou progresso de sessao baseado no total inicial da fila;
+- foi adicionado feedback local apos cada rating, usando `ReviewResult` no
+  estudo autenticado e `nextReview()` no estudo anonimo;
+- foi adicionado resumo simples ao finalizar a sessao, com total revisado e
+  distribuicao por rating;
+- empty states do estudo foram separados entre sessao inativa, sem vencidas e
+  baralho sem cartas quando a metadata permite detectar;
+- a conclusao normal deixou de depender de notificacao global repetitiva;
+- `StudyPage.vue` permaneceu como superficie visual controlada por props/eventos;
+- nao houve alteracao de backend, scheduler/SRS, store global ou refatoracao
+  ampla.
+
+Testes atualizados:
+- `frontend/e2e/specs/study-session.spec.ts` passou a validar progresso,
+  feedback local, resumo e progresso persistido;
+- `frontend/e2e/specs/public-library.spec.ts` passou a validar progresso e
+  feedback local no estudo anonimo.
+
+Validacoes executadas:
+- `npm test`: 33 testes frontend passando;
+- `npm run build`: build frontend passando;
+- `npm run e2e`: 14 testes Playwright passando em Chromium;
+- `git diff --check`: sem problemas.
+
+Observacao:
+- as validacoes frontend e E2E precisaram ser repetidas fora do sandbox por
+  bloqueios de permissao ja conhecidos em `vite.config.ts` e Docker;
+- o E2E usou Compose dedicado `learningframe-e2e` e teardown com `down -v`.
+
+Ideias registradas apos validacao manual:
+- alguns cards com imagens muito grandes podem exigir um controle para adaptar a
+  midia a viewport, preservando proporcao e mantendo ratings acessiveis;
+- controle de fonte no estudo foi considerado uma melhoria de conforto e
+  acessibilidade, preferencialmente com poucos niveis fixos;
+- text-to-speech foi registrado como roadmap futuro, provavelmente em branch
+  propria, por exigir decisoes sobre Web Speech API, idioma, fallback,
+  extracao de texto e convivencia com cards que ja possuem audio.
+
+Decisao:
+- nao implementar esses ajustes nesta rodada;
+- documentar como candidatos para a proxima sessao de trabalho;
+- priorizar primeiro o ajuste de midia grande, depois controle de fonte, e
+  deixar text-to-speech como investigacao futura.
