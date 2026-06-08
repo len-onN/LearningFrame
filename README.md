@@ -146,3 +146,5 @@ Leituras principais:
 - `docs/prompt-proximo-chat-estabilizacao-mvp.md`
 - `docs/prompt-proximo-chat-audit-vitest-mvp.md`
 - `docs/prompt-proximo-chat-e2e-risk-flows-mvp.md`
+- `docs/prompt-proximo-chat-study-session-polish-mvp.md`
+- `docs/prompt-proximo-chat-qa-manual-final-mvp.md`

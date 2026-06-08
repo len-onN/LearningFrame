@@ -1359,3 +1359,31 @@ Decisao sobre text-to-speech:
 - permanece apenas no horizonte de possibilidades futuras, pois exige decisoes
   sobre Web Speech API, idioma, fallback, extracao de texto e convivencia com
   cards que ja possuem audio.
+
+## 53. Preparacao da Proxima Branch: QA Manual Final
+
+Data: 2026-06-08
+Branch de registro: `codex/study-session-polish`
+
+Apos o polimento do modo de estudo, a proxima frente recomendada deixou de ser
+nova feature e passou a ser QA manual integrado em container, com documentacao
+final e correcoes pequenas apenas se surgirem bugs bloqueantes.
+
+Proxima branch prevista:
+- `codex/qa-manual-final`.
+
+Condicao de entrada:
+- partir de `develop` atualizado;
+- confirmar que `codex/study-session-polish` ja foi integrada na base antes de
+  iniciar a nova implementacao.
+
+Objetivo:
+- preparar checklist de QA manual final;
+- executar os fluxos principais em ambiente Docker local;
+- registrar evidencias, problemas, riscos aceitos e itens pos-MVP;
+- atualizar README e documentos finais apenas com o estado real do produto;
+- corrigir somente bugs bloqueantes ou desalinhamentos pequenos encontrados no
+  QA.
+
+Documento criado para o proximo chat:
+- `docs/prompt-proximo-chat-qa-manual-final-mvp.md`.
