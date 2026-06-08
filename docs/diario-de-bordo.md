@@ -1521,3 +1521,76 @@ Objetivo:
 
 Documento criado para o proximo chat:
 - `docs/prompt-proximo-chat-finalizacao-documentacao-mvp.md`.
+
+## 57. Planejamento da Documentacao Final do MVP
+
+Data: 2026-06-08
+Branch de trabalho: `codex/mvp-final-documentation`
+
+Apos o merge de `codex/qa-manual-final` em `develop`, a base local foi
+atualizada ate `257d2f4`, merge do PR de QA manual final. A nova branch de
+documentacao final foi criada a partir desse `develop` atualizado, com worktree
+limpa.
+
+Objetivo da branch:
+- fechar a documentacao final do MVP com base no produto real validado;
+- manter o README como porta de entrada curta;
+- criar guias focados para uso, APKG/Anki, execucao local e estado final do
+  MVP;
+- consolidar funcionalidades incluidas, limites, riscos aceitos, validacoes e
+  pos-MVP;
+- nao adicionar feature nova.
+
+Documentos planejados/criados nesta abertura:
+- [Plano de documentacao final](ai_context/planos/plano-finalizacao-documentacao-mvp.md);
+- [Guia de uso do MVP](guia-de-uso-mvp.md);
+- [Guia de integracao com Anki/APKG](guia-anki-apkg-mvp.md);
+- [Guia de execucao local](guia-execucao-local-mvp.md);
+- [Estado final do MVP](estado-final-mvp.md);
+- [Principios e padroes do MVP](principios-e-padroes-mvp.md);
+- [README do contexto de IA](ai_context/README.md);
+- [Linha do tempo](ai_context/linha-do-tempo.md);
+- [Memoria de decisoes](ai_context/memoria-de-decisoes.md).
+
+Decisao:
+- a documentacao final deve atender tres publicos: avaliador academico, usuario
+  estudante e pessoa tecnica;
+- os documentos devem ensinar o uso real do MVP, explicar a integracao basica
+  com Anki/APKG e registrar como executar o projeto com Docker ou localmente;
+- os documentos historicos de suporte devem ser preservados em
+  [docs/ai_context](ai_context/), separando documentacao canonica de memoria de processo;
+- as limitacoes conhecidas devem ser tratadas como escopo/riscos aceitos, nao
+  escondidas.
+
+## 58. Organizacao do Contexto Historico e de IA
+
+Data: 2026-06-08
+Branch de trabalho: `codex/mvp-final-documentation`
+
+Durante a finalizacao documental, os documentos que serviram como suporte de
+planejamento e continuidade entre chats foram reorganizados para separar a
+documentacao canonica do MVP da memoria de construcao.
+
+Estrutura definida:
+- `docs/` preserva guias finais, estado final, relatorio de QA, diario e
+  principios atuais do MVP;
+- [docs/ai_context](ai_context/) preserva prompts, planos, snapshots, documentos
+  arquiteturais historicos e memoria de decisoes.
+
+Documentos estruturantes criados:
+- [Principios e padroes do MVP](principios-e-padroes-mvp.md), como referencia
+  normativa para futuras branches;
+- [README do contexto de IA](ai_context/README.md), explicando como usar o
+  contexto historico;
+- [Linha do tempo](ai_context/linha-do-tempo.md), conectando fases, branches e
+  planos;
+- [Memoria de decisoes](ai_context/memoria-de-decisoes.md), registrando
+  mudancas relevantes de direcao.
+
+Decisao:
+- nao excluir os documentos de suporte, pois eles explicam o raciocinio das
+  decisoes;
+- evitar que esses documentos parecam documentacao final de uso;
+- usar a linha do tempo como mapa da memoria historica;
+- usar [Principios e padroes do MVP](principios-e-padroes-mvp.md) como fonte
+  atual de padroes para desenvolvimentos futuros.
