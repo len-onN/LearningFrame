@@ -709,12 +709,12 @@ Observacoes:
 - a suite E2E usou o Compose dedicado `learningframe-e2e` e derrubou o ambiente
   com `down -v`, removendo o volume `learningframe-e2e_mysql-e2e-data`.
 
-## 17. Ideias Pos-Validacao Para Proxima Sessao
+## 17. Ajustes Pos-Validacao Manual
 
 A validacao manual indicou dois eixos de melhoria relacionados a conforto de
-leitura e controle da apresentacao do card. Eles nao devem entrar de imediato
-nesta branch sem novo recorte, mas sao candidatos fortes para uma proxima sessao
-curta de polimento do estudo.
+leitura e controle da apresentacao do card. Apos nova decisao de escopo, os
+ajustes de midia grande e controle de fonte foram mantidos nesta branch, em
+commits separados.
 
 ### 17.1 Ajuste de cards com midia grande
 
@@ -754,10 +754,16 @@ Validacao futura:
 - testar frente e verso com midia;
 - conferir que ratings continuam acessiveis sem scroll excessivo.
 
-Viabilidade:
-- alta para MVP se tratado como CSS + estado local de exibicao;
-- baixo risco se nao persistir preferencia ainda;
-- bom candidato para a proxima branch curta.
+Implementacao executada:
+- adicionado toggle local no cabecalho do estudo para alternar entre midia
+  natural e midia ajustada;
+- o modo ajustado aplica limite de altura por viewport a imagens de frente e
+  verso, com `object-fit: contain`;
+- a implementacao nao altera o HTML salvo das cartas;
+- a preferencia nao e persistida por enquanto.
+
+Commit:
+- `feat(estudo): ajusta midia grande ao card`
 
 ### 17.2 Controle de fonte no estudo
 
@@ -795,10 +801,15 @@ Validacao futura:
 - testar mobile;
 - testar com progresso, feedback e resumo atuais.
 
-Viabilidade:
-- media-alta;
-- melhor se vier depois ou junto do ajuste de midia, com um pequeno bloco de
-  "preferencias de leitura" no estudo.
+Implementacao executada:
+- adicionado controle local de fonte com tres niveis fixos: menor, padrao e
+  maior;
+- o controle afeta apenas frente e verso da carta no modo de estudo;
+- a preferencia nao e persistida por enquanto;
+- nao houve alteracao no editor, no backend ou no conteudo salvo.
+
+Commit:
+- `feat(estudo): adiciona controle de fonte`
 
 ### 17.3 Text-to-speech
 
@@ -806,7 +817,8 @@ Ideia futura:
 - oferecer leitura por voz do texto do card.
 
 Classificacao:
-- pos-MVP ou branch propria, nao como polimento pequeno imediato.
+- fora do roadmap atual;
+- permanece apenas no horizonte de possibilidades futuras.
 
 Motivos:
 - exige decidir Web Speech API vs servico externo;
@@ -822,7 +834,19 @@ Recorte futuro possivel:
 - nao persistir audio gerado;
 - nao enviar conteudo a servicos externos no MVP academico.
 
-Viabilidade:
-- boa como pesquisa/prototipo;
-- risco e escopo maiores que os dois ajustes visuais;
-- recomendado documentar como roadmap, nao como proxima microbranch.
+Decisao atual:
+- nao planejar como proxima microbranch;
+- nao tratar como compromisso de roadmap;
+- manter apenas como possibilidade distante para pesquisa futura, se o produto
+  evoluir nessa direcao.
+
+## 18. Validacoes Incrementais Dos Ajustes Pos-Validacao
+
+Validacoes executadas apos cada ajuste:
+- `npm run build`: passou apos o ajuste de midia grande;
+- `npm run build`: passou apos o controle de fonte;
+- `git diff --check`: sem problemas.
+
+Observacao:
+- os builds precisaram ser repetidos fora do sandbox pelo bloqueio conhecido ao
+  carregar `frontend/vite.config.ts`.

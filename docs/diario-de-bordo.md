@@ -1340,17 +1340,22 @@ Observacao:
   bloqueios de permissao ja conhecidos em `vite.config.ts` e Docker;
 - o E2E usou Compose dedicado `learningframe-e2e` e teardown com `down -v`.
 
-Ideias registradas apos validacao manual:
-- alguns cards com imagens muito grandes podem exigir um controle para adaptar a
-  midia a viewport, preservando proporcao e mantendo ratings acessiveis;
-- controle de fonte no estudo foi considerado uma melhoria de conforto e
-  acessibilidade, preferencialmente com poucos niveis fixos;
-- text-to-speech foi registrado como roadmap futuro, provavelmente em branch
-  propria, por exigir decisoes sobre Web Speech API, idioma, fallback,
-  extracao de texto e convivencia com cards que ja possuem audio.
+Ajustes apos validacao manual:
+- alguns cards com imagens muito grandes passaram a ter um controle local para
+  adaptar a midia a viewport, preservando proporcao e mantendo ratings
+  acessiveis;
+- o modo de estudo ganhou controle local de fonte com tres niveis fixos:
+  menor, padrao e maior;
+- os dois ajustes foram implementados em commits separados, sem alterar backend,
+  editor, conteudo salvo ou persistencia de preferencia.
 
-Decisao:
-- nao implementar esses ajustes nesta rodada;
-- documentar como candidatos para a proxima sessao de trabalho;
-- priorizar primeiro o ajuste de midia grande, depois controle de fonte, e
-  deixar text-to-speech como investigacao futura.
+Commits incrementais:
+- `feat(estudo): ajusta midia grande ao card`;
+- `feat(estudo): adiciona controle de fonte`.
+
+Decisao sobre text-to-speech:
+- fica fora do roadmap atual;
+- nao sera tratado como proxima microbranch nem como compromisso de roadmap;
+- permanece apenas no horizonte de possibilidades futuras, pois exige decisoes
+  sobre Web Speech API, idioma, fallback, extracao de texto e convivencia com
+  cards que ja possuem audio.
