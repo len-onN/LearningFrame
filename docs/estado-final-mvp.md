@@ -2,66 +2,66 @@
 
 Data: 2026-06-08
 Branch de consolidacao: `codex/mvp-final-documentation`
-Base: `develop` apos merge de `codex/qa-manual-final`
+Base: `develop` após merge de `codex/qa-manual-final`
 
 ## 1. Leitura executiva
 
-O LearningFrame chegou a um estado de MVP academico funcional, demonstravel e
+O LearningFrame chegou a um estado de MVP acadêmico funcional, demonstravel e
 validado.
 
-O produto permite estudar com recordacao ativa, repeticao espacada e pratica
+O produto permite estudar com recordação ativa, repetição espaçada e prática
 intercalada, preservando conta opcional para reduzir atrito inicial. Visitantes
-podem estudar baralhos publicos e fazer preview de APKG. Usuarios autenticados
-podem persistir baralhos, cartas, midias, revisoes e progresso essencial.
+podem estudar baralhos públicos e fazer preview de APKG. Usuários autenticados
+podem persistir baralhos, cartas, mídias, revisões e progresso essencial.
 
-Como narrativa de produto, o MVP pode representar uma aplicacao gratuita de
-suporte ao aprendizado ofertada por uma instituicao de ensino. A integracao com
-dados institucionais reais fica fora do MVP e pertence ao roadmap pos-MVP.
+Como narrativa de produto, o MVP pode representar uma aplicação gratuita de
+suporte ao aprendizado ofertada por uma instituição de ensino. A integração com
+dados institucionais reais fica fora do MVP e pertence ao roadmap pós-MVP.
 
-O MVP nao tenta replicar o Anki. Ele usa `.apkg` como interoperabilidade basica
-e inicia uma agenda propria de revisao.
+O MVP não tenta replicar o Anki. Ele usa `.apkg` como interoperabilidade básica
+e inicia uma agenda própria de revisão.
 
-## 2. Racional pedagogico
+## 2. Racional pedagógico
 
-O MVP foi delimitado em torno de tres praticas de estudo:
+O MVP foi delimitado em torno de três práticas de estudo:
 
-- recordacao ativa: o usuario tenta recuperar a resposta antes de ve-la;
-- repeticao espacada: as revisoes futuras dependem do desempenho percebido;
-- pratica intercalada: cartas elegiveis podem ser misturadas para reduzir o
+- recordação ativa: o usuário tenta recuperar a resposta antes de ve-la;
+- repetição espaçada: as revisões futuras dependem do desempenho percebido;
+- prática intercalada: cartas elegíveis podem ser misturadas para reduzir o
   estudo em blocos rigidos.
 
-Essas praticas orientam o produto, mas o MVP nao pretende medir eficacia
-pedagogica em estudo clinico ou experimental. A contribuicao principal e
-demonstrar uma aplicacao funcional e tecnicamente defensavel baseada nessas
+Essas práticas orientam o produto, mas o MVP não pretende medir eficacia
+pedagógica em estudo clinico ou experimental. A contribuicao principal e
+demonstrar uma aplicação funcional e tecnicamente defensável baseada nessas
 ideias.
 
-## 3. Funcionalidades incluidas
+## 3. Funcionalidades incluídas
 
-Incluido no MVP:
-- biblioteca publica com estudo anonimo;
+Incluído no MVP:
+- biblioteca pública com estudo anônimo;
 - cadastro e login;
-- rotas reais com guards de autenticacao;
-- criacao de baralhos proprios;
-- edicao de titulo, descricao e visibilidade;
-- exclusao individual e em lote de baralhos proprios;
+- rotas reais com guards de autenticação;
+- criação de baralhos próprios;
+- edição de título, descrição e visibilidade;
+- exclusão individual e em lote de baralhos próprios;
 - gerenciamento paginado de cartas;
 - busca de cartas no gerenciamento;
-- criacao, edicao e exclusao de cartas;
-- exclusao em lote de cartas;
+- criação, edição e exclusão de cartas;
+- exclusão em lote de cartas;
 - upload de imagem e audio para cartas persistidas;
-- renderizacao sanitizada de HTML de cartas;
+- renderização sanitizada de HTML de cartas;
 - estudo por baralho;
-- pratica intercalada;
-- SRS simplificado proprio;
-- progresso essencial para usuario autenticado;
+- prática intercalada;
+- SRS simplificado próprio;
+- progresso essencial para usuário autenticado;
 - preview de APKG sem conta;
 - preservacao intencional do APKG no fluxo de login para salvar;
-- importacao APKG autenticada;
-- persistencia de midias importadas;
-- limpeza de estado temporario da importacao ao sair da rota;
+- importação APKG autenticada;
+- persistência de mídias importadas;
+- limpeza de estado temporário da importação ao sair da rota;
 - tema claro/escuro;
 - sidebar retratil;
-- responsivo basico;
+- responsivo básico;
 - suite E2E com banco dedicado;
 - QA manual final documentado.
 
@@ -70,22 +70,22 @@ Incluido no MVP:
 Fora do MVP atual:
 - replicar o Anki por completo;
 - `.colpkg`;
-- cloze avancado;
+- cloze avançado;
 - templates complexos do Anki;
-- historico e agenda original do Anki;
+- histórico e agenda original do Anki;
 - add-ons do Anki;
 - favoritos;
 - marketplace;
-- filtros avancados;
+- filtros avançados;
 - busca full-text;
 - rich text editor completo;
-- dashboard estatistico avancado;
-- perfil de usuario;
+- dashboard estatístico avançado;
+- perfil de usuário;
 - recuperacao de senha;
-- colaboracao multiusuario;
-- storage externo para midia;
+- colaboração multiusuário;
+- storage externo para mídia;
 - text-to-speech;
-- job assincrono de importacao com progresso real.
+- job assíncrono de importação com progresso real.
 
 ## 5. Arquitetura resumida
 
@@ -102,37 +102,37 @@ Stack:
 - Docker Compose.
 
 Backend:
-- API REST organizada por autenticacao, decks, importacao, estudo e progresso;
-- persistencia relacional com JPA;
+- API REST organizada por autenticação, decks, importação, estudo e progresso;
+- persistência relacional com JPA;
 - migrations com Flyway;
 - MySQL como banco principal;
-- midias persistidas como BLOB no MVP;
+- mídias persistidas como BLOB no MVP;
 - endpoint interno de reset apenas no profile E2E.
 
 Frontend:
 - SPA Vue com rotas reais;
-- paginas visuais controladas por props/eventos;
+- páginas visuais controladas por props/eventos;
 - route adapters conectam router e contexto;
-- `App.vue` ainda atua como orquestrador temporario de estado e workflows;
+- `App.vue` ainda atua como orquestrador temporário de estado e workflows;
 - sem store global nesta fase;
-- sanitizacao de HTML de cartas antes da renderizacao.
+- sanitização de HTML de cartas antes da renderização.
 
 Infra local:
-- Compose principal para desenvolvimento/demonstracao;
+- Compose principal para desenvolvimento/demonstração;
 - Compose E2E separado para testes automatizados;
 - portas separadas entre dev e E2E.
 
-## 6. Validacoes finais
+## 6. Validações finais
 
 Resultado do QA manual final:
 - 18 de 18 fluxos passaram;
 - nenhum bug bloqueante encontrado;
 - nenhum erro de console/pageerror nas rodadas assistidas;
 - frontend respondeu `200` em `http://127.0.0.1:8080/`;
-- API publica respondeu `200` em
+- API pública respondeu `200` em
   `http://127.0.0.1:8081/api/decks/public`.
 
-Validacoes automatizadas registradas:
+Validações automatizadas registradas:
 - `npm test`: 33 testes frontend passando;
 - `npm run build`: passando;
 - `npm run e2e`: 14 testes Playwright em Chromium passando;
@@ -148,32 +148,32 @@ O E2E usou:
 
 ## 7. Riscos aceitos
 
-| Item | Classificacao | Justificativa |
+| Item | Classificação | Justificativa |
 | --- | --- | --- |
-| Token em `localStorage` | Risco aceito MVP | Adequado para demonstracao academica/local; producao exigiria hardening |
-| Token em query string para midia privada | Risco aceito MVP | Solucao pragmatica para renderizar `img`/`audio`; revisar em producao |
-| Midias como BLOB no MySQL | Risco aceito MVP | Simples e demonstravel; storage externo fica para escala |
-| Importacao APKG parcial | Limite documentado | MVP nao preserva cloze avancado, templates, historico ou scheduler original |
-| Editor HTML simples | Pos-MVP | Fluxo atual permite texto, HTML basico e midia |
-| Sem job assincrono de APKG | Pos-MVP | Salvamento pode demorar em arquivos grandes; progresso real fica para evolucao |
+| Token em `localStorage` | Risco aceito MVP | Adequado para demonstração acadêmica/local; produção exigiria hardening |
+| Token em query string para mídia privada | Risco aceito MVP | Solução pragmatica para renderizar `img`/`audio`; revisar em produção |
+| Mídias como BLOB no MySQL | Risco aceito MVP | Simples e demonstravel; storage externo fica para escala |
+| Importação APKG parcial | Limite documentado | MVP não preserva cloze avançado, templates, histórico ou scheduler original |
+| Editor HTML simples | Pós-MVP | Fluxo atual permite texto, HTML básico e mídia |
+| Sem job assíncrono de APKG | Pós-MVP | Salvamento pode demorar em arquivos grandes; progresso real fica para evolução |
 
 ## 8. Trabalhos futuros
 
-Possiveis evolucoes:
-- selecao de baralhos para pratica intercalada;
-- intercalamento mais sofisticado por tags, topicos ou disciplinas;
-- storage externo para midias;
-- hardening de autenticacao e sessoes;
+Possíveis evoluções:
+- seleção de baralhos para prática intercalada;
+- intercalamento mais sofisticado por tags, tópicos ou disciplinas;
+- storage externo para mídias;
+- hardening de autenticação e sessões;
 - recuperacao de senha;
-- perfil de usuario;
+- perfil de usuário;
 - favoritos;
-- filtros e ordenacao avancados;
+- filtros e ordenação avançados;
 - busca full-text em cartas;
 - editor rico de cartas;
 - dashboard de progresso;
-- configurador de sessao de estudo;
+- configurador de sessão de estudo;
 - melhorias de APKG;
-- job assincrono de importacao;
+- job assíncrono de importação;
 - testes multi-browser;
 - CI completo.
 
@@ -185,7 +185,7 @@ Marco sugerido:
 v0.1.0-mvp
 ```
 
-Descricao sugerida:
+Descrição sugerida:
 
 ```txt
 MVP academico do LearningFrame com biblioteca publica, conta opcional,
@@ -194,37 +194,37 @@ simplificado, pratica intercalada, progresso essencial, suite E2E dedicada e QA
 manual final aprovado.
 ```
 
-## 10. Roteiro de demonstracao academica
+## 10. Roteiro de demonstração acadêmica
 
 Roteiro sugerido:
 1. Subir o ambiente com Docker Compose.
-2. Abrir a Biblioteca publica sem login.
-3. Estudar um baralho publico anonimamente.
+2. Abrir a Biblioteca pública sem login.
+3. Estudar um baralho público anonimamente.
 4. Fazer preview de um APKG em `Importar`.
 5. Criar conta.
-6. Salvar APKG ou baralho publico.
+6. Salvar APKG ou baralho público.
 7. Abrir `Meus baralhos`.
-8. Gerenciar um baralho e criar uma carta com midia.
-9. Estudar como usuario autenticado.
+8. Gerenciar um baralho e criar uma carta com mídia.
+9. Estudar como usuário autenticado.
 10. Abrir `Progresso`.
-11. Iniciar `Pratica intercalada`.
+11. Iniciar `Prática intercalada`.
 12. Explicar limites e trabalhos futuros.
 
-Esse roteiro demonstra o valor para visitante, o valor para usuario autenticado
-e as decisoes tecnicas do MVP.
+Esse roteiro demonstra o valor para visitante, o valor para usuário autenticado
+e as decisões técnicas do MVP.
 
-## 11. Documentacao final
+## 11. Documentação final
 
 Documentos principais:
-- [Principios e padroes do MVP](principios-e-padroes-mvp.md);
+- [Princípios e padrões do MVP](principios-e-padroes-mvp.md);
 - [Guia de uso do MVP](guia-de-uso-mvp.md);
-- [Guia de integracao com Anki/APKG](guia-anki-apkg-mvp.md);
-- [Guia de execucao local](guia-execucao-local-mvp.md);
-- [Relatorio de QA manual final](relatorio-qa-manual-final-mvp.md);
-- [Roadmap de profissionalizacao pos-MVP](roadmap-profissionalizacao-pos-mvp.md);
-- [Diario de bordo](diario-de-bordo.md).
+- [Guia de integração com Anki/APKG](guia-anki-apkg-mvp.md);
+- [Guia de execução local](guia-execucao-local-mvp.md);
+- [Relatório de QA manual final](relatorio-qa-manual-final-mvp.md);
+- [Roadmap de profissionalização pós-MVP](roadmap-profissionalizacao-pos-mvp.md);
+- [Diário de bordo](diario-de-bordo.md).
 
-Contexto historico e de desenvolvimento assistido:
+Contexto histórico e de desenvolvimento assistido:
 - [README do contexto de IA](ai_context/README.md);
 - [Linha do tempo](ai_context/linha-do-tempo.md);
-- [Memoria de decisoes](ai_context/memoria-de-decisoes.md).
+- [Memória de decisões](ai_context/memoria-de-decisoes.md).
