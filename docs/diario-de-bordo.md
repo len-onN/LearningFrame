@@ -1387,3 +1387,137 @@ Objetivo:
 
 Documento criado para o proximo chat:
 - `docs/prompt-proximo-chat-qa-manual-final-mvp.md`.
+
+## 54. Planejamento do QA Manual Final
+
+Data: 2026-06-08
+Branch de trabalho: `codex/qa-manual-final`
+
+A branch de QA manual final foi iniciada apos confirmar a base:
+- `HEAD`, `develop` e `origin/develop` apontam para `147af27`, merge de
+  `codex/study-session-polish`;
+- `codex/study-session-polish` esta integrada em `develop`;
+- a worktree estava limpa no inicio da branch;
+- foi executado `git fetch --prune origin` antes da confirmacao final dos refs.
+
+Observacao operacional:
+- os comandos Git precisaram usar `safe.directory` por diferenca de ownership no
+  sandbox;
+- o `fetch` exigiu permissao elevada para escrever em `.git/FETCH_HEAD`.
+
+Planejamento criado:
+- `docs/plano-qa-manual-final-mvp.md`.
+
+Escopo decidido:
+- preparar e executar QA manual integrado em container;
+- registrar evidencias, comandos, problemas e decisoes;
+- atualizar documentacao final apenas se estiver defasada em relacao ao produto
+  real;
+- corrigir somente bugs bloqueantes ou pequenos desalinhamentos encontrados no
+  QA;
+- nao adicionar feature nova.
+
+Fluxos minimos cobertos pelo checklist:
+- biblioteca publica anonima;
+- estudo anonimo e autenticado;
+- polimentos do modo de estudo;
+- cadastro, login, rotas privadas e logout;
+- salvar baralho publico;
+- criacao de baralho, cartas e midias;
+- preview e persistencia de APKG;
+- pratica intercalada;
+- progresso;
+- exclusoes multiplas;
+- tema claro/escuro;
+- refresh direto, back/forward e responsivo mobile;
+- mensagens de erro esperadas.
+
+Validacoes planejadas:
+- `docker compose up -d --build`;
+- checagem HTTP do frontend em `http://127.0.0.1:8080/`;
+- checagem HTTP da API publica em
+  `http://127.0.0.1:8081/api/decks/public`;
+- `npm test`;
+- `npm run build`;
+- `npm run e2e`, preservando Compose dedicado `learningframe-e2e`;
+- `git diff --check`;
+- testes backend Maven se houver alteracao backend ou se a bateria completa
+  final exigir.
+
+## 55. Execucao do QA Manual Final
+
+Data: 2026-06-08
+Branch de trabalho: `codex/qa-manual-final`
+Commit base testado: `0bb77cf`
+
+O QA manual final do MVP foi executado em ambiente Docker principal, com apoio de
+Playwright headless para percorrer o checklist de forma rastreavel.
+
+Ambiente validado:
+- `docker compose up -d --build`;
+- frontend em `http://localhost:8080`;
+- backend em `http://localhost:8081`;
+- banco dev `learningframe` em `localhost:3307`;
+- frontend respondeu `200` em `http://127.0.0.1:8080/`;
+- API publica respondeu `200` em `http://127.0.0.1:8081/api/decks/public`.
+
+Validacoes automatizadas executadas:
+- `npm test`: 33 testes frontend passando;
+- `npm run build`: `vue-tsc` e `vite build` passando;
+- `npm run e2e`: 14 testes Playwright passando em Chromium, com Compose
+  dedicado `learningframe-e2e` e teardown com `down -v`;
+- testes backend via container Maven: 27 testes passando;
+- `git diff --check`: sem problemas.
+
+Resultado do checklist:
+- 18 de 18 fluxos manuais planejados passaram;
+- nenhum bug bloqueante foi encontrado;
+- nenhum erro de console ou `pageerror` foi observado nas rodadas assistidas;
+- importacao APKG, salvamento autenticado, estudo anonimo/autenticado,
+  gerenciamento de baralhos/cartas, midias, pratica intercalada, progresso,
+  rotas diretas, back/forward, tema e responsivo mobile foram cobertos.
+
+Observacoes:
+- a primeira rodada assistida teve falhas de seletor do proprio roteiro de QA,
+  nao do produto; os itens foram repetidos com seletores ajustados e passaram;
+- a rodada criou dados descartaveis no banco dev local, como usuarios
+  `qa-final-*` e baralhos `QA Final Manual` / `QA APKG Final`;
+- os avisos do Maven sobre carregamento dinamico de agente do Mockito foram
+  registrados como observacao nao bloqueante para ajuste futuro, pois a suite
+  atual finalizou com sucesso.
+
+Documento criado:
+- `docs/relatorio-qa-manual-final-mvp.md`.
+
+Decisao:
+- o MVP nao apresentou bloqueio funcional nos fluxos principais testados;
+- a branch pode seguir para fechamento documental final, mantendo correcoes
+  funcionais apenas se surgir regressao objetiva em revisao posterior.
+
+## 56. Preparacao da Proxima Branch: Finalizacao e Documentacao
+
+Data: 2026-06-08
+Branch de registro: `codex/qa-manual-final`
+
+Apos o QA manual final, a proxima etapa recomendada passou a ser uma branch
+curta de fechamento documental do MVP.
+
+Proxima branch prevista:
+- `codex/mvp-final-documentation`.
+
+Condicao de entrada:
+- partir de `develop` atualizado;
+- confirmar que `codex/qa-manual-final` ja foi integrada na base antes de
+  iniciar a nova implementacao documental.
+
+Objetivo:
+- consolidar a documentacao final do MVP com base no produto real validado;
+- revisar README, diario, consideracoes finais e documentos principais para
+  evitar promessas fora do escopo entregue;
+- registrar estado final, validacoes, riscos aceitos, limites do MVP e itens
+  pos-MVP;
+- sugerir o marco/tag final do MVP, como `v0.1.0-mvp`;
+- nao adicionar feature nova.
+
+Documento criado para o proximo chat:
+- `docs/prompt-proximo-chat-finalizacao-documentacao-mvp.md`.
