@@ -1387,3 +1387,59 @@ Objetivo:
 
 Documento criado para o proximo chat:
 - `docs/prompt-proximo-chat-qa-manual-final-mvp.md`.
+
+## 54. Planejamento do QA Manual Final
+
+Data: 2026-06-08
+Branch de trabalho: `codex/qa-manual-final`
+
+A branch de QA manual final foi iniciada apos confirmar a base:
+- `HEAD`, `develop` e `origin/develop` apontam para `147af27`, merge de
+  `codex/study-session-polish`;
+- `codex/study-session-polish` esta integrada em `develop`;
+- a worktree estava limpa no inicio da branch;
+- foi executado `git fetch --prune origin` antes da confirmacao final dos refs.
+
+Observacao operacional:
+- os comandos Git precisaram usar `safe.directory` por diferenca de ownership no
+  sandbox;
+- o `fetch` exigiu permissao elevada para escrever em `.git/FETCH_HEAD`.
+
+Planejamento criado:
+- `docs/plano-qa-manual-final-mvp.md`.
+
+Escopo decidido:
+- preparar e executar QA manual integrado em container;
+- registrar evidencias, comandos, problemas e decisoes;
+- atualizar documentacao final apenas se estiver defasada em relacao ao produto
+  real;
+- corrigir somente bugs bloqueantes ou pequenos desalinhamentos encontrados no
+  QA;
+- nao adicionar feature nova.
+
+Fluxos minimos cobertos pelo checklist:
+- biblioteca publica anonima;
+- estudo anonimo e autenticado;
+- polimentos do modo de estudo;
+- cadastro, login, rotas privadas e logout;
+- salvar baralho publico;
+- criacao de baralho, cartas e midias;
+- preview e persistencia de APKG;
+- pratica intercalada;
+- progresso;
+- exclusoes multiplas;
+- tema claro/escuro;
+- refresh direto, back/forward e responsivo mobile;
+- mensagens de erro esperadas.
+
+Validacoes planejadas:
+- `docker compose up -d --build`;
+- checagem HTTP do frontend em `http://127.0.0.1:8080/`;
+- checagem HTTP da API publica em
+  `http://127.0.0.1:8081/api/decks/public`;
+- `npm test`;
+- `npm run build`;
+- `npm run e2e`, preservando Compose dedicado `learningframe-e2e`;
+- `git diff --check`;
+- testes backend Maven se houver alteracao backend ou se a bateria completa
+  final exigir.
