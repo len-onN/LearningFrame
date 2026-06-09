@@ -7,7 +7,12 @@ interface PreviewHtmlOptions {
 }
 
 export function safeStudyHtml(html: string, deckId?: number | string) {
+  if (typeof DOMParser === 'undefined') {
+    return safeStudyHtmlFallback(html, deckId)
+  }
+
   const document = sanitizedDocument(html)
+  normalizeStudyTypography(document)
 
   if (typeof deckId === 'number') {
     document.querySelectorAll<HTMLImageElement | HTMLAudioElement | HTMLSourceElement>('img[src], audio[src], source[src]').forEach((element) => {
@@ -143,6 +148,29 @@ function safePreviewHtmlFallback(html: string, options: PreviewHtmlOptions) {
     ))
 }
 
+function safeStudyHtmlFallback(html: string, deckId?: number | string) {
+  let output = convertAnkiSoundReferences(html)
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/\s+srcdoc\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/\s+style\s*=\s*(["'])(.*?)\1/gi, (_match, quote: string, style: string) => {
+      const cleanedStyle = stripStudyFontSizingFromInlineStyle(style)
+      return cleanedStyle ? ` style=${quote}${escapeHtmlAttribute(cleanedStyle)}${quote}` : ''
+    })
+    .replace(/(<font\b[^>]*?)\s+size\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '$1')
+
+  if (typeof deckId === 'number') {
+    output = output.replace(/\bsrc\s*=\s*(["'])(.*?)\1/gi, (match, quote: string, source: string) => {
+      return shouldRewriteMediaSource(source)
+        ? `src=${quote}${escapeHtmlAttribute(mediaAssetUrl(deckId, source))}${quote}`
+        : match
+    })
+  }
+
+  return output
+}
+
 function fallbackMedia(original: string, label: string, source: string, options: PreviewHtmlOptions) {
   if (!shouldRewriteMediaSource(source)) {
     return original
@@ -174,6 +202,45 @@ function sanitizedDocument(html: string) {
   })
 
   return document
+}
+
+function normalizeStudyTypography(document: Document) {
+  document.querySelectorAll<HTMLElement>('[style]').forEach((element) => {
+    const propertyNames = Array.from(
+      { length: element.style.length },
+      (_, index) => element.style.item(index)
+    )
+
+    for (const property of propertyNames) {
+      const normalizedProperty = property.toLowerCase()
+      if (normalizedProperty === 'font' || normalizedProperty === 'font-size') {
+        element.style.removeProperty(property)
+      }
+    }
+
+    if (!element.getAttribute('style')?.trim()) {
+      element.removeAttribute('style')
+    }
+  })
+
+  document.querySelectorAll('font[size]').forEach((element) => {
+    element.removeAttribute('size')
+  })
+}
+
+function stripStudyFontSizingFromInlineStyle(style: string) {
+  return style
+    .split(';')
+    .map((declaration) => declaration.trim())
+    .filter((declaration) => {
+      const separatorIndex = declaration.indexOf(':')
+      if (separatorIndex === -1) {
+        return false
+      }
+      const property = declaration.slice(0, separatorIndex).trim().toLowerCase()
+      return property !== 'font' && property !== 'font-size'
+    })
+    .join('; ')
 }
 
 function mediaPlaceholder(document: Document, label: string, fileName: string) {

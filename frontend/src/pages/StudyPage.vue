@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ALargeSmall, BookOpen, Brain, Eye, Maximize2, Minimize2, Shuffle } from '@lucide/vue'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { ReviewRating, StudyCard } from '../types/api'
 import type {
   StudyEmptyReason,
@@ -30,7 +30,23 @@ defineEmits<{
 }>()
 
 const fitMediaToScreen = ref(false)
-const studyFontSize = ref<'compact' | 'default' | 'large'>('default')
+const STUDY_FONT_LEVEL_MIN = -2
+const STUDY_FONT_LEVEL_DEFAULT = 0
+const STUDY_FONT_LEVEL_MAX = 5
+const STUDY_FONT_BASE_REM = 1.35
+const STUDY_FONT_STEP_REM = 0.18
+
+const studyFontLevel = ref(STUDY_FONT_LEVEL_DEFAULT)
+const studyFontStyle = computed(() => ({
+  '--study-card-font-size': `${(STUDY_FONT_BASE_REM + studyFontLevel.value * STUDY_FONT_STEP_REM).toFixed(2)}rem`
+}))
+
+function adjustStudyFont(delta: number) {
+  studyFontLevel.value = Math.min(
+    STUDY_FONT_LEVEL_MAX,
+    Math.max(STUDY_FONT_LEVEL_MIN, studyFontLevel.value + delta)
+  )
+}
 
 function emptyTitle(reason: StudyEmptyReason) {
   if (reason === 'completed') {
@@ -73,29 +89,19 @@ function emptyCopy(reason: StudyEmptyReason) {
             class="font-size-option"
             type="button"
             title="Fonte menor"
-            :aria-pressed="studyFontSize === 'compact'"
-            :class="{ active: studyFontSize === 'compact' }"
-            @click="studyFontSize = 'compact'"
+            aria-label="Diminuir tamanho da fonte"
+            :disabled="studyFontLevel === STUDY_FONT_LEVEL_MIN"
+            @click="adjustStudyFont(-1)"
           >
             A-
           </button>
           <button
             class="font-size-option"
             type="button"
-            title="Fonte padrão"
-            :aria-pressed="studyFontSize === 'default'"
-            :class="{ active: studyFontSize === 'default' }"
-            @click="studyFontSize = 'default'"
-          >
-            A
-          </button>
-          <button
-            class="font-size-option"
-            type="button"
             title="Fonte maior"
-            :aria-pressed="studyFontSize === 'large'"
-            :class="{ active: studyFontSize === 'large' }"
-            @click="studyFontSize = 'large'"
+            aria-label="Aumentar tamanho da fonte"
+            :disabled="studyFontLevel === STUDY_FONT_LEVEL_MAX"
+            @click="adjustStudyFont(1)"
           >
             A+
           </button>
@@ -129,7 +135,7 @@ function emptyCopy(reason: StudyEmptyReason) {
       <span :style="{ width: `${progress.percent}%` }"></span>
     </div>
 
-    <article v-if="currentCard" :class="['study-card', `font-${studyFontSize}`, { 'media-fit': fitMediaToScreen }]">
+    <article v-if="currentCard" :class="['study-card', { 'media-fit': fitMediaToScreen }]" :style="studyFontStyle">
       <div class="card-meta">
         <span>{{ currentCard.deckTitle }}</span>
         <span>{{ currentCard.newCard ? 'Novo' : `${currentCard.intervalDays} dias` }} · volta {{ currentDueLabel }}</span>
