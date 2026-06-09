@@ -11,6 +11,8 @@ export interface LibrarySearchLifecycleOptions {
   delayMs: number
   loadPublicDecks: (reset?: boolean) => Promise<void>
   loadMyDecks: (reset?: boolean) => Promise<void>
+  shouldLoadPublicDecks?: () => boolean
+  shouldLoadMyDecks?: () => boolean
   withFeedback: (
     task: () => Promise<void>,
     optionsOrShowLoading?: FeedbackOptions | boolean,
@@ -25,13 +27,15 @@ export function useLibrarySearchLifecycle({
   delayMs,
   loadPublicDecks,
   loadMyDecks,
+  shouldLoadPublicDecks = () => true,
+  shouldLoadMyDecks = () => true,
   withFeedback
 }: LibrarySearchLifecycleOptions) {
   useDebouncedWatch(librarySearch, () => {
-    if (librarySection.value === 'public') {
+    if (librarySection.value === 'public' && shouldLoadPublicDecks()) {
       void withFeedback(async () => loadPublicDecks(true), { showLoading: false })
     }
-    if (librarySection.value === 'mine' && user.value) {
+    if (librarySection.value === 'mine' && user.value && shouldLoadMyDecks()) {
       void withFeedback(async () => loadMyDecks(true), { showLoading: false })
     }
   }, delayMs)

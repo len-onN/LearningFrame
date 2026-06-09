@@ -1,6 +1,6 @@
 # Plano: tratamento final do App.vue como composition root
 
-**Status:** Prompts 1, 2 e 3 concluidos; proximas fatias planejadas.
+**Status:** Prompts 1, 2, 3 e 4 concluidos; proximas fatias planejadas.
 **Branch:** `codex/refactor-app-vue-responsibilities`.
 **Data de referencia:** 2026-06-09.
 **Escopo:** continuar reduzindo `frontend/src/App.vue` sem alterar rotas, UX,
@@ -15,20 +15,24 @@ ciclo de vida real.
 
 ## 1. Estado atual do App.vue
 
-`frontend/src/App.vue` esta com aproximadamente 728 linhas e ainda concentra:
+`frontend/src/App.vue` esta com aproximadamente 649 linhas e ainda concentra:
 
 - formulario de auth em `App.vue:125-135`;
-- composicao dos fluxos extraidos de criacao, importacao e estudo em
-  `App.vue:181-254`;
-- sync de rotas de biblioteca e estudo em `App.vue:299-358`;
-- acoes transversais de biblioteca em `App.vue:372-431`;
-- workflow de auth em `App.vue:434-528`;
-- navegacao de estudo em `App.vue:534-546`;
-- providers de rota em `App.vue:574-682`.
+- composicao dos fluxos extraidos de biblioteca, criacao, importacao e estudo
+  em `App.vue:181-324`;
+- sync de rotas de estudo em `App.vue:342-363`;
+- workflow de auth em `App.vue:367-459`;
+- navegacao de estudo em `App.vue:467-481`;
+- providers de rota em `App.vue:495-600`.
 
 A implementacao de carga e revisao de estudo saiu do root. `useStudySession`
 agora possui cache publico de estudo, estados locais, carga de baralho,
 pratica intercalada, revisao e conversao de cartas vindas do backend.
+
+O sync de rotas de biblioteca saiu do root para `useLibraryRouteSync`, e as
+acoes transversais de biblioteca sairam para `useLibraryActions`. `App.vue`
+continua como composition root, instanciando os composables e passando portas
+nomeadas para navegacao, auth, feedback e stats.
 
 O root nao contem mais `setTimeout`, `clearTimeout` ou
 `requestAnimationFrame` manuais. Debounces e highlight passaram a ter ownership
@@ -39,8 +43,10 @@ Arquivos ja extraidos e relevantes:
 - `frontend/src/app/useStatsSummary.ts`;
 - `frontend/src/app/useAppNavigation.ts`;
 - `frontend/src/app/useRouteLifecycle.ts`;
+- `frontend/src/app/useLibraryRouteSync.ts`;
 - `frontend/src/app/useLibrarySearchLifecycle.ts`;
 - `frontend/src/composables/useDebouncedWatch.ts`;
+- `frontend/src/features/library/useLibraryActions.ts`;
 - `frontend/src/features/library/useDeckLibrary.ts`;
 - `frontend/src/features/library/useDeckManagement.ts`;
 - `frontend/src/features/create/useCreateDeckFlow.ts`;
@@ -126,8 +132,8 @@ com ownership claro.
 
 O maior risco esta no cruzamento entre watchers de busca e sync de rota:
 
-- `App.vue:270-294` dispara carregamentos por busca/secao;
-- `App.vue:318-355` tambem carrega biblioteca ao entrar em rota;
+- `useLibrarySearchLifecycle.ts` dispara carregamentos por busca;
+- `useLibraryRouteSync.ts` tambem carrega biblioteca ao entrar em rota;
 - `useRouteLifecycle.ts:27-52` chama syncs imediatamente.
 
 Qualquer extracao precisa preservar:
@@ -279,6 +285,8 @@ Validado:
 
 ### Prompt 4 - Biblioteca e route sync
 
+Status: concluido em 2026-06-09.
+
 Objetivo: remover lifecycle de biblioteca do root sem duplicar requests.
 
 Criar:
@@ -295,6 +303,29 @@ Mover:
 - open managed deck, se o contrato ficar claro.
 
 Nao mover ainda se isso exigir passar router inteiro para feature.
+
+Implementado:
+
+- `useLibraryRouteSync` assumiu o sync de rotas de biblioteca, incluindo
+  fechamento de deck gerenciado ao sair da rota, saida do modo selecao fora de
+  Meus baralhos, carga condicional de publicos/meus e carga do deck gerenciado
+  por `deckId`;
+- `useLibraryActions` assumiu `refreshAll`, load more de publicos/meus,
+  salvamento de deck publico, exclusao em lote de Meus baralhos e abertura de
+  deck gerenciado;
+- `useLibrarySearchLifecycle` passou a receber guards opcionais
+  `shouldLoadPublicDecks` e `shouldLoadMyDecks`, evitando request duplicado
+  quando o sync de rota ja carregou a query atual;
+- o router inteiro ficou fora de `features/library`; a feature recebe apenas
+  callbacks como `openAuth`, `navigateToMyDecks`,
+  `navigateToManagedDeck` e `refreshStats`;
+- `App.vue` manteve apenas a composicao dos contratos e providers.
+
+Validado:
+
+- `cd frontend && npm test`;
+- `cd frontend && npm run build`;
+- `git diff --check`.
 
 ### Prompt 5 - Auth flow
 

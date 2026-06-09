@@ -9,6 +9,7 @@ import type {
 } from './types/api'
 import CardEditorOverlay from './features/library/CardEditorOverlay.vue'
 import { useDeckLibrary } from './features/library/useDeckLibrary'
+import { useLibraryActions } from './features/library/useLibraryActions'
 import { cardCountLabel, deckDueLabel } from './features/library/deckFormatters'
 import { cardTextSummary as summarizeCardText } from './features/library/cardText'
 import { useDeckManagement } from './features/library/useDeckManagement'
@@ -26,6 +27,7 @@ import {
 } from './routes/routeContext'
 import { validateAuthForm, type AuthErrors, type AuthField, type AuthMode } from './utils/authValidation'
 import { useAppNavigation } from './app/useAppNavigation'
+import { useLibraryRouteSync } from './app/useLibraryRouteSync'
 import { useLibrarySearchLifecycle } from './app/useLibrarySearchLifecycle'
 import { useRouteLifecycle } from './app/useRouteLifecycle'
 import { useStatsSummary } from './app/useStatsSummary'
@@ -178,6 +180,59 @@ const {
   navigateToMyDecks
 })
 
+const {
+  syncLibraryRoute,
+  cleanupLibraryRoute,
+  shouldLoadPublicDecks,
+  shouldLoadMyDecks
+} = useLibraryRouteSync({
+  route,
+  user,
+  managedDeck,
+  librarySearch,
+  publicDeckPage,
+  myDeckPage,
+  publicDeckQuery,
+  myDeckQuery,
+  currentLibraryQuery,
+  routeDeckId,
+  loadPublicDecks,
+  loadMyDecks,
+  loadManagedDeckRoute,
+  closeManagedDeck,
+  exitDeckSelectionMode,
+  replaceWithMyDecks: async () => {
+    await router.replace({ name: 'library-mine' })
+  },
+  withFeedback
+})
+
+const {
+  refreshAll,
+  loadMorePublicDecks,
+  loadMoreMyDecks,
+  savePublicDeck,
+  deleteSelectedMyDecks,
+  clearSelectedMyDecks,
+  openManagedDeck
+} = useLibraryActions({
+  user,
+  librarySearch,
+  selectedMyDeckIds,
+  loadPublicDecks,
+  loadMyDecks,
+  setManagedDeck,
+  highlightDeck,
+  exitDeckSelectionMode,
+  clearMyDeckSelection,
+  openAuth,
+  navigateToMyDecks,
+  navigateToManagedDeck,
+  refreshStats,
+  showNotice,
+  withFeedback
+})
+
 const createDeckFlow = useCreateDeckFlow({
   client: api,
   loadMyDecks,
@@ -269,21 +324,9 @@ useLibrarySearchLifecycle({
   delayMs: SEARCH_DEBOUNCE_MS,
   loadPublicDecks,
   loadMyDecks,
+  shouldLoadPublicDecks,
+  shouldLoadMyDecks,
   withFeedback
-})
-
-watch(librarySection, (section) => {
-  if (section !== 'mine') {
-    closeManagedDeck(true, false)
-    exitDeckSelectionMode()
-  }
-  const query = currentLibraryQuery()
-  if (section === 'public' && (!publicDeckPage.value || publicDeckQuery.value !== query)) {
-    void withFeedback(async () => loadPublicDecks(true), { showLoading: false })
-  }
-  if (section === 'mine' && user.value && (!myDeckPage.value || myDeckQuery.value !== query)) {
-    void withFeedback(async () => loadMyDecks(true), { showLoading: false })
-  }
 })
 
 watch(tab, (nextTab) => {
@@ -295,46 +338,6 @@ watch(tab, (nextTab) => {
 onBeforeUnmount(() => {
   disposeApkgImport()
 })
-
-async function syncLibraryRoute() {
-  if (route.name !== 'library-deck-manage' && managedDeck.value) {
-    closeManagedDeck(true, false)
-  }
-  if (route.name !== 'library-mine') {
-    exitDeckSelectionMode()
-  }
-
-  if (route.name === 'library-public') {
-    await withFeedback(async () => {
-      if (!publicDeckPage.value || publicDeckQuery.value !== currentLibraryQuery()) {
-        await loadPublicDecks(true)
-      }
-    }, { showLoading: false, clearOnStart: false })
-    return
-  }
-
-  if (route.name === 'library-mine') {
-    await withFeedback(async () => {
-      if (user.value && (!myDeckPage.value || myDeckQuery.value !== currentLibraryQuery())) {
-        await loadMyDecks(true)
-      }
-    }, { showLoading: false, clearOnStart: false })
-    return
-  }
-
-  if (route.name === 'library-deck-manage') {
-    const deckId = routeDeckId()
-    if (!deckId) {
-      await router.replace({ name: 'library-mine' })
-      return
-    }
-    if (!user.value) {
-      return
-    }
-    librarySearch.value = ''
-    await loadManagedDeckRoute(deckId)
-  }
-}
 
 async function syncStudyRoute() {
   if (route.name === 'study') {
@@ -357,78 +360,8 @@ async function syncStudyRoute() {
   }
 }
 
-function cleanupLibraryRoute() {
-  closeManagedDeck(true, false)
-  exitDeckSelectionMode()
-}
-
 function cleanupStudyRoute() {
   resetStudySession()
-}
-
-async function refreshAll() {
-  await withFeedback(async () => {
-    await loadPublicDecks(true)
-    if (user.value) {
-      await loadMyDecks(true)
-      await refreshStats()
-    }
-  }, { showLoading: false })
-}
-
-async function loadMorePublicDecks() {
-  await withFeedback(async () => {
-    await loadPublicDecks()
-  }, { showLoading: false })
-}
-
-async function loadMoreMyDecks() {
-  await withFeedback(async () => {
-    await loadMyDecks()
-  }, { showLoading: false })
-}
-
-async function savePublicDeck(deck: DeckSummary) {
-  if (!user.value) {
-    await openAuth('login')
-    showNotice('Entre para salvar este baralho em Meus baralhos.')
-    return
-  }
-
-  await withFeedback(async () => {
-    const saved = await api.copyPublicDeck(deck.id)
-    librarySearch.value = ''
-    await loadMyDecks(true)
-    await refreshStats()
-    await router.push({ name: 'library-mine' })
-    showNotice('Baralho salvo em Meus baralhos como copia privada.')
-    await highlightDeck(saved.id)
-  })
-}
-
-async function deleteSelectedMyDecks() {
-  const deckIds = [...selectedMyDeckIds.value]
-  if (deckIds.length === 0) {
-    return
-  }
-  const label = deckIds.length === 1 ? '1 baralho selecionado' : `${deckIds.length} baralhos selecionados`
-  if (!window.confirm(`Excluir ${label} e todas as suas cartas?`)) {
-    return
-  }
-
-  await withFeedback(async () => {
-    await api.deleteDecks(deckIds)
-    exitDeckSelectionMode()
-    await loadMyDecks(true)
-    if (user.value) {
-      await refreshStats()
-    }
-    showNotice(deckIds.length === 1 ? 'Baralho excluido.' : 'Baralhos selecionados excluidos.')
-  })
-}
-
-function clearSelectedMyDecks() {
-  clearMyDeckSelection()
 }
 
 async function submitAuth() {
@@ -546,18 +479,6 @@ async function startInterleavedPractice() {
     return
   }
   await router.push({ name: 'study-interleaved' })
-}
-
-async function openManagedDeck(deck: DeckSummary, showLoading = true) {
-  if (!user.value) {
-    await openAuth('login')
-    return
-  }
-  await withFeedback(async () => {
-    setManagedDeck(deck)
-    librarySearch.value = ''
-    await router.push({ name: 'library-deck-manage', params: { deckId: deck.id } })
-  }, showLoading)
 }
 
 useRouteLifecycle({

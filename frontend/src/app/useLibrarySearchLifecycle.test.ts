@@ -93,6 +93,34 @@ describe('useLibrarySearchLifecycle', () => {
     expect(loadMyDecks).toHaveBeenCalledWith(true)
     scope.stop()
   })
+
+  it('ignora debounce quando a query atual ja foi carregada por outro sync', async () => {
+    vi.useFakeTimers()
+    const { loadPublicDecks, loadMyDecks, withFeedback } = createSubject()
+    const librarySearch = ref('')
+    const scope = effectScope()
+
+    scope.run(() => {
+      useLibrarySearchLifecycle({
+        librarySearch,
+        librarySection: ref('public'),
+        user: ref(null),
+        delayMs: 300,
+        loadPublicDecks,
+        loadMyDecks,
+        shouldLoadPublicDecks: () => false,
+        withFeedback
+      })
+    })
+
+    librarySearch.value = 'neuro'
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(300)
+
+    expect(withFeedback).not.toHaveBeenCalled()
+    expect(loadPublicDecks).not.toHaveBeenCalled()
+    scope.stop()
+  })
 })
 
 function createSubject() {
