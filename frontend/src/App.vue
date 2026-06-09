@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import AppShell from './layouts/AppShell.vue'
 import { api } from './services/api'
@@ -13,6 +13,7 @@ import { useLibraryActions } from './features/library/useLibraryActions'
 import { cardCountLabel, deckDueLabel } from './features/library/deckFormatters'
 import { cardTextSummary as summarizeCardText } from './features/library/cardText'
 import { useDeckManagement } from './features/library/useDeckManagement'
+import { useAuthFlow } from './features/auth/useAuthFlow'
 import { useCreateDeckFlow } from './features/create/useCreateDeckFlow'
 import { htmlSummary } from './features/import/importPreview'
 import { useApkgImport } from './features/import/useApkgImport'
@@ -25,7 +26,7 @@ import {
   progressRouteKey,
   studyRouteKey
 } from './routes/routeContext'
-import { validateAuthForm, type AuthErrors, type AuthField, type AuthMode } from './utils/authValidation'
+import type { AuthMode } from './utils/authValidation'
 import { useAppNavigation } from './app/useAppNavigation'
 import { useLibraryRouteSync } from './app/useLibraryRouteSync'
 import { useLibrarySearchLifecycle } from './app/useLibrarySearchLifecycle'
@@ -123,18 +124,6 @@ const {
   user,
   withFeedback
 })
-
-const authForm = ref({
-  displayName: '',
-  email: '',
-  password: ''
-})
-const authTouched = ref<Record<AuthField, boolean>>({
-  displayName: false,
-  email: false,
-  password: false
-})
-const authSubmitted = ref(false)
 
 const {
   managedDeck,
@@ -278,6 +267,34 @@ const {
   client: api
 })
 
+const authFlow = useAuthFlow({
+  authMode,
+  route,
+  login: (email, password) => api.login(email, password),
+  register: (displayName, email, password) => api.register(displayName, email, password),
+  persistSession,
+  refreshAfterAuth: refreshAll,
+  consumeReturnToImportAfterAuth,
+  closeManagedDeck,
+  navigateToImport: async () => {
+    await router.replace({ name: 'import' })
+  },
+  navigateToRedirect: async (to, method = 'replace') => {
+    if (method === 'push') {
+      await router.push(to)
+      return
+    }
+    await router.replace(to)
+  },
+  navigateToMyDecks: async () => {
+    await router.replace({ name: 'library-mine' })
+  },
+  clearFeedback,
+  dismissError,
+  showNotice,
+  withFeedback
+})
+
 const {
   studyQueue,
   sessionTitle,
@@ -305,7 +322,6 @@ const {
   client: api,
   publicDeckCacheLimit: PUBLIC_STUDY_DECK_CACHE_LIMIT
 })
-const authErrors = computed<AuthErrors>(() => validateAuthForm(authForm.value, authMode.value))
 const userDisplayName = computed(() => user.value?.displayName ?? 'Visitante')
 const deckFormatters = {
   cardCount: cardCountLabel,
@@ -364,66 +380,6 @@ function cleanupStudyRoute() {
   resetStudySession()
 }
 
-async function submitAuth() {
-  markAuthSubmitted()
-  if (hasAuthErrors()) {
-    return
-  }
-
-  await withFeedback(async () => {
-    const response = authMode.value === 'login'
-      ? await api.login(authForm.value.email, authForm.value.password)
-      : await api.register(authForm.value.displayName, authForm.value.email, authForm.value.password)
-
-    persistSession(response.user, response.token)
-    authForm.value.password = ''
-    resetAuthValidation()
-    await refreshAll()
-    if (consumeReturnToImportAfterAuth()) {
-      await router.replace({ name: 'import' })
-    } else if (typeof route.query.redirect === 'string' && route.query.redirect) {
-      await router.replace(route.query.redirect)
-    } else {
-      await router.replace({ name: 'library-mine' })
-    }
-    showNotice(`Sessao iniciada como ${response.user.displayName}.`)
-  })
-}
-
-function markAuthSubmitted() {
-  authSubmitted.value = true
-  authTouched.value.email = true
-  authTouched.value.password = true
-  if (authMode.value === 'register') {
-    authTouched.value.displayName = true
-  }
-}
-
-function hasAuthErrors() {
-  return Object.keys(authErrors.value).length > 0
-}
-
-function touchAuthField(field: AuthField) {
-  authTouched.value[field] = true
-}
-
-function shouldShowAuthError(field: AuthField) {
-  return authSubmitted.value || authTouched.value[field]
-}
-
-function authFieldError(field: AuthField) {
-  return shouldShowAuthError(field) ? authErrors.value[field] ?? '' : ''
-}
-
-function resetAuthValidation() {
-  authSubmitted.value = false
-  authTouched.value = {
-    displayName: false,
-    email: false,
-    password: false
-  }
-}
-
 async function logout() {
   closeManagedDeck(true, false)
   exitDeckSelectionMode()
@@ -441,27 +397,11 @@ async function goHome() {
   closeManagedDeck(true, false)
   await router.push({ name: 'library-public' })
   dismissError()
-  resetAuthValidation()
+  authFlow.resetAuthValidation()
 }
 
 async function openAuth(mode: AuthMode = 'login') {
-  closeManagedDeck(true, false)
-  const redirect = route.meta.requiresAuth ? route.fullPath : route.query.redirect
-  await router.push({
-    name: mode === 'login' ? 'login' : 'register',
-    query: typeof redirect === 'string' && redirect ? { redirect } : {}
-  })
-  clearFeedback()
-  resetAuthValidation()
-}
-
-async function toggleAuthMode() {
-  await router.push({
-    name: authMode.value === 'login' ? 'register' : 'login',
-    query: typeof route.query.redirect === 'string' ? { redirect: route.query.redirect } : {}
-  })
-  dismissError()
-  resetAuthValidation()
+  await authFlow.openAuth(mode)
 }
 
 async function startDeck(deck: DeckSummary) {
@@ -492,15 +432,12 @@ useRouteLifecycle({
   clearImportStateForRouteChange
 })
 
-provide(authRouteKey, {
-  authForm,
-  authMode,
-  authFieldError,
-  submitAuth,
-  goHome,
-  toggleAuthMode,
-  touchAuthField
-})
+const authRouteContext = {
+  ...authFlow,
+  goHome
+}
+
+provide(authRouteKey, authRouteContext)
 
 provide(libraryRouteKey, {
   librarySearch,

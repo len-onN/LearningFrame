@@ -1,6 +1,6 @@
 # Plano: tratamento final do App.vue como composition root
 
-**Status:** Prompts 1, 2, 3 e 4 concluidos; proximas fatias planejadas.
+**Status:** Prompts 1, 2, 3, 4 e 5 concluidos; revisao final planejada.
 **Branch:** `codex/refactor-app-vue-responsibilities`.
 **Data de referencia:** 2026-06-09.
 **Escopo:** continuar reduzindo `frontend/src/App.vue` sem alterar rotas, UX,
@@ -15,15 +15,14 @@ ciclo de vida real.
 
 ## 1. Estado atual do App.vue
 
-`frontend/src/App.vue` esta com aproximadamente 649 linhas e ainda concentra:
+`frontend/src/App.vue` esta com aproximadamente 586 linhas e ainda concentra:
 
-- formulario de auth em `App.vue:125-135`;
-- composicao dos fluxos extraidos de biblioteca, criacao, importacao e estudo
-  em `App.vue:181-324`;
-- sync de rotas de estudo em `App.vue:342-363`;
-- workflow de auth em `App.vue:367-459`;
-- navegacao de estudo em `App.vue:467-481`;
-- providers de rota em `App.vue:495-600`.
+- composicao dos fluxos extraidos de biblioteca, criacao, importacao, auth e
+  estudo em `App.vue:181-324`;
+- sync de rotas de estudo em `App.vue:358-382`;
+- wrappers transversais de navegacao, como `openAuth`, em `App.vue:397-404`;
+- navegacao de estudo em `App.vue:407-421`;
+- providers de rota em `App.vue:440-542`.
 
 A implementacao de carga e revisao de estudo saiu do root. `useStudySession`
 agora possui cache publico de estudo, estados locais, carga de baralho,
@@ -33,6 +32,10 @@ O sync de rotas de biblioteca saiu do root para `useLibraryRouteSync`, e as
 acoes transversais de biblioteca sairam para `useLibraryActions`. `App.vue`
 continua como composition root, instanciando os composables e passando portas
 nomeadas para navegacao, auth, feedback e stats.
+
+O formulario e o workflow visual de auth sairam do root para `useAuthFlow`.
+`App.vue` apenas instancia o fluxo, passa portas nomeadas para navegacao,
+refresh, APKG e feedback, e publica o contexto de rota.
 
 O root nao contem mais `setTimeout`, `clearTimeout` ou
 `requestAnimationFrame` manuais. Debounces e highlight passaram a ter ownership
@@ -49,6 +52,7 @@ Arquivos ja extraidos e relevantes:
 - `frontend/src/features/library/useLibraryActions.ts`;
 - `frontend/src/features/library/useDeckLibrary.ts`;
 - `frontend/src/features/library/useDeckManagement.ts`;
+- `frontend/src/features/auth/useAuthFlow.ts`;
 - `frontend/src/features/create/useCreateDeckFlow.ts`;
 - `frontend/src/features/import/useApkgImport.ts`;
 - `frontend/src/features/study/useStudySession.ts`.
@@ -329,6 +333,8 @@ Validado:
 
 ### Prompt 5 - Auth flow
 
+Status: concluido em 2026-06-09.
+
 Objetivo: extrair formulario e fluxo visual de auth depois que APKG, estudo e
 biblioteca estiverem com contratos mais estaveis.
 
@@ -361,6 +367,27 @@ Contrato critico:
 - `dismissError`;
 - `showNotice`;
 - `withFeedback`.
+
+Implementado:
+
+- `useAuthFlow` passou a possuir `authForm`, `authTouched`,
+  `authSubmitted`, `authErrors`, `submitAuth`, `openAuth`,
+  `toggleAuthMode` e helpers de validacao/touched;
+- `App.vue` manteve apenas a composicao do fluxo, um wrapper `openAuth` para
+  as features ja instanciadas e as portas nomeadas de navegacao;
+- o router inteiro continuou fora de `features/auth`; a feature recebe apenas
+  `navigateToImport`, `navigateToRedirect` e `navigateToMyDecks`;
+- a ordem pos-login foi preservada: persistir sessao, limpar senha, resetar
+  validacao, atualizar dados, retomar APKG, respeitar redirect, cair em Meus
+  baralhos e mostrar notice;
+- `?redirect=...`, troca login/cadastro e APKG "entrar para salvar" ganharam
+  cobertura em `useAuthFlow.test.ts`.
+
+Validado:
+
+- `cd frontend && npm test`;
+- `cd frontend && npm run build`;
+- `git diff --check`.
 
 ### Prompt 6 - Revisao final do composition root
 
