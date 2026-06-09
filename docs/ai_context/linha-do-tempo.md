@@ -33,6 +33,7 @@ Para o estado atual, consulte:
 | 2026-06-09 | Refatoração pós-MVP | [Prompt App.vue 1](prompts/prompt-app.vue-1.md) | Timers, debounce e cleanup local | `App.vue` ficou sem timers manuais e highlight ganhou cleanup de rAF/timeout |
 | 2026-06-09 | Refatoração pós-MVP | [Prompt App.vue 2](prompts/prompt-app.vue-2.md) | Fluxo de criação de baralho | `useCreateDeckFlow` assumiu formulário e criação de deck |
 | 2026-06-09 | Refatoração pós-MVP | [Prompt App.vue 3](prompts/prompt-app.vue-3.md) | Fluxo de estudo | `useStudySession` assumiu carga, cache, revisão e prática intercalada |
+| 2026-06-09 | Ajuste de estudo | [Plano ajuste modo estudo e pratica intercalada](planos/plano-ajuste-modo-estudo-pratica-intercalada.md) | Fonte incremental e selecao de baralhos para pratica intercalada | Branch planejada |
 
 ## 2. Sequencia arquitetural do frontend
 
@@ -67,6 +68,7 @@ Resultado atual:
 | `codex/qa-manual-final` | [Plano de QA manual final](planos/plano-qa-manual-final-mvp.md) | QA manual final executado e aprovado |
 | `codex/mvp-final-documentation` | [Plano de documentação final](planos/plano-finalizacao-documentacao-mvp.md) | Documentação final consolidada |
 | `codex/refactor-app-vue-responsibilities` | [Plano App.vue pós-MVP](planos/plano-refatoracao-app-vue-pos-mvp.md) | Refatoração incremental do composition root em fatias |
+| `codex/study-mode-interleaved-polish` | [Plano ajuste modo estudo e pratica intercalada](planos/plano-ajuste-modo-estudo-pratica-intercalada.md) | Branch aberta para corrigir fonte do estudo e expor selecao de baralhos no intercalado |
 
 ## 4. Como atualizar esta linha do tempo
 
