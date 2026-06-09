@@ -22,30 +22,18 @@ import type {
   ManagedDeckFormState
 } from '../features/library/libraryTypes'
 import type { PreviewCardOption, PreviewFace } from '../features/import/importTypes'
-
-export type StudyEmptyReason = 'idle' | 'no-due' | 'completed' | 'empty-deck'
-
-export interface StudySessionProgress {
-  initialTotal: number
-  reviewed: number
-  remaining: number
-  percent: number
-}
-
-export type StudyRatingCounts = Record<ReviewRating, number>
-
-export interface StudyReviewFeedback {
-  rating: ReviewRating
-  ratingLabel: string
-  nextDueLabel: string
-  intervalLabel: string
-}
-
-export interface StudySessionSummary {
-  reviewed: number
-  ratingCounts: StudyRatingCounts
-  lastFeedback: StudyReviewFeedback | null
-}
+import type {
+  StudyEmptyReason,
+  StudySessionProgress,
+  StudySessionSummary
+} from '../features/study/studySessionTypes'
+import type { StudyReviewFeedback } from '../features/study/studyFeedback'
+export type {
+  StudyEmptyReason,
+  StudySessionProgress,
+  StudySessionSummary
+} from '../features/study/studySessionTypes'
+export type { StudyReviewFeedback } from '../features/study/studyFeedback'
 
 export interface AuthRouteContext {
   authForm: Ref<{
@@ -110,8 +98,6 @@ export interface LibraryRouteContext {
   loadMoreManagedCards: () => Promise<void>
   openEditCardEditor: (card: CardResponse) => void
   deleteManagedCard: (card: CardResponse) => Promise<void>
-  syncLibraryRoute: () => Promise<void>
-  cleanupLibraryRoute: () => void
 }
 
 export interface StudyRouteContext {
@@ -129,8 +115,6 @@ export interface StudyRouteContext {
   goToLibrary: () => Promise<void>
   startInterleavedPractice: () => Promise<void>
   reviewCurrent: (rating: ReviewRating) => Promise<void>
-  syncStudyRoute: () => Promise<void>
-  cleanupStudyRoute: () => void
 }
 
 export interface ImportRouteContext {
@@ -168,7 +152,6 @@ export interface CreateDeckRouteContext {
 export interface ProgressRouteContext {
   user: Ref<UserResponse | null>
   stats: Ref<StatsSummary | null>
-  syncProgressRoute: () => Promise<void>
 }
 
 export type ModelRef<T> = Ref<T> | WritableComputedRef<T>

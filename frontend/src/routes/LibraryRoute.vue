@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
-import { onBeforeRouteLeave, useRoute } from 'vue-router'
+import { computed } from 'vue'
 import LibraryPage from '../pages/LibraryPage.vue'
 import { libraryRouteKey, useRequiredRouteContext } from './routeContext'
 
 const library = useRequiredRouteContext(libraryRouteKey, 'Library')
-const route = useRoute()
 
 const search = computed({
   get: () => library.librarySearch.value,
@@ -23,26 +21,6 @@ const managedCardsSearch = computed({
     library.managedCardsSearch.value = value
   }
 })
-
-onMounted(() => {
-  void library.syncLibraryRoute()
-})
-
-watch(() => [route.name, route.params.deckId], () => {
-  if (isLibraryRoute()) {
-    void library.syncLibraryRoute()
-  }
-})
-
-onBeforeRouteLeave(() => {
-  library.cleanupLibraryRoute()
-})
-
-function isLibraryRoute() {
-  return route.name === 'library-public'
-    || route.name === 'library-mine'
-    || route.name === 'library-deck-manage'
-}
 </script>
 
 <template>

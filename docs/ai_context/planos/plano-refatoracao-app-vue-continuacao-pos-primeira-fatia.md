@@ -1,11 +1,71 @@
 # Plano: continuacao da refatoracao do App.vue pos-primeira fatia
 
-**Status:** plano de continuidade apos a primeira extracao pos-MVP.
+**Status:** terceira fatia aplicada; documento mantido como registro da continuacao.
 **Branch:** `codex/refactor-app-vue-responsibilities`.
 **Data de referencia:** 2026-06-08.
 **Escopo:** continuar reduzindo `frontend/src/App.vue` sem alterar rotas, UX, textos, contratos de API, SRS, importacao APKG ou regras de paginacao.
 
 ## 1. Estado atual
+
+Atualizacao apos a terceira fatia, em 2026-06-08:
+
+- `frontend/src/features/import/useApkgImport.ts` foi criado para isolar o fluxo
+  APKG: arquivo selecionado, preview, busca/navegacao de cartas, face atual,
+  indice de midia, object URLs, persistencia e limpeza de rota;
+- `App.vue` passou a receber o fluxo APKG como composable, mantendo efeitos
+  transversais por callbacks nomeados (`openAuth`, `loadMyDecks`,
+  `refreshStats`, `highlightDeck`, `navigateToMyDecks`, feedback e cliente);
+- a volta "entrar para salvar" ficou exposta por
+  `consumeReturnToImportAfterAuth`, para que a navegacao continue explicita no
+  root;
+- `frontend/src/features/import/useApkgImport.test.ts` cobre preview com midia,
+  preservacao durante auth, persistencia autenticada e limpeza/revogacao de
+  object URLs ao sair da importacao;
+- `App.vue` caiu para aproximadamente 867 linhas;
+- validacoes executadas:
+  - `cd frontend && npm test` passou com 16 arquivos e 73 testes;
+  - `cd frontend && npm run build` passou;
+  - `git diff --check` passou.
+
+O proximo prompt de continuidade e
+`docs/ai_context/prompts/prompt-app.vue-explosion-4.md`.
+
+Atualizacao de planejamento apos revisao do escopo restante:
+
+- foi criado o plano consolidado
+  `docs/ai_context/planos/plano-app-vue-composition-root-final.md`;
+- a proxima sequencia recomendada passa a ser a serie
+  `docs/ai_context/prompts/prompt-app.vue-1.md` ate
+  `docs/ai_context/prompts/prompt-app.vue-6.md`;
+- `prompt-app.vue-explosion-4.md` fica como registro historico da direcao
+  anterior, mas a serie numerada deve ser preferida para as proximas fatias;
+- a primeira fatia da nova serie trata timers, debounce e cleanup antes de
+  continuar com criacao, estudo, biblioteca, auth e revisao final.
+
+Atualizacao apos a segunda fatia, em 2026-06-08:
+
+- `frontend/src/app/useStatsSummary.ts` foi criado para `stats`, `refreshStats`,
+  `clearStats` e `syncProgressRoute`;
+- `frontend/src/app/useAppNavigation.ts` foi criado para derivacoes de rota,
+  abas, titulo, sidebar e navegacao simples;
+- `frontend/src/app/useRouteLifecycle.ts` foi criado para coordenar watchers de
+  rota por callbacks nomeados;
+- route adapters deixaram de chamar lifecycle diretamente e voltaram a ser
+  pontes visuais/contextuais;
+- `frontend/src/features/study/useStudySession.ts` iniciou a extracao do dominio
+  de estudo com estado, computeds e atualizacao local de sessao;
+- `frontend/src/features/study/studySessionTypes.ts` passou a ser a fonte dos
+  tipos de sessao de estudo, reexportados por `routeContext.ts`;
+- `frontend/src/features/library/useDeckManagement.test.ts` foi assumido como
+  parte da leva de testes da primeira/segunda fatia;
+- `App.vue` caiu para aproximadamente 1085 linhas;
+- validacoes executadas:
+  - `cd frontend && npm test` passou com 15 arquivos e 69 testes;
+  - `cd frontend && npm run build` passou;
+  - `git diff --check` passou.
+
+O prompt de continuidade desta fatia foi
+`docs/ai_context/prompts/prompt-app.vue-explosion-3.md`.
 
 A primeira fatia ja foi aplicada e validada:
 
@@ -28,11 +88,10 @@ O `App.vue` ainda continua grande porque permanece como composition root e ainda
 - shell e navegacao;
 - derivacoes de rota;
 - auth flow;
-- importacao APKG;
 - estudo anonimo/autenticado;
 - stats/progresso;
 - watchers de rota;
-- limpeza de timers, object URLs e caches temporarios;
+- limpeza de timers e caches temporarios;
 - providers dos contextos de rota.
 
 ## 2. Principio da continuacao

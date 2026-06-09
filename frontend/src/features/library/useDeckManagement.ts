@@ -3,6 +3,7 @@ import { api } from '../../services/api'
 import type { CardResponse, DeckSummary, DeckVisibility, MediaUploadResponse, PageResponse } from '../../types/api'
 import { safePreviewHtml, safeStudyHtml } from '../../utils/html'
 import type { FeedbackOptions } from '../../composables/useFeedback'
+import { useDebouncedWatch } from '../../composables/useDebouncedWatch'
 import type { CardEditorMediaKind, CardEditorMode } from './cardEditorTypes'
 import type { ManagedCardsViewState, ManagedDeckFormState } from './libraryTypes'
 import { deckPageCountLabel } from './useDeckLibrary'
@@ -22,6 +23,7 @@ export interface DeckManagementApi {
 
 export interface DeckManagementOptions {
   pageSize?: number
+  searchDebounceMs?: number
   client?: DeckManagementApi
   showNotice: (message: string) => void
   showError: (message: string) => void
@@ -50,6 +52,7 @@ const emptyCardEditorForm = () => ({
 
 export function useDeckManagement({
   pageSize = 20,
+  searchDebounceMs = 300,
   client = api,
   showNotice,
   showError,
@@ -124,6 +127,12 @@ export function useDeckManagement({
     ? safeStudyHtml(cardEditorForm.value.backHtml, managedDeck.value.id)
     : safePreviewHtml(cardEditorForm.value.backHtml)
   )
+
+  useDebouncedWatch(managedCardsSearch, () => {
+    if (managedDeck.value) {
+      void withFeedback(async () => loadManagedCards(true), { showLoading: false })
+    }
+  }, searchDebounceMs)
 
   function setManagedDeck(deck: DeckSummary) {
     managedDeck.value = deck

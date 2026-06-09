@@ -298,5 +298,21 @@ Decisão:
 Estado atual:
 - helpers puros extraídos para estudo, importação e biblioteca;
 - `useDeckManagement` criado;
+- `useDeckManagement.test.ts` incluido na leva de testes da refatoracao;
+- `useStatsSummary`, `useAppNavigation` e `useRouteLifecycle` criados em
+  `frontend/src/app`;
+- `useStudySession` iniciado com estado e computeds seguros de estudo;
+- `useApkgImport` criado para concentrar preview, persistencia, object URLs,
+  cancelamento logico e cleanup APKG;
+- `useDebouncedWatch` e `useLibrarySearchLifecycle` criados para remover
+  debounces manuais do root;
+- `useDeckManagement` assumiu o debounce de busca de cartas gerenciadas;
+- `useDeckLibrary` passou a cancelar timeout e `requestAnimationFrame` do
+  highlight via `onScopeDispose`;
+- route adapters deixaram de expor/chamar lifecycle de dominio;
+- `App.vue` caiu para aproximadamente 851 linhas, sem timers manuais e ainda
+  com auth, create, workflows de estudo e algumas orquestracoes de biblioteca;
 - próximos passos planejados em
-  [plano de continuação da refatoração do App.vue](planos/plano-refatoracao-app-vue-continuacao-pos-primeira-fatia.md).
+  [plano final do App.vue como composition root](planos/plano-app-vue-composition-root-final.md)
+  e no
+  [prompt App.vue 2](prompts/prompt-app.vue-2.md).

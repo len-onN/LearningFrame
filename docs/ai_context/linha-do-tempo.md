@@ -28,6 +28,9 @@ Para o estado atual, consulte:
 | 2026-06-08 | Documentação final | [Plano de documentação final](planos/plano-finalizacao-documentacao-mvp.md) | Guias finais, estado final e reorganização documental | Documentação separou uso atual de contexto histórico |
 | 2026-06-08 | Roadmap pós-MVP | [Roadmap de profissionalização pós-MVP](../roadmap-profissionalizacao-pos-mvp.md) | Contexto institucional, prática intercalada e profissionalização | Base para próximas branches de ajuste e produto |
 | 2026-06-08 | Refatoração pós-MVP | [Plano App.vue pós-MVP](planos/plano-refatoracao-app-vue-pos-mvp.md) | Primeira fatia de redução do composition root | Helpers puros e `useDeckManagement` extraídos |
+| 2026-06-08 | Refatoração pós-MVP | [Prompt App.vue explosion 3](prompts/prompt-app.vue-explosion-3.md) | Segunda fatia de redução do composition root | `useStatsSummary`, `useAppNavigation`, `useRouteLifecycle` e base de `useStudySession` extraídos |
+| 2026-06-08 | Refatoração pós-MVP | [Prompt App.vue explosion 4](prompts/prompt-app.vue-explosion-4.md) | Terceira fatia de redução do composition root | `useApkgImport` extraiu preview, persistência e cleanup APKG |
+| 2026-06-09 | Refatoração pós-MVP | [Prompt App.vue 1](prompts/prompt-app.vue-1.md) | Timers, debounce e cleanup local | `App.vue` ficou sem timers manuais e highlight ganhou cleanup de rAF/timeout |
 
 ## 2. Sequencia arquitetural do frontend
 
@@ -61,7 +64,7 @@ Resultado atual:
 | `codex/study-session-polish` | [Plano de polimento do estudo](planos/plano-study-session-polish-mvp.md) | Estudo polido com progresso, feedback e resumo |
 | `codex/qa-manual-final` | [Plano de QA manual final](planos/plano-qa-manual-final-mvp.md) | QA manual final executado e aprovado |
 | `codex/mvp-final-documentation` | [Plano de documentação final](planos/plano-finalizacao-documentacao-mvp.md) | Documentação final consolidada |
-| `codex/refactor-app-vue-responsibilities` | [Plano App.vue pós-MVP](planos/plano-refatoracao-app-vue-pos-mvp.md) | Primeira fatia da refatoração do composition root |
+| `codex/refactor-app-vue-responsibilities` | [Plano App.vue pós-MVP](planos/plano-refatoracao-app-vue-pos-mvp.md) | Refatoração incremental do composition root em fatias |
 
 ## 4. Como atualizar esta linha do tempo
 

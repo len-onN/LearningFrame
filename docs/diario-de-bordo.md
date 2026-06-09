@@ -1641,3 +1641,126 @@ Decisão:
 - manter estado pesado perto de sua limpeza;
 - aceitar que `App.vue` ainda fique grande temporariamente, desde que cada
   rodada reduza implementação de domínio sem esconder comportamento crítico.
+
+## 60. Segunda Fatia da Refatoracao Pos-MVP do App.vue
+
+Data: 2026-06-08
+Branch de trabalho: `codex/refactor-app-vue-responsibilities`
+
+A segunda fatia continuou a reducao incremental do `frontend/src/App.vue`, ainda
+sem alterar rotas, UX, textos, contratos de API, regras de SRS ou fluxo APKG.
+
+Mudancas aplicadas:
+- `frontend/src/app/useStatsSummary.ts` criado para isolar `stats`,
+  `refreshStats`, `clearStats` e `syncProgressRoute`;
+- `frontend/src/app/useAppNavigation.ts` criado para abas, titulo, sidebar,
+  modos derivados da rota e navegacao simples;
+- `frontend/src/app/useRouteLifecycle.ts` criado para centralizar watchers de
+  rota por callbacks nomeados;
+- route adapters de Biblioteca, Estudo e Progresso deixaram de chamar lifecycle
+  diretamente;
+- `frontend/src/features/study/useStudySession.ts` iniciado com estado,
+  computeds e atualizacao local de sessao de estudo;
+- `frontend/src/features/study/studySessionTypes.ts` criado e reexportado por
+  `routeContext.ts`;
+- `frontend/src/features/library/useDeckManagement.test.ts` foi incorporado como
+  teste esperado da refatoracao de gerenciamento.
+
+Resultado:
+- `App.vue` caiu para aproximadamente 1085 linhas;
+- o arquivo segue como composition root, mas com menos derivacoes e menos estado
+  interno de estudo;
+- ainda restam blocos grandes e reduziveis: importacao APKG, auth flow,
+  criacao de deck, workflows de estudo e algumas orquestracoes de biblioteca.
+
+Validacoes executadas:
+- `cd frontend && npm test` passou com 15 arquivos e 69 testes;
+- `cd frontend && npm run build` passou;
+- `git diff --check` passou.
+
+Proximo passo:
+- usar o
+  [prompt App.vue explosion 3](ai_context/prompts/prompt-app.vue-explosion-3.md)
+  para seguir com a extracao de APKG e, em seguida, estudo/auth em fatias
+  seguras.
+
+## 61. Terceira Fatia da Refatoracao Pos-MVP do App.vue
+
+Data: 2026-06-08
+Branch de trabalho: `codex/refactor-app-vue-responsibilities`
+
+A terceira fatia extraiu o fluxo de importacao APKG de `frontend/src/App.vue`
+sem alterar rotas, UX, textos, contratos de API ou o fluxo "entrar para
+salvar".
+
+Mudancas aplicadas:
+- `frontend/src/features/import/useApkgImport.ts` criado para concentrar arquivo
+  selecionado, preview, navegacao de cartas, face atual, indice de midia,
+  object URLs, persistencia, cancelamento logico e limpeza de rota;
+- `App.vue` passou a injetar APKG por callbacks nomeados para auth, biblioteca,
+  stats, highlight, navegacao e feedback;
+- a retomada pos-auth ficou explicita por `consumeReturnToImportAfterAuth`, com
+  navegacao ainda coordenada no root;
+- `frontend/src/features/import/useApkgImport.test.ts` adicionado para cobrir
+  preview com midia, preservacao durante auth, persistencia autenticada e
+  limpeza/revogacao de object URLs.
+
+Resultado:
+- `App.vue` caiu para aproximadamente 867 linhas;
+- o arquivo segue como composition root, mas nao concentra mais estado pesado de
+  APKG;
+- as proximas fronteiras maiores sao completar `useStudySession` e, se isso
+  ficar arriscado, extrair `useCreateDeckFlow` ou `useAuthFlow`.
+
+Validacoes executadas:
+- `cd frontend && npm test` passou com 16 arquivos e 73 testes;
+- `cd frontend && npm run build` passou;
+- `git diff --check` passou.
+
+Proximo passo:
+- usar o
+  [prompt App.vue explosion 4](ai_context/prompts/prompt-app.vue-explosion-4.md)
+  para continuar por estudo, criacao ou auth em fatias seguras.
+
+## 62. Quarta Fatia da Refatoracao Pos-MVP do App.vue
+
+Data: 2026-06-09
+Branch de trabalho: `codex/refactor-app-vue-responsibilities`
+
+A quarta fatia tratou especificamente timers, debounce e cleanup local de
+recursos temporarios. O objetivo foi remover timers manuais de
+`frontend/src/App.vue` sem alterar comportamento de busca, paginacao,
+highlight, rotas, textos ou contratos de API.
+
+Mudancas aplicadas:
+- `frontend/src/composables/useDebouncedWatch.ts` criado como helper simples de
+  debounce com cleanup pelo proprio `watch`;
+- `frontend/src/app/useLibrarySearchLifecycle.ts` criado para concentrar o
+  debounce de `librarySearch`;
+- debounce de `managedCardsSearch` movido para `useDeckManagement`;
+- `useDeckLibrary` passou a armazenar e cancelar tanto timeout quanto
+  `requestAnimationFrame` do highlight, com `onScopeDispose`;
+- `App.vue` ficou sem `setTimeout`, `clearTimeout` ou
+  `requestAnimationFrame` manuais.
+
+Testes adicionados/ajustados:
+- fake timers para `useDebouncedWatch`;
+- fake timers para busca da biblioteca;
+- fake timers para busca de cartas gerenciadas;
+- fake timers para duracao e cleanup do highlight.
+
+Resultado:
+- `App.vue` ficou com aproximadamente 851 linhas;
+- timers restantes ficaram encapsulados com ownership local;
+- `showLoading: false` nos debounces foi preservado;
+- a duracao visual do highlight permaneceu em 10 segundos.
+
+Validacoes executadas:
+- `cd frontend && npm test` passou com 18 arquivos e 81 testes;
+- `cd frontend && npm run build` passou;
+- `git diff --check` passou.
+
+Observacao operacional:
+- `npm test` e `npm run build` precisaram ser executados fora do sandbox local
+  porque o carregamento do `vite.config.ts` falhou no sandbox com erro de acesso
+  negado.

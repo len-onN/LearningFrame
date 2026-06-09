@@ -1,24 +1,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
-import { RouterView, useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
-import {
-  BarChart3,
-  BookOpen,
-  Brain,
-  Plus,
-  Upload
-} from '@lucide/vue'
+import { RouterView, useRoute, useRouter } from 'vue-router'
 import AppShell from './layouts/AppShell.vue'
 import { api } from './services/api'
 import type {
-  ApkgImportResponse,
-  ApkgPreviewResponse,
   CardResponse,
   DeckSummary,
   DeckVisibility,
   LocalDeck,
   ReviewRating,
-  StatsSummary,
   StudyCard,
   StudyCardResponse
 } from './types/api'
@@ -29,44 +19,36 @@ import {
   saveLocalStates
 } from './utils/localStudy'
 import CardEditorOverlay from './features/library/CardEditorOverlay.vue'
-import type { LibrarySection, LibraryView } from './features/library/libraryTypes'
-import { normalizeSearch, useDeckLibrary } from './features/library/useDeckLibrary'
+import { useDeckLibrary } from './features/library/useDeckLibrary'
 import { cardCountLabel, deckDueLabel } from './features/library/deckFormatters'
 import { cardTextSummary as summarizeCardText } from './features/library/cardText'
 import { useDeckManagement } from './features/library/useDeckManagement'
-import type { PreviewFace } from './features/import/importTypes'
+import { htmlSummary } from './features/import/importPreview'
+import { useApkgImport } from './features/import/useApkgImport'
 import {
-  htmlSummary,
-  previewCardOptionLabel,
-  previewCardSearchText,
-  previewCardTitle as formatPreviewCardTitle
-} from './features/import/importPreview'
-import {
-  emptyStudyRatingCounts,
   studyFeedbackFromResult,
   studyFeedbackFromReviewResult,
-  type StudyRatingCounts,
   type StudyReviewFeedback
 } from './features/study/studyFeedback'
+import { useStudySession } from './features/study/useStudySession'
 import {
   authRouteKey,
   createDeckRouteKey,
   importRouteKey,
   libraryRouteKey,
   progressRouteKey,
-  studyRouteKey,
-  type StudyEmptyReason
+  studyRouteKey
 } from './routes/routeContext'
 import { nextReview } from './utils/srs'
-import { extractRelativeMediaSources, safePreviewHtml, safeStudyHtml } from './utils/html'
-import { createApkgMediaIndex, normalizeMediaName, type ApkgMediaIndex } from './utils/apkgMedia'
-import { formatDueIn } from './utils/dueTime'
 import { validateAuthForm, type AuthErrors, type AuthField, type AuthMode } from './utils/authValidation'
+import { useAppNavigation } from './app/useAppNavigation'
+import { useLibrarySearchLifecycle } from './app/useLibrarySearchLifecycle'
+import { useRouteLifecycle } from './app/useRouteLifecycle'
+import { useStatsSummary } from './app/useStatsSummary'
 import { useAuthSession } from './composables/useAuthSession'
 import { useFeedback } from './composables/useFeedback'
 import { useTheme } from './composables/useTheme'
 
-type Tab = 'library' | 'study' | 'import' | 'create' | 'progress' | 'auth'
 const DECK_PAGE_SIZE = 8
 const CARD_PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 300
@@ -93,11 +75,25 @@ const {
   dismissNotice,
   dismissError
 } = useFeedback()
-const tab = computed<Tab>(() => route.meta.tab ?? 'library')
-const librarySection = computed<LibrarySection>(() => route.meta.librarySection ?? 'public')
-const libraryView = computed<LibraryView>(() => route.meta.libraryView ?? 'decks')
-const authMode = computed<AuthMode>(() => route.meta.authMode ?? 'login')
-const sidebarCollapsed = ref(false)
+const {
+  tab,
+  librarySection,
+  libraryView,
+  authMode,
+  sidebarCollapsed,
+  sidebarToggleLabel,
+  visibleTabs,
+  currentTitle,
+  toggleSidebar,
+  navigateTo,
+  navigateToMyDecks,
+  routeDeckId
+} = useAppNavigation({
+  route,
+  router,
+  user,
+  managedDeckTitle: () => managedDeck.value?.title
+})
 const {
   librarySearch,
   publicDecks,
@@ -120,7 +116,6 @@ const {
   loadPublicDecks,
   loadMyDecks,
   highlightDeck,
-  clearHighlightDeckTimer,
   toggleDeckSelectionMode,
   exitDeckSelectionMode,
   toggleMyDeckSelection,
@@ -133,7 +128,16 @@ const {
 })
 const publicStudyDeckCache = ref<LocalDeck[]>([])
 const localStates = ref(loadLocalStates())
-const stats = ref<StatsSummary | null>(null)
+const {
+  stats,
+  refreshStats,
+  clearStats,
+  syncProgressRoute
+} = useStatsSummary({
+  route,
+  user,
+  withFeedback
+})
 
 const authForm = ref({
   displayName: '',
@@ -188,6 +192,7 @@ const {
   handleCardEditorUploadError
 } = useDeckManagement({
   pageSize: CARD_PAGE_SIZE,
+  searchDebounceMs: SEARCH_DEBOUNCE_MS,
   showNotice,
   showError,
   withFeedback,
@@ -196,53 +201,59 @@ const {
   navigateToMyDecks
 })
 
-const selectedFile = ref<File | null>(null)
-const importVisibility = ref<DeckVisibility>('PRIVATE')
-const importTitle = ref('')
-const importPreview = ref<ApkgPreviewResponse | null>(null)
-const importResult = ref<ApkgImportResponse | null>(null)
-const returnToImportAfterAuth = ref(false)
-const previewCardIndex = ref(0)
-const previewFace = ref<PreviewFace>('front')
-const previewPickerOpen = ref(false)
-const previewCardSearch = ref('')
-const previewMediaIndex = ref<ApkgMediaIndex | null>(null)
-const previewMediaUrls = ref<Record<string, string>>({})
-const importSaving = ref(false)
-
-const studyQueue = ref<StudyCard[]>([])
-const sessionTitle = ref('Selecione um baralho ou inicie a prática intercalada.')
-const answerVisible = ref(false)
-const studyInitialTotal = ref(0)
-const studyReviewedCount = ref(0)
-const studyRatingCounts = ref<StudyRatingCounts>(emptyStudyRatingCounts())
-const lastStudyFeedback = ref<StudyReviewFeedback | null>(null)
-const studyEmptyReason = ref<StudyEmptyReason>('idle')
-
-const currentCard = computed(() => studyQueue.value[0])
-const frontHtml = computed(() => currentCard.value ? safeStudyHtml(currentCard.value.frontHtml, currentCard.value.deckId) : '')
-const backHtml = computed(() => currentCard.value ? safeStudyHtml(currentCard.value.backHtml, currentCard.value.deckId) : '')
-const currentDueLabel = computed(() => currentCard.value ? formatDueIn(currentCard.value.dueAt) : '')
-const studyProgress = computed(() => {
-  const initialTotal = studyInitialTotal.value
-  const reviewed = studyReviewedCount.value
-  return {
-    initialTotal,
-    reviewed,
-    remaining: Math.max(0, initialTotal - reviewed),
-    percent: initialTotal > 0 ? Math.round((reviewed / initialTotal) * 100) : 0
-  }
+const {
+  selectedFile,
+  importVisibility,
+  importTitle,
+  importPreview,
+  importSaving,
+  currentPreviewCard,
+  currentPreviewHtml,
+  previewCardIndex,
+  previewFace,
+  previewPickerOpen,
+  previewCardSearch,
+  previewCardOptions,
+  previewCardTitle,
+  handleApkgChange,
+  selectPreviewCard,
+  movePreviewCard,
+  togglePreviewFace,
+  persistImport,
+  consumeReturnToImportAfterAuth,
+  clearImportStateForRouteChange,
+  disposeApkgImport
+} = useApkgImport({
+  route,
+  user,
+  openAuth,
+  loadMyDecks,
+  refreshStats,
+  highlightDeck,
+  navigateToMyDecks,
+  showNotice,
+  showError,
+  withFeedback,
+  client: api
 })
-const studySummary = computed(() => studyEmptyReason.value === 'completed' && studyReviewedCount.value > 0
-  ? {
-      reviewed: studyReviewedCount.value,
-      ratingCounts: studyRatingCounts.value,
-      lastFeedback: lastStudyFeedback.value
-    }
-  : null
-)
+
+const {
+  studyQueue,
+  sessionTitle,
+  answerVisible,
+  lastStudyFeedback,
+  studyEmptyReason,
+  currentCard,
+  frontHtml,
+  backHtml,
+  currentDueLabel,
+  studyProgress,
+  studySummary,
+  resetStudySession,
+  setStudySessionCards,
+  completeCurrentReview
+} = useStudySession()
 const authErrors = computed<AuthErrors>(() => validateAuthForm(authForm.value, authMode.value))
-const sidebarToggleLabel = computed(() => sidebarCollapsed.value ? 'Expandir menu' : 'Recolher menu')
 const userDisplayName = computed(() => user.value?.displayName ?? 'Visitante')
 const deckFormatters = {
   cardCount: cardCountLabel,
@@ -250,64 +261,18 @@ const deckFormatters = {
 }
 const cardTextSummary = (card: CardResponse) => summarizeCardText(card, managedCards.value, htmlSummary)
 const loadingMessage = computed(() => importSaving.value ? 'Preparando seu baralho com mídia...' : 'Carregando...')
-const currentPreviewCard = computed(() => importPreview.value?.cards[previewCardIndex.value] ?? null)
-const currentPreviewHtml = computed(() => {
-  const card = currentPreviewCard.value
-  if (!card) {
-    return ''
-  }
-  const html = previewFace.value === 'front' ? card.frontHtml : card.backHtml
-  return safePreviewHtml(html, {
-    resolveMediaUrl: (fileName) => previewMediaUrls.value[normalizeMediaName(fileName)] ?? null
-  })
-})
-const previewCardOptions = computed(() => {
-  const query = normalizeSearch(previewCardSearch.value)
-  const cards = importPreview.value?.cards ?? []
-  return cards
-    .map((card, index) => ({
-      index,
-      label: previewCardOptionLabel(card, index),
-      searchText: previewCardSearchText(card, index)
-    }))
-    .filter((card) => !query || card.searchText.includes(query))
-})
-const previewCardTitle = (index: number) => formatPreviewCardTitle(index, importPreview.value?.cards.length ?? 0)
-const navTabs = [
-  { id: 'library' as const, label: 'Biblioteca', icon: BookOpen, to: { name: 'library-public' } },
-  { id: 'study' as const, label: 'Estudo', icon: Brain, to: { name: 'study' } },
-  { id: 'import' as const, label: 'Importar', icon: Upload, to: { name: 'import' } },
-  { id: 'create' as const, label: 'Criar', icon: Plus, to: { name: 'create' } },
-  { id: 'progress' as const, label: 'Progresso', icon: BarChart3, to: { name: 'progress' } }
-]
-const visibleTabs = computed(() => navTabs.filter((item) => item.id !== 'create' || user.value))
-const currentTitle = computed(() => {
-  if (tab.value === 'auth') {
-    return authMode.value === 'login' ? 'Entrar' : 'Criar conta'
-  }
-  if (tab.value === 'library' && libraryView.value === 'manage-deck') {
-    return managedDeck.value?.title ?? 'Gerenciar baralho'
-  }
-  return route.meta.title ?? navTabs.find((item) => item.id === tab.value)?.label ?? 'Biblioteca'
-})
-
 onMounted(() => {
   applyThemePreference()
 })
 
-let librarySearchTimer: number | undefined
-let managedCardsSearchTimer: number | undefined
-
-watch(librarySearch, () => {
-  window.clearTimeout(librarySearchTimer)
-  librarySearchTimer = window.setTimeout(() => {
-    if (librarySection.value === 'public') {
-      void withFeedback(async () => loadPublicDecks(true), { showLoading: false })
-    }
-    if (librarySection.value === 'mine' && user.value) {
-      void withFeedback(async () => loadMyDecks(true), { showLoading: false })
-    }
-  }, SEARCH_DEBOUNCE_MS)
+useLibrarySearchLifecycle({
+  librarySearch,
+  librarySection,
+  user,
+  delayMs: SEARCH_DEBOUNCE_MS,
+  loadPublicDecks,
+  loadMyDecks,
+  withFeedback
 })
 
 watch(librarySection, (section) => {
@@ -324,44 +289,15 @@ watch(librarySection, (section) => {
   }
 })
 
-watch(managedCardsSearch, () => {
-  window.clearTimeout(managedCardsSearchTimer)
-  managedCardsSearchTimer = window.setTimeout(() => {
-    if (managedDeck.value) {
-      void withFeedback(async () => loadManagedCards(true), { showLoading: false })
-    }
-  }, SEARCH_DEBOUNCE_MS)
-})
-
 watch(tab, (nextTab) => {
   if (nextTab !== 'library') {
     closeCardEditor(true)
   }
 })
 
-watch(() => route.fullPath, (nextFullPath, previousFullPath) => {
-  clearFeedbackForRouteChange(previousFullPath, nextFullPath)
-  clearImportStateForRouteChange(previousFullPath)
-}, { immediate: true })
-
 onBeforeUnmount(() => {
-  revokePreviewMediaUrls()
-  clearHighlightDeckTimer()
-  window.clearTimeout(librarySearchTimer)
-  window.clearTimeout(managedCardsSearchTimer)
+  disposeApkgImport()
 })
-
-function toggleSidebar() {
-  sidebarCollapsed.value = !sidebarCollapsed.value
-}
-
-async function navigateTo(to: RouteLocationRaw) {
-  await router.push(to)
-}
-
-async function navigateToMyDecks() {
-  await router.push({ name: 'library-mine' })
-}
 
 async function syncLibraryRoute() {
   if (route.name !== 'library-deck-manage' && managedDeck.value) {
@@ -424,20 +360,6 @@ async function syncStudyRoute() {
   }
 }
 
-async function syncProgressRoute() {
-  if (route.name === 'progress' && user.value) {
-    await withFeedback(async () => {
-      await refreshStats()
-    }, { showLoading: false, clearOnStart: false })
-  }
-}
-
-async function refreshStats() {
-  if (user.value) {
-    stats.value = await api.stats()
-  }
-}
-
 function cleanupLibraryRoute() {
   closeManagedDeck(true, false)
   exitDeckSelectionMode()
@@ -447,18 +369,12 @@ function cleanupStudyRoute() {
   resetStudySession()
 }
 
-function routeDeckId() {
-  const raw = Array.isArray(route.params.deckId) ? route.params.deckId[0] : route.params.deckId
-  const deckId = Number(raw)
-  return Number.isFinite(deckId) && deckId > 0 ? deckId : null
-}
-
 async function refreshAll() {
   await withFeedback(async () => {
     await loadPublicDecks(true)
     if (user.value) {
       await loadMyDecks(true)
-      stats.value = await api.stats()
+      await refreshStats()
     }
   }, { showLoading: false })
 }
@@ -486,7 +402,7 @@ async function savePublicDeck(deck: DeckSummary) {
     const saved = await api.copyPublicDeck(deck.id)
     librarySearch.value = ''
     await loadMyDecks(true)
-    stats.value = await api.stats()
+    await refreshStats()
     await router.push({ name: 'library-mine' })
     showNotice('Baralho salvo em Meus baralhos como copia privada.')
     await highlightDeck(saved.id)
@@ -508,7 +424,7 @@ async function deleteSelectedMyDecks() {
     exitDeckSelectionMode()
     await loadMyDecks(true)
     if (user.value) {
-      stats.value = await api.stats()
+      await refreshStats()
     }
     showNotice(deckIds.length === 1 ? 'Baralho excluido.' : 'Baralhos selecionados excluidos.')
   })
@@ -533,9 +449,8 @@ async function submitAuth() {
     authForm.value.password = ''
     resetAuthValidation()
     await refreshAll()
-    if (returnToImportAfterAuth.value && importPreview.value) {
+    if (consumeReturnToImportAfterAuth()) {
       await router.replace({ name: 'import' })
-      returnToImportAfterAuth.value = false
     } else if (typeof route.query.redirect === 'string' && route.query.redirect) {
       await router.replace(route.query.redirect)
     } else {
@@ -584,7 +499,7 @@ async function logout() {
   exitDeckSelectionMode()
   publicStudyDeckCache.value = []
   clearSession()
-  stats.value = null
+  clearStats()
   myDecks.value = []
   myDeckPage.value = null
   myDeckQuery.value = ''
@@ -684,17 +599,6 @@ async function loadInterleavedPractice() {
   })
 }
 
-function resetStudySession() {
-  studyQueue.value = []
-  sessionTitle.value = 'Selecione um baralho ou inicie a prática intercalada.'
-  answerVisible.value = false
-  studyInitialTotal.value = 0
-  studyReviewedCount.value = 0
-  studyRatingCounts.value = emptyStudyRatingCounts()
-  lastStudyFeedback.value = null
-  studyEmptyReason.value = 'idle'
-}
-
 async function reviewCurrent(rating: ReviewRating) {
   const card = currentCard.value
   if (!card) {
@@ -712,238 +616,11 @@ async function reviewCurrent(rating: ReviewRating) {
       const result = await api.review(card.cardId, rating)
       feedback = studyFeedbackFromReviewResult(result)
       if (user.value) {
-        stats.value = await api.stats()
+        await refreshStats()
       }
     }
-    studyReviewedCount.value += 1
-    studyRatingCounts.value = {
-      ...studyRatingCounts.value,
-      [rating]: studyRatingCounts.value[rating] + 1
-    }
-    lastStudyFeedback.value = feedback
-    studyQueue.value.shift()
-    answerVisible.value = false
-    if (studyQueue.value.length === 0) {
-      studyEmptyReason.value = 'completed'
-    }
+    completeCurrentReview(rating, feedback)
   }, false)
-}
-
-function setStudySessionCards(cards: StudyCard[], emptyReason: StudyEmptyReason) {
-  studyQueue.value = cards
-  studyInitialTotal.value = cards.length
-  studyReviewedCount.value = 0
-  studyRatingCounts.value = emptyStudyRatingCounts()
-  lastStudyFeedback.value = null
-  studyEmptyReason.value = cards.length > 0 ? 'idle' : emptyReason
-  answerVisible.value = false
-}
-
-async function handleApkgChange(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0] ?? null
-  const requestId = ++importPreviewRequest
-  resetImportPreviewState()
-  selectedFile.value = file
-
-  if (!file) {
-    return
-  }
-
-  await withFeedback(async () => {
-    try {
-      const [preview, mediaIndex] = await Promise.all([
-        api.previewApkg(file),
-        createApkgMediaIndex(file).catch(() => null)
-      ])
-      if (requestId !== importPreviewRequest) {
-        return
-      }
-      previewMediaIndex.value = mediaIndex
-      const mediaRequestId = ++previewMediaRequest
-      const urls = preview.cards[0] ? await readPreviewMediaUrls(preview.cards[0], 'front') : {}
-      if (mediaRequestId !== previewMediaRequest || requestId !== importPreviewRequest) {
-        revokePreviewMediaUrls(urls)
-        return
-      }
-      previewMediaUrls.value = urls
-      previewCardIndex.value = 0
-      previewFace.value = 'front'
-      importPreview.value = preview
-      importTitle.value = preview.title
-      showNotice(preview.mediaFound > 0
-        ? 'APKG analisado. A midia sera exibida na previa enquanto este arquivo estiver selecionado.'
-        : 'APKG analisado. Revise a previa e salve em Meus baralhos.')
-    } finally {
-      input.value = ''
-    }
-  })
-}
-
-async function persistImport() {
-  if (!selectedFile.value) {
-    showError('Selecione o arquivo .apkg novamente.')
-    return
-  }
-
-  if (!user.value) {
-    returnToImportAfterAuth.value = true
-    await openAuth('login')
-    showNotice('Entre para salvar o APKG com midia em Meus baralhos.')
-    return
-  }
-
-  importSaving.value = true
-  try {
-    await withFeedback(async () => {
-      const result = await api.importApkg(selectedFile.value as File, importTitle.value, importVisibility.value)
-      importResult.value = result
-      resetImportPreviewState()
-      selectedFile.value = null
-      await loadMyDecks(true)
-      if (user.value) {
-        stats.value = await api.stats()
-      }
-      await router.push({ name: 'library-mine' })
-      showNotice(result.mediaImported > 0
-        ? `Baralho APKG salvo com ${result.cardsImported} cartas e ${result.mediaImported} midias.`
-        : 'Baralho APKG salvo em Meus baralhos.')
-      await highlightDeck(result.deckId)
-    })
-  } finally {
-    importSaving.value = false
-  }
-}
-
-function resetImportPreviewState() {
-  previewMediaRequest++
-  revokePreviewMediaUrls()
-  importPreview.value = null
-  importResult.value = null
-  importTitle.value = ''
-  previewCardIndex.value = 0
-  previewFace.value = 'front'
-  previewPickerOpen.value = false
-  previewCardSearch.value = ''
-  previewMediaIndex.value = null
-}
-
-function clearImportWorkflowState() {
-  importPreviewRequest++
-  resetImportPreviewState()
-  selectedFile.value = null
-  importSaving.value = false
-  returnToImportAfterAuth.value = false
-}
-
-function clearImportStateForRouteChange(previousFullPath?: string) {
-  if (!previousFullPath) {
-    return
-  }
-
-  const leftImport = previousFullPath.startsWith('/importar') && route.name !== 'import'
-  const leftPreservedAuth = returnToImportAfterAuth.value
-    && isAuthPath(previousFullPath)
-    && route.name !== 'import'
-    && route.name !== 'login'
-    && route.name !== 'register'
-
-  if (leftImport && shouldPreserveImportAcrossAuth()) {
-    return
-  }
-
-  if (leftImport || leftPreservedAuth) {
-    clearImportWorkflowState()
-  }
-}
-
-function shouldPreserveImportAcrossAuth() {
-  return returnToImportAfterAuth.value && (route.name === 'login' || route.name === 'register')
-}
-
-function isAuthPath(path: string) {
-  return path.startsWith('/entrar') || path.startsWith('/cadastro')
-}
-
-async function selectPreviewCard(index: number) {
-  await showPreviewCard(index, 'front')
-  previewPickerOpen.value = false
-}
-
-async function movePreviewCard(direction: -1 | 1) {
-  const total = importPreview.value?.cards.length ?? 0
-  if (!total) {
-    return
-  }
-  const nextIndex = Math.min(Math.max(previewCardIndex.value + direction, 0), total - 1)
-  await showPreviewCard(nextIndex, 'front')
-}
-
-async function togglePreviewFace() {
-  await showPreviewCard(previewCardIndex.value, previewFace.value === 'front' ? 'back' : 'front')
-}
-
-let previewMediaRequest = 0
-let importPreviewRequest = 0
-
-async function showPreviewCard(index: number, face: PreviewFace) {
-  const card = importPreview.value?.cards[index]
-  if (!card) {
-    return
-  }
-
-  const requestId = ++previewMediaRequest
-  const urls = await readPreviewMediaUrls(card, face)
-  if (requestId !== previewMediaRequest) {
-    revokePreviewMediaUrls(urls)
-    return
-  }
-
-  const previousUrls = previewMediaUrls.value
-  previewMediaUrls.value = urls
-  previewCardIndex.value = index
-  previewFace.value = face
-  revokePreviewMediaUrls(previousUrls)
-}
-
-async function readPreviewMediaUrls(card: { frontHtml: string; backHtml: string }, face: PreviewFace) {
-  const mediaIndex = previewMediaIndex.value
-  if (!card || !mediaIndex) {
-    return {}
-  }
-
-  const html = face === 'front' ? card.frontHtml : card.backHtml
-  const references = extractRelativeMediaSources(html)
-  if (references.length === 0) {
-    return {}
-  }
-
-  const urls: Record<string, string> = {}
-  for (const reference of references) {
-    const normalized = normalizeMediaName(reference)
-    const blob = await mediaIndex.readBlob(reference).catch(() => null)
-    if (blob) {
-      const url = URL.createObjectURL(blob)
-      urls[normalized] = url
-      if (blob.type.startsWith('image/')) {
-        await decodeImage(url).catch(() => undefined)
-      }
-    }
-  }
-  return urls
-}
-
-function decodeImage(url: string) {
-  const image = new Image()
-  image.src = url
-  return image.decode()
-}
-
-function revokePreviewMediaUrls(urls = previewMediaUrls.value) {
-  Object.values(urls).forEach((url) => URL.revokeObjectURL(url))
-  if (urls === previewMediaUrls.value) {
-    previewMediaUrls.value = {}
-  }
 }
 
 async function createDeck() {
@@ -1005,6 +682,17 @@ function serverCardToStudyCard(card: StudyCardResponse): StudyCard {
   }
 }
 
+useRouteLifecycle({
+  route,
+  syncLibraryRoute,
+  cleanupLibraryRoute,
+  syncStudyRoute,
+  cleanupStudyRoute,
+  syncProgressRoute,
+  clearFeedbackForRouteChange,
+  clearImportStateForRouteChange
+})
+
 provide(authRouteKey, {
   authForm,
   authMode,
@@ -1063,9 +751,7 @@ provide(libraryRouteKey, {
   toggleManagedCardSelection,
   loadMoreManagedCards,
   openEditCardEditor,
-  deleteManagedCard,
-  syncLibraryRoute,
-  cleanupLibraryRoute
+  deleteManagedCard
 })
 
 provide(studyRouteKey, {
@@ -1082,9 +768,7 @@ provide(studyRouteKey, {
   studySummary,
   goToLibrary: goHome,
   startInterleavedPractice,
-  reviewCurrent,
-  syncStudyRoute,
-  cleanupStudyRoute
+  reviewCurrent
 })
 
 provide(importRouteKey, {
@@ -1117,8 +801,7 @@ provide(createDeckRouteKey, {
 
 provide(progressRouteKey, {
   user,
-  stats,
-  syncProgressRoute
+  stats
 })
 
 </script>

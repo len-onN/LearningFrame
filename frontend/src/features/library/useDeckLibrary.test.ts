@@ -1,5 +1,5 @@
-import { ref } from 'vue'
-import { describe, expect, it, vi } from 'vitest'
+import { effectScope, ref } from 'vue'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { DeckSummary, PageResponse, UserResponse } from '../../types/api'
 import { deckPageCountLabel, mergeDeckPages, normalizeSearch, useDeckLibrary } from './useDeckLibrary'
 
@@ -7,6 +7,11 @@ const publicDeck = deck(1, 'Publico')
 const myDeck = deck(2, 'Meu')
 
 describe('useDeckLibrary', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
   it('mescla paginas sem duplicar decks pelo id', () => {
     expect(mergeDeckPages([
       deck(1, 'A'),
@@ -162,6 +167,52 @@ describe('useDeckLibrary', () => {
 
     expect([...library.selectedMyDeckIds.value]).toEqual([3])
   })
+
+  it('destaca deck no proximo frame e limpa apos a duracao visual', async () => {
+    vi.useFakeTimers()
+    const browser = installHighlightBrowserStubs()
+    const library = useDeckLibrary({
+      librarySection: ref('mine'),
+      user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }),
+      client: emptyClient()
+    })
+
+    await library.highlightDeck(2)
+
+    expect(browser.scrollIntoView).toHaveBeenCalled()
+    expect(library.highlightedDeckId.value).toBeNull()
+
+    await vi.advanceTimersByTimeAsync(16)
+    expect(library.highlightedDeckId.value).toBe(2)
+
+    await vi.advanceTimersByTimeAsync(9999)
+    expect(library.highlightedDeckId.value).toBe(2)
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(library.highlightedDeckId.value).toBeNull()
+  })
+
+  it('cancela frame pendente ao descartar o escopo do highlight', async () => {
+    vi.useFakeTimers()
+    const browser = installHighlightBrowserStubs()
+    const scope = effectScope()
+    const library = scope.run(() => useDeckLibrary({
+      librarySection: ref('mine'),
+      user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }),
+      client: emptyClient()
+    }))
+
+    if (!library) {
+      throw new Error('Escopo de teste nao iniciado.')
+    }
+
+    await library.highlightDeck(2)
+    scope.stop()
+    await vi.advanceTimersByTimeAsync(16)
+
+    expect(browser.cancelAnimationFrame).toHaveBeenCalled()
+    expect(library.highlightedDeckId.value).toBeNull()
+  })
 })
 
 function deck(id: number, title: string): DeckSummary {
@@ -188,5 +239,50 @@ function page<T>(content: T[], pageNumber: number, totalElements: number, last =
     totalPages: last ? pageNumber + 1 : pageNumber + 2,
     first: pageNumber === 0,
     last
+  }
+}
+
+function emptyClient() {
+  return {
+    publicDecks: vi.fn(async () => page<DeckSummary>([], 0, 0, true)),
+    myDecks: vi.fn(async () => page<DeckSummary>([], 0, 0, true))
+  }
+}
+
+function installHighlightBrowserStubs() {
+  const scrollIntoView = vi.fn()
+  const rafTimers = new Map<number, ReturnType<typeof setTimeout>>()
+  let nextFrame = 1
+  const requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
+    const frameId = nextFrame++
+    const timer = setTimeout(() => {
+      rafTimers.delete(frameId)
+      callback(0)
+    }, 16)
+    rafTimers.set(frameId, timer)
+    return frameId
+  })
+  const cancelAnimationFrame = vi.fn((frameId: number) => {
+    const timer = rafTimers.get(frameId)
+    if (timer !== undefined) {
+      clearTimeout(timer)
+      rafTimers.delete(frameId)
+    }
+  })
+
+  vi.stubGlobal('document', {
+    querySelector: vi.fn(() => ({ scrollIntoView }))
+  })
+  vi.stubGlobal('window', {
+    setTimeout,
+    clearTimeout,
+    requestAnimationFrame,
+    cancelAnimationFrame
+  })
+
+  return {
+    scrollIntoView,
+    requestAnimationFrame,
+    cancelAnimationFrame
   }
 }
