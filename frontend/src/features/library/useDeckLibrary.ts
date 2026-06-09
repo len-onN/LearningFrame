@@ -1,4 +1,4 @@
-import { computed, nextTick, ref, type Ref } from 'vue'
+import { computed, nextTick, onScopeDispose, ref, type Ref } from 'vue'
 import { api } from '../../services/api'
 import type { DeckSummary, PageResponse, UserResponse } from '../../types/api'
 import type { LibrarySection } from './libraryTypes'
@@ -33,6 +33,8 @@ export function useDeckLibrary({
   const selectedMyDeckIds = ref<Set<number>>(new Set())
 
   let highlightDeckTimer: number | undefined
+  let highlightDeckFrame: number | undefined
+  let disposed = false
 
   const publicDecksHasMore = computed(() => publicDeckPage.value ? !publicDeckPage.value.last : false)
   const myDecksHasMore = computed(() => myDeckPage.value ? !myDeckPage.value.last : false)
@@ -86,14 +88,25 @@ export function useDeckLibrary({
   }
 
   async function highlightDeck(deckId: number) {
+    if (disposed) {
+      return
+    }
     highlightedDeckId.value = null
     clearHighlightDeckTimer()
     await nextTick()
+    if (disposed) {
+      return
+    }
     document.querySelector(`[data-deck-id="${deckId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    window.requestAnimationFrame(() => {
+    highlightDeckFrame = window.requestAnimationFrame(() => {
+      highlightDeckFrame = undefined
+      if (disposed) {
+        return
+      }
       highlightedDeckId.value = deckId
       highlightDeckTimer = window.setTimeout(() => {
-        if (highlightedDeckId.value === deckId) {
+        highlightDeckTimer = undefined
+        if (!disposed && highlightedDeckId.value === deckId) {
           highlightedDeckId.value = null
         }
       }, 10000)
@@ -101,8 +114,20 @@ export function useDeckLibrary({
   }
 
   function clearHighlightDeckTimer() {
-    window.clearTimeout(highlightDeckTimer)
+    if (highlightDeckTimer !== undefined) {
+      window.clearTimeout(highlightDeckTimer)
+      highlightDeckTimer = undefined
+    }
+    if (highlightDeckFrame !== undefined) {
+      window.cancelAnimationFrame(highlightDeckFrame)
+      highlightDeckFrame = undefined
+    }
   }
+
+  onScopeDispose(() => {
+    disposed = true
+    clearHighlightDeckTimer()
+  }, true)
 
   function toggleDeckSelectionMode() {
     deckSelectionMode.value = !deckSelectionMode.value

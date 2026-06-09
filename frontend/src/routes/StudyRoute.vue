@@ -1,33 +1,8 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
-import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import StudyPage from '../pages/StudyPage.vue'
 import { studyRouteKey, useRequiredRouteContext } from './routeContext'
 
 const study = useRequiredRouteContext(studyRouteKey, 'Study')
-const route = useRoute()
-
-onMounted(() => {
-  void study.syncStudyRoute()
-})
-
-watch(() => [route.name, route.params.deckId], () => {
-  if (isStudyRoute()) {
-    void study.syncStudyRoute()
-  }
-})
-
-onBeforeRouteLeave((to) => {
-  if (!String(to.name ?? '').startsWith('study')) {
-    study.cleanupStudyRoute()
-  }
-})
-
-function isStudyRoute() {
-  return route.name === 'study'
-    || route.name === 'study-deck'
-    || route.name === 'study-interleaved'
-}
 </script>
 
 <template>
