@@ -31,6 +31,8 @@ Para o estado atual, consulte:
 | 2026-06-08 | Refatoração pós-MVP | [Prompt App.vue explosion 3](prompts/prompt-app.vue-explosion-3.md) | Segunda fatia de redução do composition root | `useStatsSummary`, `useAppNavigation`, `useRouteLifecycle` e base de `useStudySession` extraídos |
 | 2026-06-08 | Refatoração pós-MVP | [Prompt App.vue explosion 4](prompts/prompt-app.vue-explosion-4.md) | Terceira fatia de redução do composition root | `useApkgImport` extraiu preview, persistência e cleanup APKG |
 | 2026-06-09 | Refatoração pós-MVP | [Prompt App.vue 1](prompts/prompt-app.vue-1.md) | Timers, debounce e cleanup local | `App.vue` ficou sem timers manuais e highlight ganhou cleanup de rAF/timeout |
+| 2026-06-09 | Refatoração pós-MVP | [Prompt App.vue 2](prompts/prompt-app.vue-2.md) | Fluxo de criação de baralho | `useCreateDeckFlow` assumiu formulário e criação de deck |
+| 2026-06-09 | Refatoração pós-MVP | [Prompt App.vue 3](prompts/prompt-app.vue-3.md) | Fluxo de estudo | `useStudySession` assumiu carga, cache, revisão e prática intercalada |
 
 ## 2. Sequencia arquitetural do frontend
 

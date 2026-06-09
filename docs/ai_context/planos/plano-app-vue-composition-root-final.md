@@ -1,6 +1,6 @@
 # Plano: tratamento final do App.vue como composition root
 
-**Status:** Prompts 1 e 2 concluidos; proximas fatias planejadas.
+**Status:** Prompts 1, 2 e 3 concluidos; proximas fatias planejadas.
 **Branch:** `codex/refactor-app-vue-responsibilities`.
 **Data de referencia:** 2026-06-09.
 **Escopo:** continuar reduzindo `frontend/src/App.vue` sem alterar rotas, UX,
@@ -15,16 +15,20 @@ ciclo de vida real.
 
 ## 1. Estado atual do App.vue
 
-`frontend/src/App.vue` esta com aproximadamente 843 linhas e ainda concentra:
+`frontend/src/App.vue` esta com aproximadamente 728 linhas e ainda concentra:
 
-- cache e estado local de estudo em `App.vue:129-130`;
-- formulario de auth em `App.vue:142-152`;
-- composicao do fluxo de criacao em `App.vue:199-207`;
-- sync de rotas de biblioteca e estudo em `App.vue:306-371`;
-- acoes transversais de biblioteca em `App.vue:376-438`;
-- workflow de auth em `App.vue:441-539`;
-- workflow de estudo em `App.vue:542-673`;
-- providers de rota em `App.vue:689-797`.
+- formulario de auth em `App.vue:125-135`;
+- composicao dos fluxos extraidos de criacao, importacao e estudo em
+  `App.vue:181-254`;
+- sync de rotas de biblioteca e estudo em `App.vue:299-358`;
+- acoes transversais de biblioteca em `App.vue:372-431`;
+- workflow de auth em `App.vue:434-528`;
+- navegacao de estudo em `App.vue:534-546`;
+- providers de rota em `App.vue:574-682`.
+
+A implementacao de carga e revisao de estudo saiu do root. `useStudySession`
+agora possui cache publico de estudo, estados locais, carga de baralho,
+pratica intercalada, revisao e conversao de cartas vindas do backend.
 
 O root nao contem mais `setTimeout`, `clearTimeout` ou
 `requestAnimationFrame` manuais. Debounces e highlight passaram a ter ownership
@@ -148,14 +152,14 @@ Esse fluxo nao deve ser escondido dentro de auth sem contrato explicito.
 
 ### Logout
 
-`App.vue:513-523` limpa gerenciamento, selecao, cache publico de estudo,
-sessao, stats, decks privados e rota. Deve ficar no root ate estudo e
-biblioteca estarem mais isolados.
+`App.vue:494-503` limpa gerenciamento, selecao, cache publico de estudo por
+porta do composable, sessao, stats, decks privados e rota. Deve ficar no root
+ate biblioteca e auth estarem mais isolados.
 
 ### Estudo
 
-`App.vue:570-639` cruza estudo anonimo, backend autenticado, SRS local,
-feedback e stats. A extracao deve manter:
+Depois do Prompt 3, `useStudySession` cruza estudo anonimo, backend
+autenticado, SRS local, feedback e stats. A extracao manteve:
 
 - `nextReview` apenas para cartas locais;
 - `refreshStats` apenas em revisao autenticada;
@@ -231,6 +235,8 @@ Validado:
 
 ### Prompt 3 - Estudo
 
+Status: concluido em 2026-06-09.
+
 Objetivo: promover `useStudySession` de estado visual para fluxo de estudo.
 
 Mover com cuidado:
@@ -248,6 +254,28 @@ Manter no root/app:
 - navegacao `startDeck`;
 - navegacao `startInterleavedPractice`;
 - fallback de rota invalida no `syncStudyRoute`.
+
+Implementado:
+
+- `useStudySession` passou a receber `user`, `publicDecks`,
+  `loadPublicDecks`, `refreshStats`, `showNotice`, `withFeedback`, `client` e
+  limite de cache publico;
+- `useStudySession` assumiu `publicStudyDeckCache`, `localStates`,
+  `loadStudyDeck`, `loadInterleavedPractice`, `reviewCurrent`,
+  `ensurePublicDeck` e `serverCardToStudyCard`;
+- `App.vue` manteve somente navegacao de estudo, sync de rota e limpeza de
+  cache por porta do composable no logout;
+- revisao anonima permaneceu local, sem chamada ao backend e sem
+  `refreshStats`;
+- pratica intercalada anonima continuou limitada aos quatro primeiros decks
+  publicos carregados;
+- sanitizacao continuou em `safeStudyHtml` dentro de `useStudySession`.
+
+Validado:
+
+- `cd frontend && npm test`;
+- `cd frontend && npm run build`;
+- `git diff --check`.
 
 ### Prompt 4 - Biblioteca e route sync
 

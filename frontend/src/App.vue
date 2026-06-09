@@ -5,18 +5,8 @@ import AppShell from './layouts/AppShell.vue'
 import { api } from './services/api'
 import type {
   CardResponse,
-  DeckSummary,
-  LocalDeck,
-  ReviewRating,
-  StudyCard,
-  StudyCardResponse
+  DeckSummary
 } from './types/api'
-import {
-  deckDetailToLocal,
-  loadLocalStates,
-  localDeckToStudyCards,
-  saveLocalStates
-} from './utils/localStudy'
 import CardEditorOverlay from './features/library/CardEditorOverlay.vue'
 import { useDeckLibrary } from './features/library/useDeckLibrary'
 import { cardCountLabel, deckDueLabel } from './features/library/deckFormatters'
@@ -25,11 +15,6 @@ import { useDeckManagement } from './features/library/useDeckManagement'
 import { useCreateDeckFlow } from './features/create/useCreateDeckFlow'
 import { htmlSummary } from './features/import/importPreview'
 import { useApkgImport } from './features/import/useApkgImport'
-import {
-  studyFeedbackFromResult,
-  studyFeedbackFromReviewResult,
-  type StudyReviewFeedback
-} from './features/study/studyFeedback'
 import { useStudySession } from './features/study/useStudySession'
 import {
   authRouteKey,
@@ -39,7 +24,6 @@ import {
   progressRouteKey,
   studyRouteKey
 } from './routes/routeContext'
-import { nextReview } from './utils/srs'
 import { validateAuthForm, type AuthErrors, type AuthField, type AuthMode } from './utils/authValidation'
 import { useAppNavigation } from './app/useAppNavigation'
 import { useLibrarySearchLifecycle } from './app/useLibrarySearchLifecycle'
@@ -127,8 +111,6 @@ const {
   user,
   pageSize: DECK_PAGE_SIZE
 })
-const publicStudyDeckCache = ref<LocalDeck[]>([])
-const localStates = ref(loadLocalStates())
 const {
   stats,
   refreshStats,
@@ -254,9 +236,20 @@ const {
   studyProgress,
   studySummary,
   resetStudySession,
-  setStudySessionCards,
-  completeCurrentReview
-} = useStudySession()
+  loadStudyDeck,
+  loadInterleavedPractice,
+  reviewCurrent,
+  clearPublicStudyDeckCache
+} = useStudySession({
+  user,
+  publicDecks,
+  loadPublicDecks,
+  refreshStats,
+  showNotice,
+  withFeedback,
+  client: api,
+  publicDeckCacheLimit: PUBLIC_STUDY_DECK_CACHE_LIMIT
+})
 const authErrors = computed<AuthErrors>(() => validateAuthForm(authForm.value, authMode.value))
 const userDisplayName = computed(() => user.value?.displayName ?? 'Visitante')
 const deckFormatters = {
@@ -501,7 +494,7 @@ function resetAuthValidation() {
 async function logout() {
   closeManagedDeck(true, false)
   exitDeckSelectionMode()
-  publicStudyDeckCache.value = []
+  clearPublicStudyDeckCache()
   clearSession()
   clearStats()
   myDecks.value = []
@@ -555,78 +548,6 @@ async function startInterleavedPractice() {
   await router.push({ name: 'study-interleaved' })
 }
 
-async function loadStudyDeck(deckId: number) {
-  answerVisible.value = false
-
-  await withFeedback(async () => {
-    const metadata = await api.deckMetadata(deckId).catch(() => null)
-    sessionTitle.value = metadata?.title ?? 'Baralho'
-    let cards: StudyCard[]
-    if (user.value) {
-      const due = await api.due('SINGLE_DECK', deckId)
-      cards = due.cards.map(serverCardToStudyCard)
-    } else {
-      const localDeck = await ensurePublicDeck(deckId)
-      sessionTitle.value = localDeck.title
-      cards = localDeckToStudyCards(localDeck, localStates.value)
-    }
-    setStudySessionCards(cards, metadata?.cardCount === 0 ? 'empty-deck' : 'no-due')
-    if (cards.length === 0) {
-      showNotice('Nenhum card vencido agora para esta sessao.')
-    }
-  })
-}
-
-async function loadInterleavedPractice() {
-  sessionTitle.value = 'Prática intercalada'
-  answerVisible.value = false
-
-  await withFeedback(async () => {
-    let cards: StudyCard[]
-    if (user.value) {
-      const due = await api.due('MIXED_DUE')
-      cards = due.cards.map(serverCardToStudyCard)
-    } else {
-      if (publicDecks.value.length === 0) {
-        await loadPublicDecks(true)
-      }
-      cards = []
-      for (const deck of publicDecks.value.slice(0, 4)) {
-        const localDeck = await ensurePublicDeck(deck.id)
-        cards.push(...localDeckToStudyCards(localDeck, localStates.value))
-      }
-    }
-    setStudySessionCards(cards, 'no-due')
-    if (cards.length === 0) {
-      showNotice('Prática intercalada sem cards vencidos agora.')
-    }
-  })
-}
-
-async function reviewCurrent(rating: ReviewRating) {
-  const card = currentCard.value
-  if (!card) {
-    return
-  }
-
-  await withFeedback(async () => {
-    let feedback: StudyReviewFeedback | null = null
-    if (card.local) {
-      const result = nextReview(localStates.value[card.clientId], rating)
-      localStates.value[card.clientId] = result
-      saveLocalStates(localStates.value)
-      feedback = studyFeedbackFromResult(rating, result.dueAt, result.intervalDays)
-    } else if (card.cardId) {
-      const result = await api.review(card.cardId, rating)
-      feedback = studyFeedbackFromReviewResult(result)
-      if (user.value) {
-        await refreshStats()
-      }
-    }
-    completeCurrentReview(rating, feedback)
-  }, false)
-}
-
 async function openManagedDeck(deck: DeckSummary, showLoading = true) {
   if (!user.value) {
     await openAuth('login')
@@ -637,42 +558,6 @@ async function openManagedDeck(deck: DeckSummary, showLoading = true) {
     librarySearch.value = ''
     await router.push({ name: 'library-deck-manage', params: { deckId: deck.id } })
   }, showLoading)
-}
-
-async function ensurePublicDeck(deckId: number) {
-  const localId = `public:${deckId}`
-  const existing = publicStudyDeckCache.value.find((deck) => deck.id === localId)
-  if (existing) {
-    publicStudyDeckCache.value = [
-      existing,
-      ...publicStudyDeckCache.value.filter((deck) => deck.id !== localId)
-    ]
-    return existing
-  }
-
-  const detail = await api.deck(deckId)
-  const localDeck = deckDetailToLocal(detail)
-  publicStudyDeckCache.value = [localDeck, ...publicStudyDeckCache.value]
-    .slice(0, PUBLIC_STUDY_DECK_CACHE_LIMIT)
-  return localDeck
-}
-
-function serverCardToStudyCard(card: StudyCardResponse): StudyCard {
-  return {
-    clientId: `server:${card.cardId}`,
-    cardId: card.cardId,
-    deckId: card.deckId,
-    deckTitle: card.deckTitle,
-    frontHtml: card.frontHtml,
-    backHtml: card.backHtml,
-    tags: card.tags,
-    dueAt: card.dueAt,
-    intervalDays: card.intervalDays,
-    repetitions: card.repetitions,
-    easeFactor: 2.5,
-    newCard: card.newCard,
-    local: false
-  }
 }
 
 useRouteLifecycle({
