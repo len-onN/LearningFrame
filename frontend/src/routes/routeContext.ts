@@ -1,4 +1,4 @@
-import type { ComputedRef, InjectionKey, Ref, WritableComputedRef } from 'vue'
+import type { ComputedRef, InjectionKey, Ref } from 'vue'
 import { inject } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import type {
@@ -102,7 +102,6 @@ export interface LibraryRouteContext {
 
 export interface StudyRouteContext {
   sessionTitle: Ref<string>
-  studyQueue: Ref<StudyCard[]>
   currentCard: ComputedRef<StudyCard | undefined>
   currentDueLabel: ComputedRef<string>
   frontHtml: ComputedRef<string>
@@ -153,8 +152,6 @@ export interface ProgressRouteContext {
   user: Ref<UserResponse | null>
   stats: Ref<StatsSummary | null>
 }
-
-export type ModelRef<T> = Ref<T> | WritableComputedRef<T>
 
 export const authRouteKey: InjectionKey<AuthRouteContext> = Symbol('auth-route')
 export const libraryRouteKey: InjectionKey<LibraryRouteContext> = Symbol('library-route')

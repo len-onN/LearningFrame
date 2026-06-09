@@ -1,6 +1,6 @@
 # Plano: tratamento final do App.vue como composition root
 
-**Status:** Prompts 1, 2, 3, 4 e 5 concluidos; revisao final planejada.
+**Status:** Prompts 1, 2, 3, 4, 5 e 6 concluidos; frente finalizada.
 **Branch:** `codex/refactor-app-vue-responsibilities`.
 **Data de referencia:** 2026-06-09.
 **Escopo:** continuar reduzindo `frontend/src/App.vue` sem alterar rotas, UX,
@@ -15,14 +15,15 @@ ciclo de vida real.
 
 ## 1. Estado atual do App.vue
 
-`frontend/src/App.vue` esta com aproximadamente 586 linhas e ainda concentra:
+`frontend/src/App.vue` esta com aproximadamente 583 linhas e funciona como
+composition root. Ele concentra:
 
-- composicao dos fluxos extraidos de biblioteca, criacao, importacao, auth e
-  estudo em `App.vue:181-324`;
-- sync de rotas de estudo em `App.vue:358-382`;
-- wrappers transversais de navegacao, como `openAuth`, em `App.vue:397-404`;
-- navegacao de estudo em `App.vue:407-421`;
-- providers de rota em `App.vue:440-542`.
+- composicao de composables globais e de dominio;
+- callbacks transversais de navegacao, auth, feedback, stats e logout;
+- sync de rotas de estudo que ainda depende do router;
+- `useRouteLifecycle`;
+- providers de rota inline;
+- shell/template com `AppShell`, `RouterView` e `CardEditorOverlay`.
 
 A implementacao de carga e revisao de estudo saiu do root. `useStudySession`
 agora possui cache publico de estudo, estados locais, carga de baralho,
@@ -401,6 +402,35 @@ Atividades:
 - revisar `routeContext.ts` para remover campos mortos;
 - validar todos os testes/build;
 - atualizar documentacao final.
+
+Status: concluido em 2026-06-09.
+
+Implementado:
+
+- `App.vue` teve sobras de destructuring removidas, incluindo
+  `selectedManagedCardIds` e `studyQueue`;
+- `routeContext.ts` deixou de publicar `studyQueue` no contrato visual de
+  estudo, porque `StudyRoute.vue`/`StudyPage.vue` usam apenas os dados
+  derivados da sessao;
+- o tipo auxiliar `ModelRef` e o import de `WritableComputedRef` foram
+  removidos por nao terem consumidor;
+- os providers permaneceram inline no root, pois a lista explicita de portas
+  ainda facilita revisar o contrato entre composition root e rotas visuais;
+- nao houve alteracao de rotas, UX, textos, contratos de API, SRS, APKG,
+  paginacao, debounce, auth ou logout.
+
+Validado:
+
+- `cd frontend && npm test`;
+- `cd frontend && npm run build`;
+- `git diff --check`.
+
+Decisao final:
+
+- nao foi criado prompt de continuidade para esta frente, porque nao restou
+  fronteira imediata de refatoracao do `App.vue` dentro do escopo planejado;
+- futuras mudancas devem partir de necessidades concretas de produto ou bugs,
+  mantendo `App.vue` como integrador explicito em vez de store global.
 
 ## 7. Validacao minima por fatia
 

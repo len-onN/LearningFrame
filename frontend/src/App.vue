@@ -131,7 +131,6 @@ const {
   managedDeckDirty,
   managedCards,
   managedCardsSearch,
-  selectedManagedCardIds,
   managedCardsView,
   cardEditorOpen,
   cardEditorForm,
@@ -296,7 +295,6 @@ const authFlow = useAuthFlow({
 })
 
 const {
-  studyQueue,
   sessionTitle,
   answerVisible,
   lastStudyFeedback,
@@ -492,7 +490,6 @@ provide(libraryRouteKey, {
 
 provide(studyRouteKey, {
   sessionTitle,
-  studyQueue,
   currentCard,
   currentDueLabel,
   frontHtml,

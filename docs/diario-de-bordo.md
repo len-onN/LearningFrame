@@ -1764,3 +1764,41 @@ Observacao operacional:
 - `npm test` e `npm run build` precisaram ser executados fora do sandbox local
   porque o carregamento do `vite.config.ts` falhou no sandbox com erro de acesso
   negado.
+
+## 63. Revisao Final do App.vue como Composition Root
+
+Data: 2026-06-09
+Branch de trabalho: `codex/refactor-app-vue-responsibilities`
+
+A frente de refatoracao do `frontend/src/App.vue` foi fechada com uma revisao
+final dos imports, destructurings e contratos de rota, sem alterar rotas, UX,
+textos, contratos de API, regras de SRS, fluxo APKG, paginacao, debounce, auth
+ou logout.
+
+Mudancas aplicadas:
+- `App.vue` ficou com aproximadamente 583 linhas e passou a ser lido como
+  composition root: instancia composables globais e de dominio, conecta
+  callbacks transversais, usa `useRouteLifecycle`, publica providers de rota e
+  renderiza o shell;
+- a sobra `selectedManagedCardIds` foi removida do root, pois o contrato visual
+  usa `managedCardsView` para selecao de cartas gerenciadas;
+- `studyQueue` deixou de ser publicado em `studyRouteKey`, porque a tela de
+  estudo consome apenas `currentCard`, HTML sanitizado, progresso, feedback e
+  resumo;
+- `routeContext.ts` removeu o tipo auxiliar `ModelRef` e o import de
+  `WritableComputedRef`, ambos sem consumidor;
+- os providers permaneceram inline em `App.vue`, pois a lista explicita de
+  portas ainda e a forma mais clara de revisar o contrato entre root e rotas
+  visuais.
+
+Decisao:
+- a refatoracao nao introduziu store global nem dependencia nova;
+- logout continua no root porque coordena biblioteca, estudo, sessao, stats e
+  roteamento;
+- nao foi criado prompt de continuidade para esta frente, pois nao restou
+  fronteira imediata dentro do escopo planejado.
+
+Validacoes executadas:
+- `cd frontend && npm test`;
+- `cd frontend && npm run build`;
+- `git diff --check`.
