@@ -6,7 +6,6 @@ import { api } from './services/api'
 import type {
   CardResponse,
   DeckSummary,
-  DeckVisibility,
   LocalDeck,
   ReviewRating,
   StudyCard,
@@ -23,6 +22,7 @@ import { useDeckLibrary } from './features/library/useDeckLibrary'
 import { cardCountLabel, deckDueLabel } from './features/library/deckFormatters'
 import { cardTextSummary as summarizeCardText } from './features/library/cardText'
 import { useDeckManagement } from './features/library/useDeckManagement'
+import { useCreateDeckFlow } from './features/create/useCreateDeckFlow'
 import { htmlSummary } from './features/import/importPreview'
 import { useApkgImport } from './features/import/useApkgImport'
 import {
@@ -87,6 +87,7 @@ const {
   toggleSidebar,
   navigateTo,
   navigateToMyDecks,
+  navigateToManagedDeck,
   routeDeckId
 } = useAppNavigation({
   route,
@@ -151,12 +152,6 @@ const authTouched = ref<Record<AuthField, boolean>>({
 })
 const authSubmitted = ref(false)
 
-const deckForm = ref({
-  title: '',
-  description: '',
-  visibility: 'PRIVATE' as DeckVisibility
-})
-
 const {
   managedDeck,
   managedDeckForm,
@@ -199,6 +194,15 @@ const {
   loadMyDecks,
   refreshStats,
   navigateToMyDecks
+})
+
+const createDeckFlow = useCreateDeckFlow({
+  client: api,
+  loadMyDecks,
+  setManagedDeck,
+  navigateToManagedDeck,
+  showNotice,
+  withFeedback
 })
 
 const {
@@ -623,17 +627,6 @@ async function reviewCurrent(rating: ReviewRating) {
   }, false)
 }
 
-async function createDeck() {
-  await withFeedback(async () => {
-    const created = await api.createDeck(deckForm.value.title, deckForm.value.description, deckForm.value.visibility)
-    deckForm.value = { title: '', description: '', visibility: 'PRIVATE' }
-    await loadMyDecks(true)
-    setManagedDeck(created)
-    await router.push({ name: 'library-deck-manage', params: { deckId: created.id } })
-    showNotice('Baralho criado. Adicione as primeiras cartas.')
-  })
-}
-
 async function openManagedDeck(deck: DeckSummary, showLoading = true) {
   if (!user.value) {
     await openAuth('login')
@@ -794,9 +787,8 @@ provide(importRouteKey, {
 })
 
 provide(createDeckRouteKey, {
-  deckForm,
+  ...createDeckFlow,
   user,
-  createDeck
 })
 
 provide(progressRouteKey, {

@@ -1,6 +1,6 @@
 # Plano: tratamento final do App.vue como composition root
 
-**Status:** Prompt 1 concluido; proximas fatias planejadas.
+**Status:** Prompts 1 e 2 concluidos; proximas fatias planejadas.
 **Branch:** `codex/refactor-app-vue-responsibilities`.
 **Data de referencia:** 2026-06-09.
 **Escopo:** continuar reduzindo `frontend/src/App.vue` sem alterar rotas, UX,
@@ -15,16 +15,16 @@ ciclo de vida real.
 
 ## 1. Estado atual do App.vue
 
-`frontend/src/App.vue` esta com aproximadamente 851 linhas e ainda concentra:
+`frontend/src/App.vue` esta com aproximadamente 843 linhas e ainda concentra:
 
 - cache e estado local de estudo em `App.vue:129-130`;
 - formulario de auth em `App.vue:142-152`;
-- formulario de criacao em `App.vue:154-158`;
-- sync de rotas de biblioteca e estudo em `App.vue:318-377`;
-- acoes transversais de biblioteca em `App.vue:388-450`;
-- workflow de auth em `App.vue:453-550`;
-- workflow de estudo em `App.vue:553-699`;
-- providers de rota em `App.vue:712-821`.
+- composicao do fluxo de criacao em `App.vue:199-207`;
+- sync de rotas de biblioteca e estudo em `App.vue:306-371`;
+- acoes transversais de biblioteca em `App.vue:376-438`;
+- workflow de auth em `App.vue:441-539`;
+- workflow de estudo em `App.vue:542-673`;
+- providers de rota em `App.vue:689-797`.
 
 O root nao contem mais `setTimeout`, `clearTimeout` ou
 `requestAnimationFrame` manuais. Debounces e highlight passaram a ter ownership
@@ -39,6 +39,7 @@ Arquivos ja extraidos e relevantes:
 - `frontend/src/composables/useDebouncedWatch.ts`;
 - `frontend/src/features/library/useDeckLibrary.ts`;
 - `frontend/src/features/library/useDeckManagement.ts`;
+- `frontend/src/features/create/useCreateDeckFlow.ts`;
 - `frontend/src/features/import/useApkgImport.ts`;
 - `frontend/src/features/study/useStudySession.ts`.
 
@@ -191,6 +192,8 @@ Validar:
 
 ### Prompt 2 - Criacao de baralho
 
+Status: concluido em 2026-06-09.
+
 Objetivo: extrair fatia pequena e consolidar padrao de portas de navegacao.
 
 Criar:
@@ -211,6 +214,20 @@ Contrato:
 - `navigateToManagedDeck`;
 - `showNotice`;
 - `withFeedback`.
+
+Implementado:
+
+- `useCreateDeckFlow` passou a possuir `deckForm` e `createDeck`;
+- `App.vue` apenas instancia o fluxo e publica o mesmo contrato visual de
+  `CreateDeckRouteContext`;
+- `useAppNavigation` expoe `navigateToManagedDeck(deckId)` para manter o
+  router fora de `features/create`.
+
+Validado:
+
+- `cd frontend && npm test`;
+- `cd frontend && npm run build`;
+- `git diff --check`.
 
 ### Prompt 3 - Estudo
 

@@ -72,6 +72,10 @@ export function useAppNavigation({
     await router.push({ name: 'library-mine' })
   }
 
+  async function navigateToManagedDeck(deckId: number) {
+    await router.push({ name: 'library-deck-manage', params: { deckId } })
+  }
+
   function routeDeckId() {
     const raw = Array.isArray(route.params.deckId) ? route.params.deckId[0] : route.params.deckId
     const deckId = Number(raw)
@@ -91,6 +95,7 @@ export function useAppNavigation({
     toggleSidebar,
     navigateTo,
     navigateToMyDecks,
+    navigateToManagedDeck,
     routeDeckId
   }
 }
