@@ -32,6 +32,7 @@ defineEmits<{
   'toggle-interleaved-deck': [deckId: number]
   'reveal-answer': []
   review: [rating: ReviewRating]
+  skip: []
 }>()
 
 const fitMediaToScreen = ref(false)
@@ -242,10 +243,21 @@ function interleavedDueLabel(dueCount: number | null) {
 
       <div class="prompt" v-html="frontHtml"></div>
 
-      <button v-if="!answerVisible" class="primary reveal" type="button" @click="$emit('reveal-answer')">
-        <Eye :size="18" aria-hidden="true" />
-        Revelar resposta
-      </button>
+      <div v-if="!answerVisible" class="study-card-actions">
+        <button class="primary reveal" type="button" @click="$emit('reveal-answer')">
+          <Eye :size="18" aria-hidden="true" />
+          Revelar resposta
+        </button>
+        <button
+          v-if="progress.remaining > 1"
+          class="ghost compact"
+          type="button"
+          @click="$emit('skip')"
+          title="Colocar no final da fila"
+        >
+          Pular carta
+        </button>
+      </div>
 
       <template v-else>
         <div class="answer" v-html="backHtml"></div>

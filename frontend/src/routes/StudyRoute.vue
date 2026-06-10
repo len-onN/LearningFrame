@@ -25,5 +25,6 @@ const study = useRequiredRouteContext(studyRouteKey, 'Study')
     @toggle-interleaved-deck="study.toggleInterleavedDeckSelection"
     @reveal-answer="study.answerVisible.value = true"
     @review="study.reviewCurrent"
+    @skip="study.skipCurrentCard"
   />
 </template>

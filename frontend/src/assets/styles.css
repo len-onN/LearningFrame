@@ -1418,8 +1418,15 @@ textarea {
   margin: 8px auto 0;
 }
 
+.study-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: flex-start;
+  margin-top: 24px;
+}
+
 .reveal {
-  justify-self: start;
   min-width: 180px;
   font-size: 1.125rem;
 }

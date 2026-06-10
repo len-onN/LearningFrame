@@ -329,6 +329,16 @@ export function useStudySession({
     publicStudyDeckCache.value = []
   }
 
+  function skipCurrentCard() {
+    if (studyQueue.value.length > 1) {
+      const card = studyQueue.value.shift()
+      if (card) {
+        studyQueue.value.push(card)
+      }
+    }
+    answerVisible.value = false
+  }
+
   return {
     studyQueue,
     sessionTitle,
@@ -351,7 +361,8 @@ export function useStudySession({
     startInterleavedPracticeSession,
     toggleInterleavedDeckSelection,
     reviewCurrent,
-    clearPublicStudyDeckCache
+    clearPublicStudyDeckCache,
+    skipCurrentCard
   }
 }
 
