@@ -305,6 +305,7 @@ const {
   currentDueLabel,
   studyProgress,
   studySummary,
+  predictedIntervals,
   interleavedSelection,
   resetStudySession,
   loadStudyDeck,
@@ -312,6 +313,7 @@ const {
   startInterleavedPracticeSession,
   toggleInterleavedDeckSelection,
   reviewCurrent,
+  skipCurrentCard,
   clearPublicStudyDeckCache
 } = useStudySession({
   user,
@@ -504,12 +506,14 @@ provide(studyRouteKey, {
   studyEmptyReason,
   lastStudyFeedback,
   studySummary,
+  predictedIntervals,
   interleavedSelection,
   goToLibrary: goHome,
   startInterleavedPractice,
   startSelectedInterleavedPractice: startInterleavedPracticeSession,
   toggleInterleavedDeckSelection,
-  reviewCurrent
+  reviewCurrent,
+  skipCurrentCard
 })
 
 provide(importRouteKey, {
