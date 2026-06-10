@@ -46,6 +46,7 @@ const studyFontStyle = computed(() => ({
 }))
 const interleavedSelectedCount = computed(() => props.interleavedSelection.selectedIds.length)
 const interleavedSelectedIds = computed(() => new Set(props.interleavedSelection.selectedIds))
+const isInterleavedMode = computed(() => props.interleavedSelection.active || props.sessionTitle === 'Pratica intercalada')
 
 function adjustStudyFont(delta: number) {
   studyFontLevel.value = Math.min(
@@ -141,9 +142,9 @@ function interleavedDueLabel(dueCount: number | null) {
           {{ fitMediaToScreen ? 'Mídia natural' : 'Ajustar mídia' }}
         </button>
         <button
-          :class="[{ 'primary': interleavedSelection.active, 'ghost': !interleavedSelection.active }, 'compact']"
+          :class="[{ 'primary': isInterleavedMode, 'ghost': !isInterleavedMode }, 'compact']"
           type="button"
-          @click="$emit('start-interleaved')"
+          @click="isInterleavedMode ? null : $emit('start-interleaved')"
         >
           <Shuffle :size="16" aria-hidden="true" />
           Prática intercalada
