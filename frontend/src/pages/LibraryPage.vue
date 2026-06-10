@@ -23,6 +23,8 @@ defineProps<{
   myDecks: DeckSummary[]
   publicDecksHasMore: boolean
   myDecksHasMore: boolean
+  loadingMorePublic: boolean
+  loadingMoreMine: boolean
   highlightedDeckId: number | null
   deckSelectionMode: boolean
   selectedMyDeckIds: Set<number>
@@ -33,6 +35,7 @@ defineProps<{
   managedDeckDirty: boolean
   managedCardsView: ManagedCardsViewState
   managedCardsSearch: string
+  loadingMoreCards: boolean
   deckFormatters: DeckListFormatters
   cardTextSummary: CardTextFormatter
   cardCountLabel: (count: number) => string
@@ -191,6 +194,7 @@ function scrollToLibraryTop() {
           :decks="publicDecks"
           empty-message="Nenhum baralho público encontrado."
           :has-more="publicDecksHasMore"
+          :loading-more="loadingMorePublic"
           show-save-action
           :formatters="deckFormatters"
           @start="$emit('start-deck', $event)"
@@ -203,6 +207,7 @@ function scrollToLibraryTop() {
           :decks="myDecks"
           empty-message="Nenhum baralho seu encontrado."
           :has-more="myDecksHasMore"
+          :loading-more="loadingMoreMine"
           :highlighted-deck-id="highlightedDeckId"
           show-manage-action
           selectable
@@ -234,6 +239,7 @@ function scrollToLibraryTop() {
         :dirty="managedDeckDirty"
         :cards-view="managedCardsView"
         :cards-search="managedCardsSearch"
+        :loading-more="loadingMoreCards"
         :card-text-summary="cardTextSummary"
         :card-count-label="cardCountLabel"
         @back="$emit('close-managed-deck')"

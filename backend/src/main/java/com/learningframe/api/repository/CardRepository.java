@@ -37,7 +37,7 @@ public interface CardRepository extends JpaRepository<Card, Long> {
     List<Card> findByDeckIdOrderByCreatedAtAsc(Long deckId);
 
     @EntityGraph(attributePaths = {"deck"})
-    Page<Card> findPageByDeckIdOrderByCreatedAtDesc(Long deckId, Pageable pageable);
+    Page<Card> findPageByDeckIdOrderByCreatedAtDescIdDesc(Long deckId, Pageable pageable);
 
     @EntityGraph(attributePaths = {"deck"})
     @Query(
@@ -50,7 +50,7 @@ public interface CardRepository extends JpaRepository<Card, Long> {
                         or lower(c.backHtml) like lower(concat('%', :query, '%'))
                         or lower(t.name) like lower(concat('%', :query, '%'))
                       )
-                    order by c.createdAt desc
+                    order by c.createdAt desc, c.id desc
                     """,
             countQuery = """
                     select count(distinct c) from Card c
