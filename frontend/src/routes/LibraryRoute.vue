@@ -63,6 +63,7 @@ const managedCardsSearch = computed({
     @clear-deck-selection="library.clearSelectedMyDecks"
     @delete-selected-decks="library.deleteSelectedMyDecks"
     @toggle-deck-selection="library.toggleMyDeckSelection"
+    @start-selected-study="library.startInterleavedFromSelection(Array.from(library.selectedMyDeckIds.value))"
     @login="library.openAuth('login')"
     @close-managed-deck="library.closeManagedDeck"
     @save-managed-deck="library.saveManagedDeck"

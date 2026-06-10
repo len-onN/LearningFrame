@@ -1821,3 +1821,19 @@ Melhoria no Ambiente de Desenvolvimento (DX):
 - Identificamos que o `docker-compose.dev.yml` operava com um `builder` estático (`npm run build -- --watch`) acoplado ao Nginx, o que anulava o Hot Module Replacement (HMR) e gerava travamentos ao sincronizar diretórios do Windows.
 - O container frontend de desenvolvimento foi reescrito para utilizar o **Vite Dev Server** nativo (`npm run dev`) na porta 80.
 - Criamos um `frontend/Dockerfile.dev` puramente Node (isolando-o da build do Nginx) e habilitamos o `usePolling` no Vite para sincronização perfeita de arquivos via volumes do Docker Desktop.
+
+## 65. Integração da Seleção de Biblioteca com Estudo e Ajustes Visuais
+
+Data: 2026-06-10
+Branch de trabalho: `fix/deck_selection`
+
+Foi finalizado o fluxo de "Prática intercalada" com o foco em reduzir atritos para o usuário. 
+
+Decisões de Navegação e UX:
+- Foi adicionado o botão "Estudar selecionados" na barra de ações da biblioteca quando em modo de seleção múltipla.
+- Em vez de direcionar o usuário para a página de seleção da prática intercalada, a rota `/study/interleaved` agora detecta automaticamente os IDs passados por parâmetro na URL (`?decks=x,y`).
+- O orquestrador da rota (`syncStudyRoute` em `App.vue`) foi modificado para que, caso a rota possua baralhos pré-selecionados, a sessão de estudos seja iniciada imediatamente, removendo a necessidade de um clique adicional de confirmação pelo usuário.
+
+Melhorias Visuais e Acessibilidade:
+- A cor de fundo da área da biblioteca (`--color-library-section-bg`) foi ligeiramente clareada no modo claro para proporcionar um respiro visual.
+- A cor do hover nos cartões dos baralhos foi ajustada para `--color-focus` (um tom levemente mais escuro) de forma a garantir maior contraste em relação à nova cor de fundo, resolvendo o problema de contraste na navegação.

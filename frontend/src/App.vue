@@ -380,7 +380,13 @@ async function syncStudyRoute() {
   }
 
   if (route.name === 'study-interleaved') {
-    await prepareInterleavedPracticeSelection()
+    const ids = route.query.decks
+      ? (route.query.decks as string).split(',').map(Number).filter(n => !Number.isNaN(n))
+      : []
+    await prepareInterleavedPracticeSelection(ids)
+    if (ids.length > 0) {
+      await startInterleavedPracticeSession()
+    }
   }
 }
 
@@ -427,6 +433,10 @@ async function startInterleavedPractice() {
     return
   }
   await router.push({ name: 'study-interleaved' })
+}
+
+async function startInterleavedFromSelection(deckIds: number[]) {
+  await router.push({ name: 'study-interleaved', query: { decks: deckIds.join(',') } })
 }
 
 useRouteLifecycle({
@@ -476,6 +486,7 @@ provide(libraryRouteKey, {
   navigateTo,
   refreshAll,
   startDeck,
+  startInterleavedFromSelection,
   savePublicDeck,
   loadMorePublicDecks,
   loadMoreMyDecks,

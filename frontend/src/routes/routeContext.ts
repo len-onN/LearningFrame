@@ -80,6 +80,7 @@ export interface LibraryRouteContext {
   navigateTo: (to: RouteLocationRaw) => Promise<void>
   refreshAll: () => Promise<void>
   startDeck: (deck: DeckSummary) => Promise<void>
+  startInterleavedFromSelection: (deckIds: number[]) => Promise<void>
   savePublicDeck: (deck: DeckSummary) => Promise<void>
   loadMorePublicDecks: () => Promise<void>
   loadMoreMyDecks: () => Promise<void>
