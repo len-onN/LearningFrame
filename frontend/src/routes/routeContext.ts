@@ -61,6 +61,8 @@ export interface LibraryRouteContext {
   filteredMyDecks: ComputedRef<DeckSummary[]>
   publicDecksHasMore: ComputedRef<boolean>
   myDecksHasMore: ComputedRef<boolean>
+  loadingMorePublicDecks: Ref<boolean>
+  loadingMoreMyDecks: Ref<boolean>
   highlightedDeckId: Ref<number | null>
   deckSelectionMode: Ref<boolean>
   selectedMyDeckIds: Ref<Set<number>>
@@ -71,6 +73,7 @@ export interface LibraryRouteContext {
   managedDeckDirty: ComputedRef<boolean>
   managedCardsView: ComputedRef<ManagedCardsViewState>
   managedCardsSearch: Ref<string>
+  loadingMoreManagedCards: Ref<boolean>
   deckFormatters: DeckListFormatters
   cardTextSummary: CardTextFormatter
   cardCountLabel: (count: number) => string

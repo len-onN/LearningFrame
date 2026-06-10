@@ -1,4 +1,5 @@
 import type { Ref } from 'vue'
+import { ref } from 'vue'
 import { api } from '../../services/api'
 import type { FeedbackOptions } from '../../composables/useFeedback'
 import type { DeckSummary, UserResponse } from '../../types/api'
@@ -62,16 +63,28 @@ export function useLibraryActions({
     }, { showLoading: false })
   }
 
+  const loadingMorePublicDecks = ref(false)
   async function loadMorePublicDecks() {
-    await withFeedback(async () => {
-      await loadPublicDecks()
-    }, { showLoading: false })
+    loadingMorePublicDecks.value = true
+    try {
+      await withFeedback(async () => {
+        await loadPublicDecks()
+      }, { showLoading: false })
+    } finally {
+      loadingMorePublicDecks.value = false
+    }
   }
 
+  const loadingMoreMyDecks = ref(false)
   async function loadMoreMyDecks() {
-    await withFeedback(async () => {
-      await loadMyDecks()
-    }, { showLoading: false })
+    loadingMoreMyDecks.value = true
+    try {
+      await withFeedback(async () => {
+        await loadMyDecks()
+      }, { showLoading: false })
+    } finally {
+      loadingMoreMyDecks.value = false
+    }
   }
 
   async function savePublicDeck(deck: DeckSummary) {
@@ -130,6 +143,8 @@ export function useLibraryActions({
   }
 
   return {
+    loadingMorePublicDecks,
+    loadingMoreMyDecks,
     refreshAll,
     loadMorePublicDecks,
     loadMoreMyDecks,

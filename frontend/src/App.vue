@@ -142,6 +142,7 @@ const {
   loadManagedDeckRoute,
   closeManagedDeck,
   loadManagedCards,
+  loadingMoreManagedCards,
   loadMoreManagedCards,
   saveManagedDeck,
   deleteManagedDeck,
@@ -197,6 +198,8 @@ const {
 
 const {
   refreshAll,
+  loadingMorePublicDecks,
+  loadingMoreMyDecks,
   loadMorePublicDecks,
   loadMoreMyDecks,
   savePublicDeck,
@@ -454,6 +457,8 @@ provide(libraryRouteKey, {
   filteredMyDecks,
   publicDecksHasMore,
   myDecksHasMore,
+  loadingMorePublicDecks,
+  loadingMoreMyDecks,
   highlightedDeckId,
   deckSelectionMode,
   selectedMyDeckIds,
@@ -464,6 +469,7 @@ provide(libraryRouteKey, {
   managedDeckDirty,
   managedCardsView,
   managedCardsSearch,
+  loadingMoreManagedCards,
   deckFormatters,
   cardTextSummary,
   cardCountLabel,

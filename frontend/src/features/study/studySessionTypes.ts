@@ -1,7 +1,7 @@
 import type { DeckVisibility } from '../../types/api'
 import type { StudyRatingCounts, StudyReviewFeedback } from './studyFeedback'
 
-export type StudyEmptyReason = 'idle' | 'no-due' | 'completed' | 'empty-deck'
+export type StudyEmptyReason = 'idle' | 'no-due' | 'completed' | 'empty-deck' | 'limit-reached'
 export type InterleavedDeckSource = 'mine' | 'public'
 
 export interface InterleavedDeckOption {

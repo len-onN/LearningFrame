@@ -318,3 +318,25 @@ Estado atual:
   [plano final do App.vue como composition root](planos/plano-app-vue-composition-root-final.md)
   e no
   [prompt App.vue 4](prompts/prompt-app.vue-4.md).
+
+## 14. Limites Diários de Estudo no AppUser vs SRP
+
+Problema:
+- Precisamos armazenar configurações do usuário, como limites diários de cartas novas e revisões.
+- O princípio de Single Responsibility (SRP) sugere separar configurações de domínio de usuário (que lidam primariamente com autenticação).
+
+Alternativas consideradas:
+- Criar entidade `UserSettings` (relação 1:1 com `AppUser`).
+- Adicionar os campos diretamente em `AppUser`.
+
+Problemas de separar:
+- Para o escopo do MVP, a criação de uma tabela 1:1 apenas para dois campos introduz joins e complexidade desnecessária de persistência.
+- Acarretaria maior sobrecarga cognitiva na gestão dos objetos, indo contra o minimalismo funcional esperado para a entrega imediata.
+
+Decisão final:
+- Adicionar `daily_new_cards_limit` e `daily_review_cards_limit` diretamente em `AppUser`.
+- Aceitar a pequena quebra de SRP no MVP em prol de simplicidade estrutural e desempenho.
+- O mapeamento lógico pode ser desacoplado futuramente caso configurações mais densas sejam adicionadas.
+
+Estado atual:
+- Decisão registrada no planejamento da funcionalidade `feature/daily-study-limits`.

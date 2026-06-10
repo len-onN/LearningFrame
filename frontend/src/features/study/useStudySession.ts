@@ -86,6 +86,7 @@ export function useStudySession({
   const publicStudyDeckCache = ref<LocalDeck[]>([])
   const localStates = ref(loadLocalStates())
   const interleavedSelection = ref<InterleavedSelectionState>(emptyInterleavedSelection())
+  const currentStudyRequest = ref<DueRequestOptions | null>(null)
 
   const currentCard = computed(() => studyQueue.value[0])
   const frontHtml = computed(() => currentCard.value ? safeStudyHtml(currentCard.value.frontHtml, currentCard.value.deckId) : '')
@@ -147,6 +148,7 @@ export function useStudySession({
     lastStudyFeedback.value = null
     studyEmptyReason.value = 'idle'
     interleavedSelection.value = emptyInterleavedSelection()
+    currentStudyRequest.value = null
   }
 
   function setStudySessionCards(cards: StudyCard[], emptyReason: StudyEmptyReason) {
@@ -173,6 +175,24 @@ export function useStudySession({
     }
   }
 
+  async function fetchNextBatch() {
+    if (!currentStudyRequest.value) return
+    const due = await client.due(currentStudyRequest.value)
+    const cards = due.cards.map(serverCardToStudyCard)
+
+    if (cards.length > 0) {
+      studyQueue.value = cards
+      studyInitialTotal.value += cards.length
+      studyEmptyReason.value = 'idle'
+    } else {
+      if (due.limitReachedNew || due.limitReachedReview) {
+        studyEmptyReason.value = 'limit-reached'
+      } else {
+        studyEmptyReason.value = 'completed'
+      }
+    }
+  }
+
   async function loadStudyDeck(deckId: number) {
     answerVisible.value = false
 
@@ -183,9 +203,14 @@ export function useStudySession({
       let emptyReason: StudyEmptyReason = metadata?.cardCount === 0 ? 'empty-deck' : 'no-due'
 
       if (user.value) {
-        const due = await client.due({ mode: 'SINGLE_DECK', deckId })
+        currentStudyRequest.value = { mode: 'SINGLE_DECK', deckId, limit: 20 }
+        const due = await client.due(currentStudyRequest.value)
         cards = due.cards.map(serverCardToStudyCard)
+        if (cards.length === 0) {
+          emptyReason = (due.limitReachedNew || due.limitReachedReview) ? 'limit-reached' : 'no-due'
+        }
       } else {
+        currentStudyRequest.value = null
         const localDeck = await ensurePublicDeck(deckId)
         sessionTitle.value = localDeck.title
         cards = localDeckToStudyCards(localDeck, localStates.value)
@@ -193,7 +218,11 @@ export function useStudySession({
 
       setStudySessionCards(cards, emptyReason)
       if (cards.length === 0) {
-        showNotice('Nenhum card vencido agora para esta sessao.')
+        if (emptyReason === 'limit-reached') {
+          showNotice('Voce atingiu o limite diario de estudos.')
+        } else {
+          showNotice('Nenhum card vencido agora para esta sessao.')
+        }
       }
     })
   }
@@ -242,14 +271,21 @@ export function useStudySession({
 
     await withFeedback(async () => {
       let cards: StudyCard[]
+      let emptyReason: StudyEmptyReason = 'no-due'
+
       if (user.value) {
-        const due = await client.due({
+        currentStudyRequest.value = {
           mode: 'MIXED_DUE',
           deckIds: selectedIds,
-          limit: INTERLEAVED_STUDY_LIMIT
-        })
+          limit: 20
+        }
+        const due = await client.due(currentStudyRequest.value)
         cards = due.cards.map(serverCardToStudyCard)
+        if (cards.length === 0) {
+          emptyReason = (due.limitReachedNew || due.limitReachedReview) ? 'limit-reached' : 'no-due'
+        }
       } else {
+        currentStudyRequest.value = null
         const groups: StudyCard[][] = []
         for (const deckId of selectedIds) {
           const localDeck = await ensurePublicDeck(deckId)
@@ -262,9 +298,13 @@ export function useStudySession({
         ...interleavedSelection.value,
         active: false
       }
-      setStudySessionCards(cards, 'no-due')
+      setStudySessionCards(cards, emptyReason)
       if (cards.length === 0) {
-        showNotice('Pratica intercalada sem cards vencidos agora.')
+        if (emptyReason === 'limit-reached') {
+          showNotice('Voce atingiu o limite diario de estudos.')
+        } else {
+          showNotice('Pratica intercalada sem cards vencidos agora.')
+        }
       }
     })
   }
@@ -304,6 +344,10 @@ export function useStudySession({
         }
       }
       completeCurrentReview(rating, feedback)
+      
+      if (studyQueue.value.length === 0 && user.value && currentStudyRequest.value) {
+        await fetchNextBatch()
+      }
     }, false)
   }
 

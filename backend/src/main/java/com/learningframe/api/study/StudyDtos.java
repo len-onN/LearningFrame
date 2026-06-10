@@ -27,7 +27,12 @@ public final class StudyDtos {
     ) {
     }
 
-    public record DueResponse(StudyMode mode, List<StudyCardResponse> cards) {
+    public record DueResponse(
+            StudyMode mode,
+            List<StudyCardResponse> cards,
+            boolean limitReachedNew,
+            boolean limitReachedReview
+    ) {
     }
 
     public record ReviewRequest(

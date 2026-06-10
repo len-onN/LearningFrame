@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowLeft, Pencil, Plus, Save, Search, Trash2 } from '@lucide/vue'
+import { ArrowLeft, Pencil, Plus, Save, Search, Trash2, Loader2 } from '@lucide/vue'
 import type { CardResponse, DeckSummary, DeckVisibility } from '../../types/api'
 import type { CardTextFormatter, ManagedCardsViewState, ManagedDeckFormState } from './libraryTypes'
 
@@ -9,6 +9,7 @@ const props = defineProps<{
   dirty: boolean
   cardsView: ManagedCardsViewState
   cardsSearch: string
+  loadingMore?: boolean
   cardTextSummary: CardTextFormatter
   cardCountLabel: (count: number) => string
 }>()
@@ -167,10 +168,12 @@ function updateForm(patch: Partial<ManagedDeckFormState>) {
             <a
               v-if="cardsView.hasMore"
               class="load-more-link"
+              :class="{ 'is-loading': loadingMore }"
               href="#"
-              @click.prevent="$emit('load-more-cards')"
+              @click.prevent="!loadingMore && $emit('load-more-cards')"
             >
-              Carregar mais cartas...
+              <Loader2 v-if="loadingMore" :size="16" aria-hidden="true" class="icon-spin" />
+              {{ loadingMore ? 'Carregando...' : 'Carregar mais cartas...' }}
             </a>
           </div>
 

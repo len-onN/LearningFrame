@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Brain, Pencil, Save } from '@lucide/vue'
+import { Brain, Pencil, Save, Loader2 } from '@lucide/vue'
 import type { DeckSummary } from '../../types/api'
 import type { DeckListFormatters } from './libraryTypes'
 
@@ -7,6 +7,7 @@ const props = defineProps<{
   decks: DeckSummary[]
   emptyMessage: string
   hasMore: boolean
+  loadingMore?: boolean
   highlightedDeckId?: number | null
   showSaveAction?: boolean
   showManageAction?: boolean
@@ -120,10 +121,12 @@ function handleSelectionKey(event: KeyboardEvent, deckId: number) {
     <a
       v-if="hasMore"
       class="load-more-link"
+      :class="{ 'is-loading': loadingMore }"
       href="#"
-      @click.prevent="$emit('load-more')"
+      @click.prevent="!loadingMore && $emit('load-more')"
     >
-      Carregar mais baralhos...
+      <Loader2 v-if="loadingMore" :size="16" aria-hidden="true" class="icon-spin" />
+      {{ loadingMore ? 'Carregando...' : 'Carregar mais baralhos...' }}
     </a>
   </div>
 </template>
