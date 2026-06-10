@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowUp, RotateCcw, Search, Trash2, User } from '@lucide/vue'
+import { ArrowUp, RotateCcw, Search, Trash2, User, Shuffle } from '@lucide/vue'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import type { CardResponse, DeckSummary, UserResponse } from '../types/api'
 import DeckListPanel from '../features/library/DeckListPanel.vue'
@@ -56,6 +56,7 @@ defineEmits<{
   'clear-deck-selection': []
   'delete-selected-decks': []
   'toggle-deck-selection': [deckId: number]
+  'start-selected-study': []
   login: []
   'close-managed-deck': []
   'save-managed-deck': []
@@ -169,6 +170,16 @@ function scrollToLibraryTop() {
               @click="$emit('clear-deck-selection')"
             >
               Limpar
+            </button>
+            <button
+              v-if="deckSelectionMode"
+              class="primary compact"
+              type="button"
+              :disabled="selectedMyDecksCount === 0"
+              @click="$emit('start-selected-study')"
+            >
+              <Shuffle :size="16" aria-hidden="true" />
+              Estudar selecionados
             </button>
             <button
               v-if="deckSelectionMode"

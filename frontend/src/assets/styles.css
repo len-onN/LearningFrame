@@ -24,7 +24,7 @@
   --color-primary-soft-hover: #f2fbf9;
   --color-nav-active-bg: #d5eae5;
   --color-section-bg: #eef2f5;
-  --color-library-section-bg: #e2f1ed;
+  --color-library-section-bg: #edf6f4;
   --color-focus: #d9f3ef;
   --color-on-primary: #ffffff;
   --color-field-label: #314158;
@@ -712,12 +712,16 @@ textarea {
 
 .panel,
 .study-card,
-.interleaved-selector,
 .study-summary,
 .empty-state {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface);
+}
+
+.interleaved-selector {
+  border-radius: 8px;
+  background: var(--color-library-section-bg);
 }
 
 .panel {
@@ -789,16 +793,22 @@ textarea {
   border-radius: 8px;
   padding: 14px;
   background: var(--color-surface);
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.deck-card:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-focus);
+  box-shadow: 0 4px 12px rgb(15 23 42 / 4%);
+}
+
+[data-theme="dark"] .deck-card:hover {
+  box-shadow: 0 4px 12px rgb(0 0 0 / 20%);
 }
 
 .deck-card.selectable {
   padding-right: 46px;
   cursor: pointer;
-}
-
-.deck-card.selectable:hover {
-  border-color: var(--color-border-strong);
-  background: var(--color-primary-soft-hover);
 }
 
 .deck-card.selectable:focus-visible {
@@ -1279,6 +1289,11 @@ textarea {
   padding: 12px;
   background: var(--color-surface);
   transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.interleaved-deck-option-wrapper:not(.disabled):hover .interleaved-deck-option {
+  border-color: var(--color-border-strong);
+  background: var(--color-focus);
 }
 
 .interleaved-deck-option-wrapper.selected .interleaved-deck-option {

@@ -227,7 +227,7 @@ export function useStudySession({
     })
   }
 
-  async function prepareInterleavedPracticeSelection() {
+  async function prepareInterleavedPracticeSelection(initialSelectedIds: number[] = []) {
     sessionTitle.value = 'Pratica intercalada'
     answerVisible.value = false
     studyQueue.value = []
@@ -250,10 +250,14 @@ export function useStudySession({
       }
 
       const options = interleavedDeckOptions(user.value ? myDecks.value : [], publicDecks.value, Boolean(user.value))
+      const validSelectedIds = initialSelectedIds
+        .filter((id) => options.some((opt) => opt.id === id))
+        .slice(0, INTERLEAVED_MAX_SELECTED_DECKS)
+
       interleavedSelection.value = {
         active: true,
         options,
-        selectedIds: initialInterleavedSelection(options),
+        selectedIds: validSelectedIds.length > 0 ? validSelectedIds : initialInterleavedSelection(options),
         maxSelected: INTERLEAVED_MAX_SELECTED_DECKS
       }
     })
