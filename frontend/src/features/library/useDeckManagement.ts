@@ -191,10 +191,16 @@ export function useDeckManagement({
     }
   }
 
+  const loadingMoreManagedCards = ref(false)
   async function loadMoreManagedCards() {
-    await withFeedback(async () => {
-      await loadManagedCards()
-    }, { showLoading: false })
+    loadingMoreManagedCards.value = true
+    try {
+      await withFeedback(async () => {
+        await loadManagedCards()
+      }, { showLoading: false })
+    } finally {
+      loadingMoreManagedCards.value = false
+    }
   }
 
   async function saveManagedDeck() {
@@ -415,6 +421,7 @@ export function useDeckManagement({
     loadManagedDeckRoute,
     closeManagedDeck,
     loadManagedCards,
+    loadingMoreManagedCards,
     loadMoreManagedCards,
     saveManagedDeck,
     deleteManagedDeck,

@@ -70,7 +70,7 @@ public class DeckService {
         String normalizedQuery = normalizeSearchQuery(query);
         PageRequest pageRequest = pageRequest(page, size);
         Page<Deck> result = normalizedQuery == null
-                ? decks.findByVisibilityOrderByUpdatedAtDesc(DeckVisibility.PUBLIC, pageRequest)
+                ? decks.findByVisibilityOrderByUpdatedAtDescIdDesc(DeckVisibility.PUBLIC, pageRequest)
                 : decks.searchByVisibility(DeckVisibility.PUBLIC, normalizedQuery, pageRequest);
         return toPage(result, userId);
     }
@@ -81,7 +81,7 @@ public class DeckService {
         String normalizedQuery = normalizeSearchQuery(query);
         PageRequest pageRequest = pageRequest(page, size);
         Page<Deck> result = normalizedQuery == null
-                ? decks.findByOwnerIdOrderByUpdatedAtDesc(user.getId(), pageRequest)
+                ? decks.findByOwnerIdOrderByUpdatedAtDescIdDesc(user.getId(), pageRequest)
                 : decks.searchByOwnerId(user.getId(), normalizedQuery, pageRequest);
         return toPage(result, user.getId());
     }
@@ -186,7 +186,7 @@ public class DeckService {
         String normalizedQuery = normalizeSearchQuery(query);
         PageRequest pageRequest = pageRequest(page, size);
         Page<Card> result = normalizedQuery == null
-                ? cards.findPageByDeckIdOrderByCreatedAtDesc(deckId, pageRequest)
+                ? cards.findPageByDeckIdOrderByCreatedAtDescIdDesc(deckId, pageRequest)
                 : cards.searchPageByDeckId(deckId, normalizedQuery, pageRequest);
         return toCardPage(result);
     }

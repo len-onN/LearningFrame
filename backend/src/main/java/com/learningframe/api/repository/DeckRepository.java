@@ -13,16 +13,16 @@ import java.util.List;
 import java.util.Optional;
 
 public interface DeckRepository extends JpaRepository<Deck, Long> {
-    Page<Deck> findByVisibilityOrderByUpdatedAtDesc(DeckVisibility visibility, Pageable pageable);
+    Page<Deck> findByVisibilityOrderByUpdatedAtDescIdDesc(DeckVisibility visibility, Pageable pageable);
 
-    Page<Deck> findByOwnerIdOrderByUpdatedAtDesc(Long ownerId, Pageable pageable);
+    Page<Deck> findByOwnerIdOrderByUpdatedAtDescIdDesc(Long ownerId, Pageable pageable);
 
     @Query("""
             select d from Deck d
             where d.visibility = :visibility
                 and (lower(d.title) like lower(concat('%', :query, '%'))
                 or lower(coalesce(d.description, '')) like lower(concat('%', :query, '%')))
-            order by d.updatedAt desc
+            order by d.updatedAt desc, d.id desc
             """)
     Page<Deck> searchByVisibility(
             @Param("visibility") DeckVisibility visibility,
@@ -35,7 +35,7 @@ public interface DeckRepository extends JpaRepository<Deck, Long> {
             where d.owner.id = :ownerId
                 and (lower(d.title) like lower(concat('%', :query, '%'))
                 or lower(coalesce(d.description, '')) like lower(concat('%', :query, '%')))
-            order by d.updatedAt desc
+            order by d.updatedAt desc, d.id desc
             """)
     Page<Deck> searchByOwnerId(
             @Param("ownerId") Long ownerId,
