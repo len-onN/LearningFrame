@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { convertAnkiSoundReferences, extractRelativeMediaSources, mediaAssetUrl, safePreviewHtml, shouldRewriteMediaSource } from './html'
+import {
+  convertAnkiSoundReferences,
+  extractRelativeMediaSources,
+  mediaAssetUrl,
+  safePreviewHtml,
+  safeStudyHtml,
+  shouldRewriteMediaSource
+} from './html'
 
 describe('html seguro de estudo', () => {
   it('converte referencias de som do Anki para audio HTML', () => {
@@ -26,6 +33,18 @@ describe('html seguro de estudo', () => {
     expect(mediaAssetUrl(42, 'Screen Shot 2016-04-19.png')).toBe(
       'http://127.0.0.1:8081/api/decks/42/media/Screen%20Shot%202016-04-19.png'
     )
+  })
+
+  it('normaliza tamanho de fonte embutido no HTML de estudo', () => {
+    const html = safeStudyHtml(
+      '<p style="font-size: 42px; color: red">Frente <span style="font: 28px Arial; font-weight: 700">forte</span><font size="7">grande</font></p>'
+    )
+
+    expect(html).not.toContain('font-size')
+    expect(html).not.toContain('font:')
+    expect(html).not.toContain('size="7"')
+    expect(html).toContain('color: red')
+    expect(html).toContain('font-weight: 700')
   })
 
   it('substitui imagens relativas por marcador na previa APKG', () => {

@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { ALargeSmall, BookOpen, Brain, Eye, Maximize2, Minimize2, Shuffle } from '@lucide/vue'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { ReviewRating, StudyCard } from '../types/api'
 import type {
+  InterleavedSelectionState,
   StudyEmptyReason,
   StudyReviewFeedback,
   StudySessionProgress,
   StudySessionSummary
 } from '../routes/routeContext'
 
-defineProps<{
+const props = defineProps<{
   sessionTitle: string
   currentCard: StudyCard | undefined
   currentDueLabel: string
@@ -20,17 +21,41 @@ defineProps<{
   emptyReason: StudyEmptyReason
   lastFeedback: StudyReviewFeedback | null
   summary: StudySessionSummary | null
+  predictedIntervals: Record<ReviewRating, string> | null
+  interleavedSelection: InterleavedSelectionState
 }>()
 
 defineEmits<{
   'go-library': []
   'start-interleaved': []
+  'start-selected-interleaved': []
+  'toggle-interleaved-deck': [deckId: number]
   'reveal-answer': []
   review: [rating: ReviewRating]
+  skip: []
 }>()
 
 const fitMediaToScreen = ref(false)
-const studyFontSize = ref<'compact' | 'default' | 'large'>('default')
+const STUDY_FONT_LEVEL_MIN = -2
+const STUDY_FONT_LEVEL_DEFAULT = 0
+const STUDY_FONT_LEVEL_MAX = 5
+const STUDY_FONT_BASE_REM = 1.35
+const STUDY_FONT_STEP_REM = 0.18
+
+const studyFontLevel = ref(STUDY_FONT_LEVEL_DEFAULT)
+const studyFontStyle = computed(() => ({
+  '--study-card-font-size': `${(STUDY_FONT_BASE_REM + studyFontLevel.value * STUDY_FONT_STEP_REM).toFixed(2)}rem`
+}))
+const interleavedSelectedCount = computed(() => props.interleavedSelection.selectedIds.length)
+const interleavedSelectedIds = computed(() => new Set(props.interleavedSelection.selectedIds))
+const isInterleavedMode = computed(() => props.interleavedSelection.active || props.sessionTitle === 'Pratica intercalada')
+
+function adjustStudyFont(delta: number) {
+  studyFontLevel.value = Math.min(
+    STUDY_FONT_LEVEL_MAX,
+    Math.max(STUDY_FONT_LEVEL_MIN, studyFontLevel.value + delta)
+  )
+}
 
 function emptyTitle(reason: StudyEmptyReason) {
   if (reason === 'completed') {
@@ -54,6 +79,24 @@ function emptyCopy(reason: StudyEmptyReason) {
   }
   return 'Escolha um baralho público, um baralho salvo ou use a prática intercalada.'
 }
+function isInterleavedDeckDisabled(deckId: number) {
+  return !interleavedSelectedIds.value.has(deckId)
+    && interleavedSelectedCount.value >= props.interleavedSelection.maxSelected
+}
+
+function interleavedSourceLabel(source: InterleavedSelectionState['options'][number]['source']) {
+  return source === 'mine' ? 'Meu baralho' : 'Publico'
+}
+
+function interleavedDueLabel(dueCount: number | null) {
+  if (dueCount === null) {
+    return 'Agenda local'
+  }
+  if (dueCount === 1) {
+    return '1 vencida'
+  }
+  return `${dueCount} vencidas`
+}
 </script>
 
 <template>
@@ -73,29 +116,19 @@ function emptyCopy(reason: StudyEmptyReason) {
             class="font-size-option"
             type="button"
             title="Fonte menor"
-            :aria-pressed="studyFontSize === 'compact'"
-            :class="{ active: studyFontSize === 'compact' }"
-            @click="studyFontSize = 'compact'"
+            aria-label="Diminuir tamanho da fonte"
+            :disabled="studyFontLevel === STUDY_FONT_LEVEL_MIN"
+            @click="adjustStudyFont(-1)"
           >
             A-
           </button>
           <button
             class="font-size-option"
             type="button"
-            title="Fonte padrão"
-            :aria-pressed="studyFontSize === 'default'"
-            :class="{ active: studyFontSize === 'default' }"
-            @click="studyFontSize = 'default'"
-          >
-            A
-          </button>
-          <button
-            class="font-size-option"
-            type="button"
             title="Fonte maior"
-            :aria-pressed="studyFontSize === 'large'"
-            :class="{ active: studyFontSize === 'large' }"
-            @click="studyFontSize = 'large'"
+            aria-label="Aumentar tamanho da fonte"
+            :disabled="studyFontLevel === STUDY_FONT_LEVEL_MAX"
+            @click="adjustStudyFont(1)"
           >
             A+
           </button>
@@ -110,7 +143,11 @@ function emptyCopy(reason: StudyEmptyReason) {
           <Maximize2 v-else :size="16" aria-hidden="true" />
           {{ fitMediaToScreen ? 'Mídia natural' : 'Ajustar mídia' }}
         </button>
-        <button class="ghost compact" type="button" @click="$emit('start-interleaved')">
+        <button
+          :class="[{ 'primary': isInterleavedMode, 'ghost': !isInterleavedMode }, 'compact']"
+          type="button"
+          @click="isInterleavedMode ? null : $emit('start-interleaved')"
+        >
           <Shuffle :size="16" aria-hidden="true" />
           Prática intercalada
         </button>
@@ -129,31 +166,118 @@ function emptyCopy(reason: StudyEmptyReason) {
       <span :style="{ width: `${progress.percent}%` }"></span>
     </div>
 
-    <article v-if="currentCard" :class="['study-card', `font-${studyFontSize}`, { 'media-fit': fitMediaToScreen }]">
+    <article v-if="interleavedSelection.active" class="interleaved-selector">
+      <div class="interleaved-selector-heading">
+        <Shuffle :size="28" aria-hidden="true" />
+        <div>
+          <p class="eyebrow">Pratica intercalada</p>
+          <h2>Escolha os baralhos</h2>
+          <p class="study-progress-copy">
+            {{ interleavedSelectedCount }} de {{ interleavedSelection.maxSelected }} selecionados
+          </p>
+        </div>
+      </div>
+
+      <div v-if="interleavedSelection.options.length > 0" class="interleaved-deck-grid">
+        <label
+          v-for="deck in interleavedSelection.options"
+          :key="deck.id"
+          :class="[
+            'interleaved-deck-option-wrapper',
+            {
+              selected: interleavedSelectedIds.has(deck.id),
+              disabled: isInterleavedDeckDisabled(deck.id)
+            }
+          ]"
+        >
+          <div class="interleaved-deck-option">
+            <div class="interleaved-deck-header">
+              <input
+                type="checkbox"
+                :checked="interleavedSelectedIds.has(deck.id)"
+                :disabled="isInterleavedDeckDisabled(deck.id)"
+                @change="$emit('toggle-interleaved-deck', deck.id)"
+              />
+              <strong>{{ deck.title }}</strong>
+            </div>
+            <span class="interleaved-deck-meta">
+              {{ interleavedSourceLabel(deck.source) }} · {{ deck.cardCount }} cartas · {{ interleavedDueLabel(deck.dueCount) }}
+            </span>
+            <div v-if="deck.description" class="interleaved-deck-desc-wrapper">
+              <small class="interleaved-deck-desc">{{ deck.description }}</small>
+              <div class="interleaved-deck-tooltip">{{ deck.description }}</div>
+            </div>
+          </div>
+        </label>
+      </div>
+
+      <div v-else class="compact-empty">
+        <Brain :size="32" aria-hidden="true" />
+        <h2>Nenhum baralho disponivel</h2>
+        <p>Abra a Biblioteca para carregar ou criar baralhos.</p>
+      </div>
+
+      <div class="study-summary-actions">
+        <button class="ghost compact" type="button" @click="$emit('go-library')">
+          <BookOpen :size="16" aria-hidden="true" />
+          Biblioteca
+        </button>
+        <button
+          class="primary compact"
+          type="button"
+          :disabled="interleavedSelectedCount === 0"
+          @click="$emit('start-selected-interleaved')"
+        >
+          <Shuffle :size="16" aria-hidden="true" />
+          Iniciar pratica
+        </button>
+      </div>
+    </article>
+
+    <article v-else-if="currentCard" :class="['study-card', { 'media-fit': fitMediaToScreen }]" :style="studyFontStyle">
       <div class="card-meta">
         <span>{{ currentCard.deckTitle }}</span>
         <span>{{ currentCard.newCard ? 'Novo' : `${currentCard.intervalDays} dias` }} · volta {{ currentDueLabel }}</span>
       </div>
 
-      <div v-if="lastFeedback" class="study-feedback" role="status">
-        <strong>{{ lastFeedback.ratingLabel }} registrado</strong>
-        <span>{{ lastFeedback.nextDueLabel }} · {{ lastFeedback.intervalLabel }}</span>
-      </div>
 
       <div class="prompt" v-html="frontHtml"></div>
 
-      <button v-if="!answerVisible" class="primary reveal" type="button" @click="$emit('reveal-answer')">
-        <Eye :size="18" aria-hidden="true" />
-        Revelar resposta
-      </button>
+      <div v-if="!answerVisible" class="study-card-actions">
+        <button class="primary reveal" type="button" @click="$emit('reveal-answer')">
+          <Eye :size="18" aria-hidden="true" />
+          Revelar resposta
+        </button>
+        <button
+          v-if="progress.remaining > 1"
+          class="ghost compact"
+          type="button"
+          @click="$emit('skip')"
+          title="Colocar no final da fila"
+        >
+          Pular carta
+        </button>
+      </div>
 
       <template v-else>
         <div class="answer" v-html="backHtml"></div>
         <div class="ratings" aria-label="Avaliar resposta">
-          <button class="rating again" type="button" @click="$emit('review', 'AGAIN')">De novo</button>
-          <button class="rating hard" type="button" @click="$emit('review', 'HARD')">Dificil</button>
-          <button class="rating good" type="button" @click="$emit('review', 'GOOD')">Bom</button>
-          <button class="rating easy" type="button" @click="$emit('review', 'EASY')">Facil</button>
+          <button class="rating again" type="button" @click="$emit('review', 'AGAIN')">
+            De novo
+            <small v-if="predictedIntervals">{{ predictedIntervals.AGAIN }}</small>
+          </button>
+          <button class="rating hard" type="button" @click="$emit('review', 'HARD')">
+            Difícil
+            <small v-if="predictedIntervals">{{ predictedIntervals.HARD }}</small>
+          </button>
+          <button class="rating good" type="button" @click="$emit('review', 'GOOD')">
+            Bom
+            <small v-if="predictedIntervals">{{ predictedIntervals.GOOD }}</small>
+          </button>
+          <button class="rating easy" type="button" @click="$emit('review', 'EASY')">
+            Fácil
+            <small v-if="predictedIntervals">{{ predictedIntervals.EASY }}</small>
+          </button>
         </div>
       </template>
     </article>

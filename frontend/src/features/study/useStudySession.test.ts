@@ -8,10 +8,14 @@ import type {
   ReviewResult,
   StudyCard,
   StudyCardResponse,
-  StudyMode,
   UserResponse
 } from '../../types/api'
-import { useStudySession, type StudySessionApi } from './useStudySession'
+import type { DueRequestOptions } from '../../services/api'
+import {
+  interleaveDeckCardGroups,
+  useStudySession,
+  type StudySessionApi
+} from './useStudySession'
 
 describe('useStudySession', () => {
   beforeEach(() => {
@@ -114,7 +118,7 @@ describe('useStudySession', () => {
     await session.loadStudyDeck(5)
 
     expect(client.deckMetadata).toHaveBeenCalledWith(5)
-    expect(client.due).toHaveBeenCalledWith('SINGLE_DECK', 5)
+    expect(client.due).toHaveBeenCalledWith({ mode: 'SINGLE_DECK', deckId: 5 })
     expect(client.deck).not.toHaveBeenCalled()
     expect(session.sessionTitle.value).toBe('Deck 5')
     expect(session.currentCard.value).toMatchObject({
@@ -137,7 +141,7 @@ describe('useStudySession', () => {
     expect(showNotice).toHaveBeenCalledWith('Nenhum card vencido agora para esta sessao.')
   })
 
-  it('carrega pratica intercalada anonima pelos primeiros quatro decks publicos', async () => {
+  it('prepara selecao anonima com baralhos publicos carregados', async () => {
     const publicDecks = ref([
       deckSummary(1),
       deckSummary(2),
@@ -146,37 +150,161 @@ describe('useStudySession', () => {
       deckSummary(5)
     ])
     const { client, loadPublicDecks, session } = createSubject({ publicDecks })
-    client.deck.mockImplementation(async (deckId: number) => deckDetail(deckId, [
-      cardResponse(deckId * 10)
-    ]))
 
-    await session.loadInterleavedPractice()
+    await session.prepareInterleavedPracticeSelection()
 
     expect(loadPublicDecks).not.toHaveBeenCalled()
     expect(client.due).not.toHaveBeenCalled()
-    expect(client.deck.mock.calls.map(([deckId]) => deckId)).toEqual([1, 2, 3, 4])
-    expect(session.sessionTitle.value).toBe('Prática intercalada')
-    expect(session.studyQueue.value.map((card) => card.clientId)).toEqual([
-      'public:10',
-      'public:20',
-      'public:30',
-      'public:40'
-    ])
+    expect(client.deck).not.toHaveBeenCalled()
+    expect(session.sessionTitle.value).toBe('Pratica intercalada')
+    expect(session.interleavedSelection.value.active).toBe(true)
+    expect(session.interleavedSelection.value.options.map((deck) => deck.id)).toEqual([1, 2, 3, 4, 5])
+    expect(session.interleavedSelection.value.selectedIds).toEqual([1, 2, 3, 4])
   })
 
-  it('carrega decks publicos antes da pratica intercalada anonima quando a lista esta vazia', async () => {
+  it('carrega decks publicos antes de preparar selecao anonima quando a lista esta vazia', async () => {
     const publicDecks = ref<DeckSummary[]>([])
     const { client, loadPublicDecks, session } = createSubject({ publicDecks })
     loadPublicDecks.mockImplementationOnce(async () => {
       publicDecks.value = [deckSummary(11)]
     })
-    client.deck.mockResolvedValueOnce(deckDetail(11, [cardResponse(110)]))
 
-    await session.loadInterleavedPractice()
+    await session.prepareInterleavedPracticeSelection()
 
     expect(loadPublicDecks).toHaveBeenCalledWith(true)
-    expect(client.deck).toHaveBeenCalledWith(11)
-    expect(session.currentCard.value?.clientId).toBe('public:110')
+    expect(client.deck).not.toHaveBeenCalled()
+    expect(session.interleavedSelection.value.selectedIds).toEqual([11])
+  })
+
+  it('prepara selecao autenticada usando meus baralhos e publicos disponiveis', async () => {
+    const user = ref<UserResponse | null>(userResponse())
+    const myDecks = ref<DeckSummary[]>([])
+    const publicDecks = ref<DeckSummary[]>([])
+    const { loadMyDecks, loadPublicDecks, session } = createSubject({ user, myDecks, publicDecks })
+    loadMyDecks.mockImplementationOnce(async () => {
+      myDecks.value = [
+        deckSummary(1, { dueCount: 0, visibility: 'PRIVATE' }),
+        deckSummary(2, { dueCount: 3, visibility: 'PRIVATE' })
+      ]
+    })
+    loadPublicDecks.mockImplementationOnce(async () => {
+      publicDecks.value = [
+        deckSummary(2, { dueCount: 5 }),
+        deckSummary(3, { dueCount: 1 })
+      ]
+    })
+
+    await session.prepareInterleavedPracticeSelection()
+
+    expect(loadMyDecks).toHaveBeenCalledWith(true)
+    expect(loadPublicDecks).toHaveBeenCalledWith(true)
+    expect(session.interleavedSelection.value.options.map((deck) => ({
+      id: deck.id,
+      source: deck.source
+    }))).toEqual([
+      { id: 1, source: 'mine' },
+      { id: 2, source: 'mine' },
+      { id: 3, source: 'public' }
+    ])
+    expect(session.interleavedSelection.value.selectedIds).toEqual([2, 3])
+  })
+
+  it('seleciona e desseleciona decks respeitando limite maximo', async () => {
+    const publicDecks = ref(Array.from({ length: 9 }, (_, index) => deckSummary(index + 1)))
+    const { session } = createSubject({ publicDecks })
+
+    await session.prepareInterleavedPracticeSelection()
+    ;[5, 6, 7, 8, 9].forEach(session.toggleInterleavedDeckSelection)
+
+    expect(session.interleavedSelection.value.selectedIds).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
+
+    session.toggleInterleavedDeckSelection(4)
+    session.toggleInterleavedDeckSelection(9)
+
+    expect(session.interleavedSelection.value.selectedIds).toEqual([1, 2, 3, 5, 6, 7, 8, 9])
+  })
+
+  it('inicia pratica intercalada autenticada com deckIds selecionados', async () => {
+    const user = ref<UserResponse | null>(userResponse())
+    const myDecks = ref([
+      deckSummary(1, { dueCount: 2 }),
+      deckSummary(2, { dueCount: 1 })
+    ])
+    const { client, session } = createSubject({ user, myDecks })
+    client.due.mockResolvedValueOnce(dueResponse([studyCardResponse(21)]))
+
+    await session.prepareInterleavedPracticeSelection()
+    await session.startInterleavedPracticeSession()
+
+    expect(client.due).toHaveBeenCalledWith({
+      mode: 'MIXED_DUE',
+      deckIds: [1, 2],
+      limit: 24
+    })
+    expect(session.interleavedSelection.value.active).toBe(false)
+    expect(session.currentCard.value?.clientId).toBe('server:21')
+  })
+
+  it('inicia pratica intercalada anonima apenas com decks selecionados e intercala por baralho', async () => {
+    const publicDecks = ref([
+      deckSummary(1),
+      deckSummary(2),
+      deckSummary(3)
+    ])
+    const { client, session } = createSubject({ publicDecks })
+    client.deck.mockImplementation(async (deckId: number) => deckDetail(deckId, [
+      cardResponse(deckId * 10),
+      cardResponse(deckId * 10 + 1)
+    ]))
+
+    await session.prepareInterleavedPracticeSelection()
+    session.toggleInterleavedDeckSelection(2)
+    await session.startInterleavedPracticeSession()
+
+    expect(client.due).not.toHaveBeenCalled()
+    expect(client.deck.mock.calls.map(([deckId]) => deckId)).toEqual([1, 3])
+    expect(session.studyQueue.value.map((card) => card.clientId)).toEqual([
+      'public:10',
+      'public:30',
+      'public:11',
+      'public:31'
+    ])
+  })
+
+  it('nao inicia pratica intercalada sem deck selecionado', async () => {
+    const publicDecks = ref([deckSummary(1)])
+    const { client, session, showNotice, withFeedback } = createSubject({ publicDecks })
+
+    await session.prepareInterleavedPracticeSelection()
+    session.toggleInterleavedDeckSelection(1)
+    await session.startInterleavedPracticeSession()
+
+    expect(showNotice).toHaveBeenCalledWith('Selecione pelo menos um baralho para iniciar.')
+    expect(client.due).not.toHaveBeenCalled()
+    expect(client.deck).not.toHaveBeenCalled()
+    expect(withFeedback).toHaveBeenCalledTimes(1)
+    expect(session.interleavedSelection.value.active).toBe(true)
+  })
+
+  it('mantem emptyReason no-due quando selecionados nao tem cartas vencidas', async () => {
+    const publicDecks = ref([deckSummary(1)])
+    const { client, session, showNotice } = createSubject({ publicDecks })
+    client.deck.mockResolvedValueOnce(deckDetail(1, []))
+
+    await session.prepareInterleavedPracticeSelection()
+    await session.startInterleavedPracticeSession()
+
+    expect(session.studyEmptyReason.value).toBe('no-due')
+    expect(session.interleavedSelection.value.active).toBe(false)
+    expect(showNotice).toHaveBeenCalledWith('Pratica intercalada sem cards vencidos agora.')
+  })
+
+  it('intercala grupos de cartas por baralho', () => {
+    expect(interleaveDeckCardGroups([
+      [studyCard('a1'), studyCard('a2')],
+      [studyCard('b1')],
+      [studyCard('c1'), studyCard('c2')]
+    ]).map((card) => card.clientId)).toEqual(['a1', 'b1', 'c1', 'a2', 'c2'])
   })
 
   it('reviewCurrent anonimo atualiza estado local sem chamar backend nem stats', async () => {
@@ -216,13 +344,16 @@ describe('useStudySession', () => {
 function createSubject(overrides: Partial<{
   user: Ref<UserResponse | null>
   publicDecks: Ref<DeckSummary[]>
+  myDecks: Ref<DeckSummary[]>
   client: ReturnType<typeof createClient>
   publicDeckCacheLimit: number
 }> = {}) {
   const user = overrides.user ?? ref<UserResponse | null>(null)
   const publicDecks = overrides.publicDecks ?? ref<DeckSummary[]>([])
+  const myDecks = overrides.myDecks ?? ref<DeckSummary[]>([])
   const client = overrides.client ?? createClient()
   const loadPublicDecks = vi.fn(async () => undefined)
+  const loadMyDecks = vi.fn(async () => undefined)
   const refreshStats = vi.fn(async () => undefined)
   const showNotice = vi.fn()
   const withFeedback = vi.fn(async (task: () => Promise<void>) => {
@@ -232,7 +363,9 @@ function createSubject(overrides: Partial<{
   const session = useStudySession({
     user,
     publicDecks,
+    myDecks,
     loadPublicDecks,
+    loadMyDecks,
     refreshStats,
     showNotice,
     withFeedback,
@@ -243,8 +376,10 @@ function createSubject(overrides: Partial<{
   return {
     user,
     publicDecks,
+    myDecks,
     client,
     loadPublicDecks,
+    loadMyDecks,
     refreshStats,
     showNotice,
     withFeedback,
@@ -256,7 +391,7 @@ function createClient() {
   return {
     deck: vi.fn(async (deckId: number) => deckDetail(deckId, [cardResponse(deckId * 10)])),
     deckMetadata: vi.fn(async (deckId: number) => deckSummary(deckId)),
-    due: vi.fn(async (_mode: StudyMode, _deckId?: number) => dueResponse([])),
+    due: vi.fn(async (_options: DueRequestOptions) => dueResponse([])),
     review: vi.fn(async (cardId: number, rating: ReviewRating) => reviewResult(cardId, rating))
   } satisfies StudySessionApi
 }

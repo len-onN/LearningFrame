@@ -1,6 +1,6 @@
 import { computed, ref, type Ref } from 'vue'
 import type { FeedbackOptions } from '../../composables/useFeedback'
-import { api } from '../../services/api'
+import { api, type DueRequestOptions } from '../../services/api'
 import type {
   DeckDetail,
   DeckSummary,
@@ -10,7 +10,6 @@ import type {
   ReviewResult,
   StudyCard,
   StudyCardResponse,
-  StudyMode,
   UserResponse
 } from '../../types/api'
 import { formatDueIn } from '../../utils/dueTime'
@@ -29,21 +28,30 @@ import {
   type StudyRatingCounts,
   type StudyReviewFeedback
 } from './studyFeedback'
-import type { StudyEmptyReason } from './studySessionTypes'
+import type {
+  InterleavedDeckOption,
+  InterleavedSelectionState,
+  StudyEmptyReason
+} from './studySessionTypes'
 
 const DEFAULT_PUBLIC_DECK_CACHE_LIMIT = 6
+const INTERLEAVED_STUDY_LIMIT = 24
+const INTERLEAVED_MAX_SELECTED_DECKS = 8
+const INTERLEAVED_INITIAL_SELECTED_DECKS = 4
 
 export interface StudySessionApi {
   deck(deckId: number): Promise<DeckDetail>
   deckMetadata(deckId: number): Promise<DeckSummary>
-  due(mode: StudyMode, deckId?: number): Promise<DueResponse>
+  due(options: DueRequestOptions): Promise<DueResponse>
   review(cardId: number, rating: ReviewRating): Promise<ReviewResult>
 }
 
 export interface StudySessionOptions {
   user: Ref<UserResponse | null>
   publicDecks: Ref<DeckSummary[]>
+  myDecks: Ref<DeckSummary[]>
   loadPublicDecks: (reset?: boolean) => Promise<void>
+  loadMyDecks: (reset?: boolean) => Promise<void>
   refreshStats: () => Promise<void>
   showNotice: (message: string) => void
   withFeedback: (
@@ -58,7 +66,9 @@ export interface StudySessionOptions {
 export function useStudySession({
   user,
   publicDecks,
+  myDecks,
   loadPublicDecks,
+  loadMyDecks,
   refreshStats,
   showNotice,
   withFeedback,
@@ -75,6 +85,7 @@ export function useStudySession({
   const studyEmptyReason = ref<StudyEmptyReason>('idle')
   const publicStudyDeckCache = ref<LocalDeck[]>([])
   const localStates = ref(loadLocalStates())
+  const interleavedSelection = ref<InterleavedSelectionState>(emptyInterleavedSelection())
 
   const currentCard = computed(() => studyQueue.value[0])
   const frontHtml = computed(() => currentCard.value ? safeStudyHtml(currentCard.value.frontHtml, currentCard.value.deckId) : '')
@@ -99,6 +110,33 @@ export function useStudySession({
     : null
   )
 
+  const predictedIntervals = computed(() => {
+    const card = currentCard.value
+    if (!card) return null
+
+    const state = {
+      dueAt: card.dueAt,
+      intervalDays: card.intervalDays,
+      repetitions: card.repetitions,
+      easeFactor: card.easeFactor
+    }
+
+    const formatInterval = (days: number) => {
+      if (days === 0) return '< 10m'
+      if (days === 1) return '1 d'
+      if (days < 30) return `${days} d`
+      if (days < 365) return `${Math.floor(days / 30)} m`
+      return `${Math.floor(days / 365)} a`
+    }
+
+    return {
+      AGAIN: formatInterval(nextReview(state, 'AGAIN').intervalDays),
+      HARD: formatInterval(nextReview(state, 'HARD').intervalDays),
+      GOOD: formatInterval(nextReview(state, 'GOOD').intervalDays),
+      EASY: formatInterval(nextReview(state, 'EASY').intervalDays)
+    }
+  })
+
   function resetStudySession() {
     studyQueue.value = []
     sessionTitle.value = 'Selecione um baralho ou inicie a prática intercalada.'
@@ -108,6 +146,7 @@ export function useStudySession({
     studyRatingCounts.value = emptyStudyRatingCounts()
     lastStudyFeedback.value = null
     studyEmptyReason.value = 'idle'
+    interleavedSelection.value = emptyInterleavedSelection()
   }
 
   function setStudySessionCards(cards: StudyCard[], emptyReason: StudyEmptyReason) {
@@ -144,7 +183,7 @@ export function useStudySession({
       let emptyReason: StudyEmptyReason = metadata?.cardCount === 0 ? 'empty-deck' : 'no-due'
 
       if (user.value) {
-        const due = await client.due('SINGLE_DECK', deckId)
+        const due = await client.due({ mode: 'SINGLE_DECK', deckId })
         cards = due.cards.map(serverCardToStudyCard)
       } else {
         const localDeck = await ensurePublicDeck(deckId)
@@ -159,30 +198,89 @@ export function useStudySession({
     })
   }
 
-  async function loadInterleavedPractice() {
-    sessionTitle.value = 'Prática intercalada'
+  async function prepareInterleavedPracticeSelection() {
+    sessionTitle.value = 'Pratica intercalada'
+    answerVisible.value = false
+    studyQueue.value = []
+    studyInitialTotal.value = 0
+    studyReviewedCount.value = 0
+    studyRatingCounts.value = emptyStudyRatingCounts()
+    lastStudyFeedback.value = null
+    studyEmptyReason.value = 'idle'
+
+    await withFeedback(async () => {
+      if (user.value) {
+        if (myDecks.value.length === 0) {
+          await loadMyDecks(true)
+        }
+        if (publicDecks.value.length === 0) {
+          await loadPublicDecks(true)
+        }
+      } else if (publicDecks.value.length === 0) {
+        await loadPublicDecks(true)
+      }
+
+      const options = interleavedDeckOptions(user.value ? myDecks.value : [], publicDecks.value, Boolean(user.value))
+      interleavedSelection.value = {
+        active: true,
+        options,
+        selectedIds: initialInterleavedSelection(options),
+        maxSelected: INTERLEAVED_MAX_SELECTED_DECKS
+      }
+    })
+  }
+
+  async function startInterleavedPracticeSession() {
+    const selectedIds = interleavedSelection.value.selectedIds
+    if (selectedIds.length === 0) {
+      showNotice('Selecione pelo menos um baralho para iniciar.')
+      return
+    }
+
+    sessionTitle.value = 'Pratica intercalada'
     answerVisible.value = false
 
     await withFeedback(async () => {
       let cards: StudyCard[]
       if (user.value) {
-        const due = await client.due('MIXED_DUE')
+        const due = await client.due({
+          mode: 'MIXED_DUE',
+          deckIds: selectedIds,
+          limit: INTERLEAVED_STUDY_LIMIT
+        })
         cards = due.cards.map(serverCardToStudyCard)
       } else {
-        if (publicDecks.value.length === 0) {
-          await loadPublicDecks(true)
+        const groups: StudyCard[][] = []
+        for (const deckId of selectedIds) {
+          const localDeck = await ensurePublicDeck(deckId)
+          groups.push(localDeckToStudyCards(localDeck, localStates.value))
         }
-        cards = []
-        for (const deck of publicDecks.value.slice(0, 4)) {
-          const localDeck = await ensurePublicDeck(deck.id)
-          cards.push(...localDeckToStudyCards(localDeck, localStates.value))
-        }
+        cards = interleaveDeckCardGroups(groups, INTERLEAVED_STUDY_LIMIT)
+      }
+
+      interleavedSelection.value = {
+        ...interleavedSelection.value,
+        active: false
       }
       setStudySessionCards(cards, 'no-due')
       if (cards.length === 0) {
-        showNotice('Prática intercalada sem cards vencidos agora.')
+        showNotice('Pratica intercalada sem cards vencidos agora.')
       }
     })
+  }
+
+  function toggleInterleavedDeckSelection(deckId: number) {
+    const current = interleavedSelection.value
+    const selected = new Set(current.selectedIds)
+    if (selected.has(deckId)) {
+      selected.delete(deckId)
+    } else if (selected.size < current.maxSelected) {
+      selected.add(deckId)
+    }
+    interleavedSelection.value = {
+      ...current,
+      selectedIds: [...selected]
+    }
   }
 
   async function reviewCurrent(rating: ReviewRating) {
@@ -231,6 +329,16 @@ export function useStudySession({
     publicStudyDeckCache.value = []
   }
 
+  function skipCurrentCard() {
+    if (studyQueue.value.length > 1) {
+      const card = studyQueue.value.shift()
+      if (card) {
+        studyQueue.value.push(card)
+      }
+    }
+    answerVisible.value = false
+  }
+
   return {
     studyQueue,
     sessionTitle,
@@ -243,14 +351,91 @@ export function useStudySession({
     currentDueLabel,
     studyProgress,
     studySummary,
+    predictedIntervals,
+    interleavedSelection,
     resetStudySession,
     setStudySessionCards,
     completeCurrentReview,
     loadStudyDeck,
-    loadInterleavedPractice,
+    prepareInterleavedPracticeSelection,
+    startInterleavedPracticeSession,
+    toggleInterleavedDeckSelection,
     reviewCurrent,
-    clearPublicStudyDeckCache
+    clearPublicStudyDeckCache,
+    skipCurrentCard
   }
+}
+
+export function interleaveDeckCardGroups(groups: StudyCard[][], limit = INTERLEAVED_STUDY_LIMIT) {
+  const mixed: StudyCard[] = []
+  let index = 0
+  let added = true
+
+  while (added && mixed.length < limit) {
+    added = false
+    for (const group of groups) {
+      const card = group[index]
+      if (card) {
+        mixed.push(card)
+        added = true
+        if (mixed.length >= limit) {
+          return mixed
+        }
+      }
+    }
+    index += 1
+  }
+
+  return mixed
+}
+
+function emptyInterleavedSelection(): InterleavedSelectionState {
+  return {
+    active: false,
+    options: [],
+    selectedIds: [],
+    maxSelected: INTERLEAVED_MAX_SELECTED_DECKS
+  }
+}
+
+function interleavedDeckOptions(myDecks: DeckSummary[], publicDecks: DeckSummary[], authenticated: boolean) {
+  const options: InterleavedDeckOption[] = []
+  const seen = new Set<number>()
+
+  if (authenticated) {
+    appendDeckOptions(options, seen, myDecks, 'mine')
+  }
+  appendDeckOptions(options, seen, publicDecks, 'public')
+
+  return options
+}
+
+function appendDeckOptions(
+  options: InterleavedDeckOption[],
+  seen: Set<number>,
+  decks: DeckSummary[],
+  source: InterleavedDeckOption['source']
+) {
+  for (const deck of decks) {
+    if (seen.has(deck.id)) {
+      continue
+    }
+    seen.add(deck.id)
+    options.push({
+      id: deck.id,
+      title: deck.title,
+      description: deck.description,
+      cardCount: deck.cardCount,
+      dueCount: deck.dueCount,
+      visibility: deck.visibility,
+      source,
+      ownerName: deck.ownerName
+    })
+  }
+}
+
+function initialInterleavedSelection(options: InterleavedDeckOption[]) {
+  return []
 }
 
 function serverCardToStudyCard(card: StudyCardResponse): StudyCard {

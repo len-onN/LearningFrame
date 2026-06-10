@@ -23,12 +23,14 @@ import type {
 } from '../features/library/libraryTypes'
 import type { PreviewCardOption, PreviewFace } from '../features/import/importTypes'
 import type {
+  InterleavedSelectionState,
   StudyEmptyReason,
   StudySessionProgress,
   StudySessionSummary
 } from '../features/study/studySessionTypes'
 import type { StudyReviewFeedback } from '../features/study/studyFeedback'
 export type {
+  InterleavedSelectionState,
   StudyEmptyReason,
   StudySessionProgress,
   StudySessionSummary
@@ -111,9 +113,14 @@ export interface StudyRouteContext {
   studyEmptyReason: Ref<StudyEmptyReason>
   lastStudyFeedback: Ref<StudyReviewFeedback | null>
   studySummary: ComputedRef<StudySessionSummary | null>
+  predictedIntervals: ComputedRef<Record<ReviewRating, string> | null>
+  interleavedSelection: Ref<InterleavedSelectionState>
   goToLibrary: () => Promise<void>
   startInterleavedPractice: () => Promise<void>
+  startSelectedInterleavedPractice: () => Promise<void>
+  toggleInterleavedDeckSelection: (deckId: number) => void
   reviewCurrent: (rating: ReviewRating) => Promise<void>
+  skipCurrentCard: () => void
 }
 
 export interface ImportRouteContext {
