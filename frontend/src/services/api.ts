@@ -13,7 +13,8 @@ import type {
   ReviewRating,
   ReviewResult,
   StatsSummary,
-  StudyMode
+  StudyMode,
+  UserSettings
 } from '../types/api'
 
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
@@ -83,6 +84,15 @@ export const api = {
     return request<AuthResponse>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password })
+    })
+  },
+  getUserSettings() {
+    return request<UserSettings>('/api/users/me/settings')
+  },
+  updateUserSettings(settings: UserSettings) {
+    return request<UserSettings>('/api/users/me/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings)
     })
   },
   publicDecks(page = 0, size = 8, query = '') {

@@ -478,7 +478,9 @@ function deckSummary(id: number, overrides: Partial<DeckSummary> = {}): DeckSumm
 function dueResponse(cards: StudyCardResponse[]): DueResponse {
   return {
     mode: 'SINGLE_DECK',
-    cards
+    cards,
+    limitReachedNew: false,
+    limitReachedReview: false
   }
 }
 

@@ -61,6 +61,9 @@ function emptyTitle(reason: StudyEmptyReason) {
   if (reason === 'completed') {
     return 'Sessão concluída'
   }
+  if (reason === 'limit-reached') {
+    return 'Limite diário atingido'
+  }
   if (reason === 'empty-deck') {
     return 'Baralho sem cartas'
   }
@@ -73,6 +76,9 @@ function emptyTitle(reason: StudyEmptyReason) {
 function emptyCopy(reason: StudyEmptyReason) {
   if (reason === 'empty-deck') {
     return 'Adicione cartas ao baralho ou escolha outro material para estudar.'
+  }
+  if (reason === 'limit-reached') {
+    return 'Você atingiu seu limite diário. Volte amanhã ou ajuste seus limites nas configurações.'
   }
   if (reason === 'no-due') {
     return 'Sua agenda deste recorte está em dia. Volte depois ou use a prática intercalada.'

@@ -53,6 +53,7 @@ Incluído no MVP:
 - estudo por baralho;
 - prática intercalada;
 - SRS simplificado próprio;
+- configuração de limites diários de estudo;
 - progresso essencial para usuário autenticado;
 - preview de APKG sem conta;
 - preservacao intencional do APKG no fluxo de login para salvar;

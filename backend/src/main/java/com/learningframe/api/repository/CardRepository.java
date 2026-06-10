@@ -72,10 +72,22 @@ public interface CardRepository extends JpaRepository<Card, Long> {
             left join ReviewState rs on rs.card = c and rs.user.id = :userId
             where d.id = :deckId
               and (d.visibility = com.learningframe.api.model.DeckVisibility.PUBLIC or d.owner.id = :userId)
-              and (rs.id is null or rs.dueAt <= :now)
-            order by case when rs.id is null then 1 else 0 end asc, rs.dueAt asc, c.createdAt asc
+              and rs.id is null
+            order by c.createdAt asc
             """)
-    List<Card> findDueForDeck(@Param("userId") Long userId, @Param("deckId") Long deckId, @Param("now") Instant now, Pageable pageable);
+    List<Card> findNewForDeck(@Param("userId") Long userId, @Param("deckId") Long deckId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"tags", "deck"})
+    @Query("""
+            select c from Card c
+            join c.deck d
+            join ReviewState rs on rs.card = c and rs.user.id = :userId
+            where d.id = :deckId
+              and (d.visibility = com.learningframe.api.model.DeckVisibility.PUBLIC or d.owner.id = :userId)
+              and rs.dueAt <= :now
+            order by rs.dueAt asc, c.createdAt asc
+            """)
+    List<Card> findReviewForDeck(@Param("userId") Long userId, @Param("deckId") Long deckId, @Param("now") Instant now, Pageable pageable);
 
     @EntityGraph(attributePaths = {"tags", "deck"})
     @Query("""
@@ -83,10 +95,21 @@ public interface CardRepository extends JpaRepository<Card, Long> {
             join c.deck d
             left join ReviewState rs on rs.card = c and rs.user.id = :userId
             where (d.visibility = com.learningframe.api.model.DeckVisibility.PUBLIC or d.owner.id = :userId)
-              and (rs.id is null or rs.dueAt <= :now)
-            order by case when rs.id is null then 1 else 0 end asc, rs.dueAt asc, d.updatedAt desc, c.createdAt asc
+              and rs.id is null
+            order by d.updatedAt desc, c.createdAt asc
             """)
-    List<Card> findMixedDue(@Param("userId") Long userId, @Param("now") Instant now, Pageable pageable);
+    List<Card> findMixedNew(@Param("userId") Long userId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"tags", "deck"})
+    @Query("""
+            select c from Card c
+            join c.deck d
+            join ReviewState rs on rs.card = c and rs.user.id = :userId
+            where (d.visibility = com.learningframe.api.model.DeckVisibility.PUBLIC or d.owner.id = :userId)
+              and rs.dueAt <= :now
+            order by rs.dueAt asc, d.updatedAt desc, c.createdAt asc
+            """)
+    List<Card> findMixedReview(@Param("userId") Long userId, @Param("now") Instant now, Pageable pageable);
 
     @EntityGraph(attributePaths = {"tags", "deck"})
     @Query("""
@@ -95,8 +118,20 @@ public interface CardRepository extends JpaRepository<Card, Long> {
             left join ReviewState rs on rs.card = c and rs.user.id = :userId
             where d.id in :deckIds
               and (d.visibility = com.learningframe.api.model.DeckVisibility.PUBLIC or d.owner.id = :userId)
-              and (rs.id is null or rs.dueAt <= :now)
-            order by case when rs.id is null then 1 else 0 end asc, rs.dueAt asc, d.updatedAt desc, c.createdAt asc
+              and rs.id is null
+            order by d.updatedAt desc, c.createdAt asc
             """)
-    List<Card> findMixedDueInDecks(@Param("userId") Long userId, @Param("deckIds") List<Long> deckIds, @Param("now") Instant now, Pageable pageable);
+    List<Card> findMixedNewInDecks(@Param("userId") Long userId, @Param("deckIds") List<Long> deckIds, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"tags", "deck"})
+    @Query("""
+            select c from Card c
+            join c.deck d
+            join ReviewState rs on rs.card = c and rs.user.id = :userId
+            where d.id in :deckIds
+              and (d.visibility = com.learningframe.api.model.DeckVisibility.PUBLIC or d.owner.id = :userId)
+              and rs.dueAt <= :now
+            order by rs.dueAt asc, d.updatedAt desc, c.createdAt asc
+            """)
+    List<Card> findMixedReviewInDecks(@Param("userId") Long userId, @Param("deckIds") List<Long> deckIds, @Param("now") Instant now, Pageable pageable);
 }

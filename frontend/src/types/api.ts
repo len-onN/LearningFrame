@@ -9,6 +9,11 @@ export interface UserResponse {
   email: string
 }
 
+export interface UserSettings {
+  dailyNewCardsLimit: number
+  dailyReviewCardsLimit: number
+}
+
 export interface AuthResponse {
   token: string
   user: UserResponse
@@ -78,6 +83,8 @@ export interface StudyCardResponse {
 export interface DueResponse {
   mode: StudyMode
   cards: StudyCardResponse[]
+  limitReachedNew: boolean
+  limitReachedReview: boolean
 }
 
 export interface ReviewResult {

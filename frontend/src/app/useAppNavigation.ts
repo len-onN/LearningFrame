@@ -5,13 +5,14 @@ import {
   BookOpen,
   Brain,
   Plus,
+  Settings,
   Upload
 } from '@lucide/vue'
 import type { UserResponse } from '../types/api'
 import type { AuthMode } from '../utils/authValidation'
 import type { LibrarySection, LibraryView } from '../features/library/libraryTypes'
 
-export type AppTab = 'library' | 'study' | 'import' | 'create' | 'progress' | 'auth'
+export type AppTab = 'library' | 'study' | 'import' | 'create' | 'progress' | 'settings' | 'auth'
 export type AppNavTab = Exclude<AppTab, 'auth'>
 
 export interface AppNavItem {
@@ -33,7 +34,8 @@ const navTabs: AppNavItem[] = [
   { id: 'study', label: 'Estudo', icon: Brain, to: { name: 'study' } },
   { id: 'import', label: 'Importar', icon: Upload, to: { name: 'import' } },
   { id: 'create', label: 'Criar', icon: Plus, to: { name: 'create' } },
-  { id: 'progress', label: 'Progresso', icon: BarChart3, to: { name: 'progress' } }
+  { id: 'progress', label: 'Progresso', icon: BarChart3, to: { name: 'progress' } },
+  { id: 'settings', label: 'Configurações', icon: Settings, to: { name: 'settings' } }
 ]
 
 export function useAppNavigation({
@@ -49,7 +51,12 @@ export function useAppNavigation({
   const sidebarCollapsed = ref(false)
 
   const sidebarToggleLabel = computed(() => sidebarCollapsed.value ? 'Expandir menu' : 'Recolher menu')
-  const visibleTabs = computed(() => navTabs.filter((item) => item.id !== 'create' || user.value))
+  const visibleTabs = computed(() => navTabs.filter((item) => {
+    if (item.id === 'create' || item.id === 'settings' || item.id === 'progress') {
+      return !!user.value
+    }
+    return true
+  }))
   const currentTitle = computed(() => {
     if (tab.value === 'auth') {
       return authMode.value === 'login' ? 'Entrar' : 'Criar conta'

@@ -21,4 +21,8 @@ public interface ReviewLogRepository extends JpaRepository<ReviewLog, Long> {
             where rl.user.id = :userId and rl.reviewedAt >= :start
             """)
     long countActiveDaysSince(@Param("userId") Long userId, @Param("start") Instant start);
+
+    long countByUserIdAndPreviousIntervalDaysAndReviewedAtBetween(Long userId, int previousIntervalDays, Instant start, Instant end);
+
+    long countByUserIdAndPreviousIntervalDaysGreaterThanAndReviewedAtBetween(Long userId, int previousIntervalDays, Instant start, Instant end);
 }

@@ -165,7 +165,16 @@ Fluxo:
 No MVP, a prática intercalada é simples. Ela não possui configurador avançado
 de decks, limites ou tipos de carta.
 
-## 11. Acompanhar progresso
+## 11. Configurar limites de estudo
+
+Usuários autenticados podem definir sua carga diária no menu `Configurações`.
+É possível definir:
+- Limite de novas cartas por dia.
+- Limite de revisões por dia.
+
+O sistema de estudo sob demanda respeitará essas escolhas e mostrará uma mensagem na tela quando o limite do dia for alcançado.
+
+## 12. Acompanhar progresso
 
 Usuários autenticados podem abrir `Progresso`.
 
@@ -178,7 +187,7 @@ A página mostra métricas essenciais, como:
 O MVP não inclui dashboard analitico avançado, graficos históricos complexos ou
 metas diarias.
 
-## 12. Entender os ratings
+## 13. Entender os ratings
 
 Os ratings indicam a qualidade da lembranca:
 
@@ -190,7 +199,7 @@ Os ratings indicam a qualidade da lembranca:
 O LearningFrame usa esses ratings para calcular a próxima revisão em uma agenda
 própria simplificada.
 
-## 13. Fluxo recomendado de demonstração
+## 14. Fluxo recomendado de demonstração
 
 Para demonstrar o MVP de ponta a ponta:
 1. Abrir a Biblioteca pública sem login.

@@ -64,29 +64,58 @@ public class StudyService {
     ) {
         AppUser user = authService.requireUser(principal);
         Instant now = Instant.now();
-        int boundedLimit = Math.max(1, Math.min(limit, 50));
+        Instant todayStart = now.truncatedTo(java.time.temporal.ChronoUnit.DAYS);
+        Instant todayEnd = todayStart.plus(1, java.time.temporal.ChronoUnit.DAYS);
 
-        List<Card> dueCards;
+        int maxNew = user.getDailyNewCardsLimit();
+        int maxReview = user.getDailyReviewCardsLimit();
+
+        long newStudiedToday = reviewLogs.countByUserIdAndPreviousIntervalDaysAndReviewedAtBetween(user.getId(), 0, todayStart, todayEnd);
+        long reviewStudiedToday = reviewLogs.countByUserIdAndPreviousIntervalDaysGreaterThanAndReviewedAtBetween(user.getId(), 0, todayStart, todayEnd);
+
+        int remainingNew = Math.max(0, maxNew - (int) newStudiedToday);
+        int remainingReview = Math.max(0, maxReview - (int) reviewStudiedToday);
+
+        int boundedLimit = Math.max(1, Math.min(limit, 50));
+        
+        int fetchNew = Math.min(boundedLimit, remainingNew);
+        int fetchReview = Math.min(boundedLimit, remainingReview);
+
+        boolean limitReachedNew = remainingNew == 0;
+        boolean limitReachedReview = remainingReview == 0;
+
+        List<Card> newCards = new ArrayList<>();
+        List<Card> reviewCards = new ArrayList<>();
+
         if (mode == StudyMode.SINGLE_DECK) {
             if (deckId == null) {
                 throw ApiException.badRequest("deckId e obrigatorio no estudo de baralho unico.");
             }
             decks.findAccessible(deckId, user.getId()).orElseThrow(() -> ApiException.notFound("Baralho nao encontrado."));
-            dueCards = cards.findDueForDeck(user.getId(), deckId, now, PageRequest.of(0, boundedLimit));
+            if (fetchNew > 0) newCards = cards.findNewForDeck(user.getId(), deckId, PageRequest.of(0, fetchNew));
+            if (fetchReview > 0) reviewCards = cards.findReviewForDeck(user.getId(), deckId, now, PageRequest.of(0, fetchReview));
         } else {
-            PageRequest page = PageRequest.of(0, boundedLimit * 3);
             if (deckIds == null || deckIds.isEmpty()) {
-                dueCards = cards.findMixedDue(user.getId(), now, page);
+                if (fetchNew > 0) newCards = cards.findMixedNew(user.getId(), PageRequest.of(0, fetchNew * 3));
+                if (fetchReview > 0) reviewCards = cards.findMixedReview(user.getId(), now, PageRequest.of(0, fetchReview * 3));
             } else {
-                dueCards = cards.findMixedDueInDecks(user.getId(), deckIds, now, page);
+                if (fetchNew > 0) newCards = cards.findMixedNewInDecks(user.getId(), deckIds, PageRequest.of(0, fetchNew * 3));
+                if (fetchReview > 0) reviewCards = cards.findMixedReviewInDecks(user.getId(), deckIds, now, PageRequest.of(0, fetchReview * 3));
             }
-            dueCards = interleaveByDeck(dueCards, boundedLimit);
+            newCards = interleaveByDeck(newCards, fetchNew);
+            reviewCards = interleaveByDeck(reviewCards, fetchReview);
         }
+
+        List<Card> dueCards = new ArrayList<>();
+        dueCards.addAll(reviewCards);
+        dueCards.addAll(newCards);
 
         return new DueResponse(mode, dueCards.stream()
                 .limit(boundedLimit)
                 .map(card -> toStudyCard(card, user.getId()))
-                .toList());
+                .toList(),
+                limitReachedNew,
+                limitReachedReview);
     }
 
     @Transactional
