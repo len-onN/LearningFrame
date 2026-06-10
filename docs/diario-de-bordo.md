@@ -1799,6 +1799,25 @@ Decisao:
   fronteira imediata dentro do escopo planejado.
 
 Validacoes executadas:
-- `cd frontend && npm test`;
 - `cd frontend && npm run build`;
 - `git diff --check`.
+
+## 64. Lapidação da Sessão de Estudo e Melhoria de DX
+
+Data: 2026-06-10
+Branch de trabalho: `codex/study-mode-interleaved-polish`
+
+Esta frente focou em aprimorar o fluxo e a experiência da sessão de estudos, além de resolver débitos técnicos no ambiente de desenvolvimento local (DX).
+
+Decisões de UX na Prática Intercalada:
+- A aba lateral "Prática intercalada" foi removida da navegação global (`AppShell.vue`) para evitar que a funcionalidade parecesse uma página isolada e sem contexto.
+- Em seu lugar, foi adotada a mecânica de "Seleção de Múltiplos Baralhos" diretamente na Biblioteca, onde o usuário clica em "Selecionar", marca os baralhos desejados e clica no botão contextual para iniciar a prática.
+
+Decisões no Fluxo de Cartas e SRS:
+- **Botão Pular (Skip)**: A ideia de um botão "Voltar carta" foi matematicamente rejeitada, pois voltar e refazer uma avaliação corrompe a integridade do Algoritmo de Repetição Espaçada (SM-2) já registrado no banco de dados. Como alternativa segura, adicionamos o botão "Pular carta", que empurra o card atual para o final da fila local sem disparar chamadas na API.
+- **Previsões de Intervalo**: A notificação global verde que informava os dias decorridos após cada clique foi removida por atrapalhar a leitura. Para não perder a transparência do algoritmo, passamos a prever os intervalos de tempo (`predictedIntervals`) e injetá-los diretamente dentro de cada botão ("< 10m", "1 d", "4 d", etc.) antes mesmo de o usuário clicar.
+
+Melhoria no Ambiente de Desenvolvimento (DX):
+- Identificamos que o `docker-compose.dev.yml` operava com um `builder` estático (`npm run build -- --watch`) acoplado ao Nginx, o que anulava o Hot Module Replacement (HMR) e gerava travamentos ao sincronizar diretórios do Windows.
+- O container frontend de desenvolvimento foi reescrito para utilizar o **Vite Dev Server** nativo (`npm run dev`) na porta 80.
+- Criamos um `frontend/Dockerfile.dev` puramente Node (isolando-o da build do Nginx) e habilitamos o `usePolling` no Vite para sincronização perfeita de arquivos via volumes do Docker Desktop.
