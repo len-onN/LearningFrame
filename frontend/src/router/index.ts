@@ -6,6 +6,7 @@ import ImportRoute from '../routes/ImportRoute.vue'
 import LibraryRoute from '../routes/LibraryRoute.vue'
 import ProgressRoute from '../routes/ProgressRoute.vue'
 import SettingsRoute from '../routes/SettingsRoute.vue'
+import ProfileRoute from '../routes/ProfileRoute.vue'
 import StudyRoute from '../routes/StudyRoute.vue'
 
 export type AppRouteName =
@@ -19,6 +20,7 @@ export type AppRouteName =
   | 'create'
   | 'progress'
   | 'settings'
+  | 'profile'
   | 'login'
   | 'register'
 
@@ -88,6 +90,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Configurações', tab: 'settings', requiresAuth: true }
   },
   {
+    path: '/perfil',
+    name: 'profile',
+    component: ProfileRoute,
+    meta: { title: 'Meu Perfil', tab: 'profile', requiresAuth: true }
+  },
+  {
     path: '/entrar',
     name: 'login',
     component: AuthRoute,
@@ -124,7 +132,7 @@ router.beforeEach((to) => {
 declare module 'vue-router' {
   interface RouteMeta {
     title?: string
-    tab?: 'library' | 'study' | 'import' | 'create' | 'progress' | 'settings' | 'auth'
+    tab?: 'library' | 'study' | 'import' | 'create' | 'progress' | 'settings' | 'profile' | 'auth'
     librarySection?: 'public' | 'mine'
     libraryView?: 'decks' | 'manage-deck'
     authMode?: 'login' | 'register'

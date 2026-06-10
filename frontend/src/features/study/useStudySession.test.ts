@@ -118,7 +118,7 @@ describe('useStudySession', () => {
     await session.loadStudyDeck(5)
 
     expect(client.deckMetadata).toHaveBeenCalledWith(5)
-    expect(client.due).toHaveBeenCalledWith({ mode: 'SINGLE_DECK', deckId: 5 })
+    expect(client.due).toHaveBeenCalledWith({ mode: 'SINGLE_DECK', deckId: 5, limit: 20 })
     expect(client.deck).not.toHaveBeenCalled()
     expect(session.sessionTitle.value).toBe('Deck 5')
     expect(session.currentCard.value).toMatchObject({
@@ -239,7 +239,7 @@ describe('useStudySession', () => {
     expect(client.due).toHaveBeenCalledWith({
       mode: 'MIXED_DUE',
       deckIds: [1, 2],
-      limit: 24
+      limit: 20
     })
     expect(session.interleavedSelection.value.active).toBe(false)
     expect(session.currentCard.value?.clientId).toBe('server:21')

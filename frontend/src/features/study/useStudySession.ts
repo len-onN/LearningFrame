@@ -206,7 +206,7 @@ export function useStudySession({
         currentStudyRequest.value = { mode: 'SINGLE_DECK', deckId, limit: 20 }
         const due = await client.due(currentStudyRequest.value)
         cards = due.cards.map(serverCardToStudyCard)
-        if (cards.length === 0) {
+        if (cards.length === 0 && emptyReason !== 'empty-deck') {
           emptyReason = (due.limitReachedNew || due.limitReachedReview) ? 'limit-reached' : 'no-due'
         }
       } else {
@@ -483,7 +483,10 @@ function appendDeckOptions(
 }
 
 function initialInterleavedSelection(options: InterleavedDeckOption[]) {
-  return []
+  return options
+    .filter((opt) => opt.source === 'public' || opt.dueCount > 0)
+    .slice(0, INTERLEAVED_INITIAL_SELECTED_DECKS)
+    .map((opt) => opt.id)
 }
 
 function serverCardToStudyCard(card: StudyCardResponse): StudyCard {

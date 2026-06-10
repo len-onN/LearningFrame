@@ -19,10 +19,18 @@ export function useAuthSession() {
     localStorage.removeItem(USER_STORAGE_KEY)
   }
 
+  function updateDisplayName(displayName: string) {
+    if (user.value) {
+      user.value.displayName = displayName
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user.value))
+    }
+  }
+
   return {
     user,
     persistSession,
-    clearSession
+    clearSession,
+    updateDisplayName
   }
 }
 
