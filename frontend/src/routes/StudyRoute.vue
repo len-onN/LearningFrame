@@ -17,6 +17,7 @@ const study = useRequiredRouteContext(studyRouteKey, 'Study')
     :empty-reason="study.studyEmptyReason.value"
     :last-feedback="study.lastStudyFeedback.value"
     :summary="study.studySummary.value"
+    :predicted-intervals="study.predictedIntervals.value"
     :interleaved-selection="study.interleavedSelection.value"
     @go-library="study.goToLibrary"
     @start-interleaved="study.startInterleavedPractice"

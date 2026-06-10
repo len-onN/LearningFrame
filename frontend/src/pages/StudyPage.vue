@@ -21,6 +21,7 @@ const props = defineProps<{
   emptyReason: StudyEmptyReason
   lastFeedback: StudyReviewFeedback | null
   summary: StudySessionSummary | null
+  predictedIntervals: Record<ReviewRating, string> | null
   interleavedSelection: InterleavedSelectionState
 }>()
 
@@ -238,10 +239,6 @@ function interleavedDueLabel(dueCount: number | null) {
         <span>{{ currentCard.newCard ? 'Novo' : `${currentCard.intervalDays} dias` }} · volta {{ currentDueLabel }}</span>
       </div>
 
-      <div v-if="lastFeedback" class="study-feedback" role="status">
-        <strong>{{ lastFeedback.ratingLabel }} registrado</strong>
-        <span>{{ lastFeedback.nextDueLabel }} · {{ lastFeedback.intervalLabel }}</span>
-      </div>
 
       <div class="prompt" v-html="frontHtml"></div>
 
@@ -253,10 +250,22 @@ function interleavedDueLabel(dueCount: number | null) {
       <template v-else>
         <div class="answer" v-html="backHtml"></div>
         <div class="ratings" aria-label="Avaliar resposta">
-          <button class="rating again" type="button" @click="$emit('review', 'AGAIN')">De novo</button>
-          <button class="rating hard" type="button" @click="$emit('review', 'HARD')">Dificil</button>
-          <button class="rating good" type="button" @click="$emit('review', 'GOOD')">Bom</button>
-          <button class="rating easy" type="button" @click="$emit('review', 'EASY')">Facil</button>
+          <button class="rating again" type="button" @click="$emit('review', 'AGAIN')">
+            De novo
+            <small v-if="predictedIntervals">{{ predictedIntervals.AGAIN }}</small>
+          </button>
+          <button class="rating hard" type="button" @click="$emit('review', 'HARD')">
+            Difícil
+            <small v-if="predictedIntervals">{{ predictedIntervals.HARD }}</small>
+          </button>
+          <button class="rating good" type="button" @click="$emit('review', 'GOOD')">
+            Bom
+            <small v-if="predictedIntervals">{{ predictedIntervals.GOOD }}</small>
+          </button>
+          <button class="rating easy" type="button" @click="$emit('review', 'EASY')">
+            Fácil
+            <small v-if="predictedIntervals">{{ predictedIntervals.EASY }}</small>
+          </button>
         </div>
       </template>
     </article>

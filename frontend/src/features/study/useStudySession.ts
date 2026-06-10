@@ -110,6 +110,33 @@ export function useStudySession({
     : null
   )
 
+  const predictedIntervals = computed(() => {
+    const card = currentCard.value
+    if (!card) return null
+
+    const state = {
+      dueAt: card.dueAt,
+      intervalDays: card.intervalDays,
+      repetitions: card.repetitions,
+      easeFactor: card.easeFactor
+    }
+
+    const formatInterval = (days: number) => {
+      if (days === 0) return '< 10m'
+      if (days === 1) return '1 d'
+      if (days < 30) return `${days} d`
+      if (days < 365) return `${Math.floor(days / 30)} m`
+      return `${Math.floor(days / 365)} a`
+    }
+
+    return {
+      AGAIN: formatInterval(nextReview(state, 'AGAIN').intervalDays),
+      HARD: formatInterval(nextReview(state, 'HARD').intervalDays),
+      GOOD: formatInterval(nextReview(state, 'GOOD').intervalDays),
+      EASY: formatInterval(nextReview(state, 'EASY').intervalDays)
+    }
+  })
+
   function resetStudySession() {
     studyQueue.value = []
     sessionTitle.value = 'Selecione um baralho ou inicie a prática intercalada.'
@@ -314,6 +341,7 @@ export function useStudySession({
     currentDueLabel,
     studyProgress,
     studySummary,
+    predictedIntervals,
     interleavedSelection,
     resetStudySession,
     setStudySessionCards,

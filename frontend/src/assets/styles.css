@@ -1431,13 +1431,25 @@ textarea {
 }
 
 .rating {
-  min-height: 38px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 48px;
   border-radius: 8px;
   border: 1px solid transparent;
   color: var(--color-rating-text);
   font-weight: 700;
   cursor: pointer;
   font-size: 0.92rem;
+  padding: 8px 4px;
+}
+
+.rating small {
+  font-size: 0.75rem;
+  opacity: 0.85;
+  font-weight: 500;
 }
 
 .rating.again {
