@@ -36,7 +36,8 @@ Incluído:
 - prática intercalada;
 - progresso essencial;
 - E2E dedicado;
-- QA manual final aprovado.
+- QA manual final aprovado;
+- gestão de perfil (atualização de dados e exclusão de conta).
 
 Fora do MVP:
 - clone completo do Anki;
@@ -49,7 +50,7 @@ Fora do MVP:
 - filtros avançados;
 - busca full-text;
 - dashboard avançado;
-- perfil e recuperacao de senha;
+- recuperacao de senha;
 - storage externo de mídia;
 - text-to-speech.
 

@@ -80,3 +80,10 @@ Ao criar nova branch relevante:
    - [Princípios e padrões do MVP](../principios-e-padroes-mvp.md);
    - [Memória de decisões](memoria-de-decisoes.md), quando houver mudança de
      direção relevante.
+
+## 5. Evolução Pós-MVP
+
+| Branch | Documento principal | Resultado |
+| --- | --- | --- |
+| `feature/profile-management` | `prompt-gestao-perfil.md` | Planejamento da Gestão de Perfil (alteração de dados e exclusão de conta) |
+| `feature/card-formatting` | (A definir) | Planejamento da Formatação de Cartas ao criá-las |

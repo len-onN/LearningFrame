@@ -1836,4 +1836,15 @@ Decisões de Navegação e UX:
 
 Melhorias Visuais e Acessibilidade:
 - A cor de fundo da área da biblioteca (`--color-library-section-bg`) foi ligeiramente clareada no modo claro para proporcionar um respiro visual.
-- A cor do hover nos cartões dos baralhos foi ajustada para `--color-focus` (um tom levemente mais escuro) de forma a garantir maior contraste em relação à nova cor de fundo, resolvendo o problema de contraste na navegação.
+- A cor de hover nos cartões dos baralhos foi ajustada para `--color-focus` (um tom levemente mais escuro) de forma a garantir maior contraste em relação à nova cor de fundo, resolvendo o problema de contraste na navegação.
+
+## 66. Gestão de Perfil e Formatação de Cartas (Planejamento)
+
+Data: 2026-06-10
+Branch de trabalho: `feature/profile-management`
+
+Avançando além do escopo inicial, foram mapeados dois novos passos importantes na evolução do projeto:
+1. **Gestão de Perfil**: Permitir que o usuário atualize seu Nome de Exibição (`DisplayName`), altere sua senha exigindo a antiga, e possa excluir sua conta (hard delete em cascata).
+2. **Formatação de Cartas**: Oferecer ferramentas para formatação rica das cartas ao criá-las.
+
+A primeira branch, `feature/profile-management`, iniciará a Gestão de Perfil. Para garantir a segurança e integridade dos dados, o hard delete removerá em cascata Progresso, Baralhos Privados, Cartas e Mídias do usuário. As alterações no `principios-e-padroes-mvp.md` também moveram a "gestão de perfil" para o escopo "Incluído".
