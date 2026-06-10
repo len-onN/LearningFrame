@@ -305,15 +305,20 @@ const {
   currentDueLabel,
   studyProgress,
   studySummary,
+  interleavedSelection,
   resetStudySession,
   loadStudyDeck,
-  loadInterleavedPractice,
+  prepareInterleavedPracticeSelection,
+  startInterleavedPracticeSession,
+  toggleInterleavedDeckSelection,
   reviewCurrent,
   clearPublicStudyDeckCache
 } = useStudySession({
   user,
   publicDecks,
+  myDecks,
   loadPublicDecks,
+  loadMyDecks,
   refreshStats,
   showNotice,
   withFeedback,
@@ -370,7 +375,7 @@ async function syncStudyRoute() {
   }
 
   if (route.name === 'study-interleaved') {
-    await loadInterleavedPractice()
+    await prepareInterleavedPracticeSelection()
   }
 }
 
@@ -413,7 +418,7 @@ async function startDeck(deck: DeckSummary) {
 
 async function startInterleavedPractice() {
   if (route.name === 'study-interleaved') {
-    await loadInterleavedPractice()
+    await router.push({ name: 'study' })
     return
   }
   await router.push({ name: 'study-interleaved' })
@@ -499,8 +504,11 @@ provide(studyRouteKey, {
   studyEmptyReason,
   lastStudyFeedback,
   studySummary,
+  interleavedSelection,
   goToLibrary: goHome,
   startInterleavedPractice,
+  startSelectedInterleavedPractice: startInterleavedPracticeSession,
+  toggleInterleavedDeckSelection,
   reviewCurrent
 })
 

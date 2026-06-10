@@ -3,13 +3,14 @@ import { ALargeSmall, BookOpen, Brain, Eye, Maximize2, Minimize2, Shuffle } from
 import { computed, ref } from 'vue'
 import type { ReviewRating, StudyCard } from '../types/api'
 import type {
+  InterleavedSelectionState,
   StudyEmptyReason,
   StudyReviewFeedback,
   StudySessionProgress,
   StudySessionSummary
 } from '../routes/routeContext'
 
-defineProps<{
+const props = defineProps<{
   sessionTitle: string
   currentCard: StudyCard | undefined
   currentDueLabel: string
@@ -20,11 +21,14 @@ defineProps<{
   emptyReason: StudyEmptyReason
   lastFeedback: StudyReviewFeedback | null
   summary: StudySessionSummary | null
+  interleavedSelection: InterleavedSelectionState
 }>()
 
 defineEmits<{
   'go-library': []
   'start-interleaved': []
+  'start-selected-interleaved': []
+  'toggle-interleaved-deck': [deckId: number]
   'reveal-answer': []
   review: [rating: ReviewRating]
 }>()
@@ -40,6 +44,8 @@ const studyFontLevel = ref(STUDY_FONT_LEVEL_DEFAULT)
 const studyFontStyle = computed(() => ({
   '--study-card-font-size': `${(STUDY_FONT_BASE_REM + studyFontLevel.value * STUDY_FONT_STEP_REM).toFixed(2)}rem`
 }))
+const interleavedSelectedCount = computed(() => props.interleavedSelection.selectedIds.length)
+const interleavedSelectedIds = computed(() => new Set(props.interleavedSelection.selectedIds))
 
 function adjustStudyFont(delta: number) {
   studyFontLevel.value = Math.min(
@@ -69,6 +75,24 @@ function emptyCopy(reason: StudyEmptyReason) {
     return 'Sua agenda deste recorte está em dia. Volte depois ou use a prática intercalada.'
   }
   return 'Escolha um baralho público, um baralho salvo ou use a prática intercalada.'
+}
+function isInterleavedDeckDisabled(deckId: number) {
+  return !interleavedSelectedIds.value.has(deckId)
+    && interleavedSelectedCount.value >= props.interleavedSelection.maxSelected
+}
+
+function interleavedSourceLabel(source: InterleavedSelectionState['options'][number]['source']) {
+  return source === 'mine' ? 'Meu baralho' : 'Publico'
+}
+
+function interleavedDueLabel(dueCount: number | null) {
+  if (dueCount === null) {
+    return 'Agenda local'
+  }
+  if (dueCount === 1) {
+    return '1 vencida'
+  }
+  return `${dueCount} vencidas`
 }
 </script>
 
@@ -116,7 +140,11 @@ function emptyCopy(reason: StudyEmptyReason) {
           <Maximize2 v-else :size="16" aria-hidden="true" />
           {{ fitMediaToScreen ? 'Mídia natural' : 'Ajustar mídia' }}
         </button>
-        <button class="ghost compact" type="button" @click="$emit('start-interleaved')">
+        <button
+          :class="[{ 'primary': interleavedSelection.active, 'ghost': !interleavedSelection.active }, 'compact']"
+          type="button"
+          @click="$emit('start-interleaved')"
+        >
           <Shuffle :size="16" aria-hidden="true" />
           Prática intercalada
         </button>
@@ -135,7 +163,75 @@ function emptyCopy(reason: StudyEmptyReason) {
       <span :style="{ width: `${progress.percent}%` }"></span>
     </div>
 
-    <article v-if="currentCard" :class="['study-card', { 'media-fit': fitMediaToScreen }]" :style="studyFontStyle">
+    <article v-if="interleavedSelection.active" class="interleaved-selector">
+      <div class="interleaved-selector-heading">
+        <Shuffle :size="28" aria-hidden="true" />
+        <div>
+          <p class="eyebrow">Pratica intercalada</p>
+          <h2>Escolha os baralhos</h2>
+          <p class="study-progress-copy">
+            {{ interleavedSelectedCount }} de {{ interleavedSelection.maxSelected }} selecionados
+          </p>
+        </div>
+      </div>
+
+      <div v-if="interleavedSelection.options.length > 0" class="interleaved-deck-grid">
+        <label
+          v-for="deck in interleavedSelection.options"
+          :key="deck.id"
+          :class="[
+            'interleaved-deck-option-wrapper',
+            {
+              selected: interleavedSelectedIds.has(deck.id),
+              disabled: isInterleavedDeckDisabled(deck.id)
+            }
+          ]"
+        >
+          <div class="interleaved-deck-option">
+            <div class="interleaved-deck-header">
+              <input
+                type="checkbox"
+                :checked="interleavedSelectedIds.has(deck.id)"
+                :disabled="isInterleavedDeckDisabled(deck.id)"
+                @change="$emit('toggle-interleaved-deck', deck.id)"
+              />
+              <strong>{{ deck.title }}</strong>
+            </div>
+            <span class="interleaved-deck-meta">
+              {{ interleavedSourceLabel(deck.source) }} · {{ deck.cardCount }} cartas · {{ interleavedDueLabel(deck.dueCount) }}
+            </span>
+            <div v-if="deck.description" class="interleaved-deck-desc-wrapper">
+              <small class="interleaved-deck-desc">{{ deck.description }}</small>
+              <div class="interleaved-deck-tooltip">{{ deck.description }}</div>
+            </div>
+          </div>
+        </label>
+      </div>
+
+      <div v-else class="compact-empty">
+        <Brain :size="32" aria-hidden="true" />
+        <h2>Nenhum baralho disponivel</h2>
+        <p>Abra a Biblioteca para carregar ou criar baralhos.</p>
+      </div>
+
+      <div class="study-summary-actions">
+        <button class="ghost compact" type="button" @click="$emit('go-library')">
+          <BookOpen :size="16" aria-hidden="true" />
+          Biblioteca
+        </button>
+        <button
+          class="primary compact"
+          type="button"
+          :disabled="interleavedSelectedCount === 0"
+          @click="$emit('start-selected-interleaved')"
+        >
+          <Shuffle :size="16" aria-hidden="true" />
+          Iniciar pratica
+        </button>
+      </div>
+    </article>
+
+    <article v-else-if="currentCard" :class="['study-card', { 'media-fit': fitMediaToScreen }]" :style="studyFontStyle">
       <div class="card-meta">
         <span>{{ currentCard.deckTitle }}</span>
         <span>{{ currentCard.newCard ? 'Novo' : `${currentCard.intervalDays} dias` }} · volta {{ currentDueLabel }}</span>

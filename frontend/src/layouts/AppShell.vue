@@ -89,14 +89,7 @@ defineEmits<{
         </RouterLink>
       </nav>
 
-      <button
-        class="primary full interleaved-button"
-        type="button"
-        @click="$emit('start-interleaved')"
-      >
-        <Shuffle :size="18" aria-hidden="true" />
-        <span>Prática intercalada</span>
-      </button>
+
 
       <section class="sidebar-footer" aria-label="Conta">
         <div v-if="user" class="sidebar-user">

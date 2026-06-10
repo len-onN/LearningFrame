@@ -17,8 +17,11 @@ const study = useRequiredRouteContext(studyRouteKey, 'Study')
     :empty-reason="study.studyEmptyReason.value"
     :last-feedback="study.lastStudyFeedback.value"
     :summary="study.studySummary.value"
+    :interleaved-selection="study.interleavedSelection.value"
     @go-library="study.goToLibrary"
     @start-interleaved="study.startInterleavedPractice"
+    @start-selected-interleaved="study.startSelectedInterleavedPractice"
+    @toggle-interleaved-deck="study.toggleInterleavedDeckSelection"
     @reveal-answer="study.answerVisible.value = true"
     @review="study.reviewCurrent"
   />

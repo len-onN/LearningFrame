@@ -21,6 +21,13 @@ export const API_BASE_URL = configuredApiBaseUrl || 'http://127.0.0.1:8081'
 
 let authToken = readStoredToken()
 
+export interface DueRequestOptions {
+  mode: StudyMode
+  deckId?: number
+  deckIds?: number[]
+  limit?: number
+}
+
 export function setAuthToken(token: string) {
   authToken = token
   if (typeof localStorage !== 'undefined') {
@@ -164,10 +171,13 @@ export const api = {
       body: formData
     })
   },
-  due(mode: StudyMode, deckId?: number) {
-    const params = new URLSearchParams({ mode, limit: '24' })
-    if (deckId) {
+  due({ mode, deckId, deckIds = [], limit = 24 }: DueRequestOptions) {
+    const params = new URLSearchParams({ mode, limit: String(limit) })
+    if (deckId !== undefined) {
       params.set('deckId', String(deckId))
+    }
+    for (const selectedDeckId of deckIds) {
+      params.append('deckIds', String(selectedDeckId))
     }
     return request<DueResponse>(`/api/study/due?${params.toString()}`)
   },
