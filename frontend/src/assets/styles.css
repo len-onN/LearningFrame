@@ -963,10 +963,11 @@ textarea {
   align-items: start;
 }
 
-.manage-meta-panel,
-.manage-cards-panel {
+.library-grid .manage-meta-panel,
+.library-grid .manage-cards-panel {
   align-content: start;
   min-width: 0;
+  border: 2px solid var(--color-success-border);
 }
 
 .managed-cards-toolbar {

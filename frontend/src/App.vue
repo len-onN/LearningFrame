@@ -599,6 +599,7 @@ provide(progressRouteKey, {
         v-model:front-html="cardEditorForm.frontHtml"
         v-model:back-html="cardEditorForm.backHtml"
         v-model:tags="cardEditorForm.tags"
+        :deck-id="managedDeck.id"
         :deck-title="managedDeck.title"
         :title="cardEditorTitle"
         :front-preview-html="cardEditorFrontPreview"

@@ -484,7 +484,7 @@ function appendDeckOptions(
 
 function initialInterleavedSelection(options: InterleavedDeckOption[]) {
   return options
-    .filter((opt) => opt.source === 'public' || opt.dueCount > 0)
+    .filter((opt) => opt.source === 'public' || (opt.dueCount ?? 0) > 0)
     .slice(0, INTERLEAVED_INITIAL_SELECTED_DECKS)
     .map((opt) => opt.id)
 }
