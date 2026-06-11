@@ -1,6 +1,6 @@
 import { ref } from 'vue'
-import type { RouteLocationNormalizedLoaded } from 'vue-router'
-import { describe, expect, it, vi } from 'vitest'
+import { useRoute, useRouter } from 'vue-router'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type {
   ApkgImportResponse,
   ApkgPreviewResponse,
@@ -8,6 +8,21 @@ import type {
 } from '../../types/api'
 import type { ApkgMediaIndex } from '../../utils/apkgMedia'
 import { useApkgImport, type ApkgImportApi } from './useApkgImport'
+import { useFeedback } from '../../composables/useFeedback'
+import { useAuthSession } from '../../composables/useAuthSession'
+
+vi.mock('vue-router', () => ({
+  useRoute: vi.fn(),
+  useRouter: vi.fn()
+}))
+
+vi.mock('../../composables/useFeedback', () => ({
+  useFeedback: vi.fn()
+}))
+
+vi.mock('../../composables/useAuthSession', () => ({
+  useAuthSession: vi.fn()
+}))
 
 describe('useApkgImport', () => {
   it('carrega preview APKG, prepara midia da primeira carta e monta opcoes de busca', async () => {
@@ -44,7 +59,7 @@ describe('useApkgImport', () => {
   })
 
   it('preserva preview ao pedir login para salvar APKG', async () => {
-    const { client, flow, openAuth, route, showNotice } = createSubject()
+    const { client, flow, router, route, showNotice } = createSubject()
     const file = fakeFile()
     client.previewApkg.mockResolvedValueOnce(preview({ title: 'Importado' }))
     await flow.handleApkgChange(fileChangeEvent(file).event)
@@ -53,7 +68,7 @@ describe('useApkgImport', () => {
     route.name = 'login'
     flow.clearImportStateForRouteChange('/importar')
 
-    expect(openAuth).toHaveBeenCalledWith('login')
+    expect(router.push).toHaveBeenCalledWith({ name: 'login', query: { redirect: '/importar' } })
     expect(client.importApkg).not.toHaveBeenCalled()
     expect(flow.selectedFile.value).toEqual(file)
     expect(flow.importPreview.value?.title).toBe('Importado')
@@ -66,10 +81,7 @@ describe('useApkgImport', () => {
     const {
       client,
       flow,
-      highlightDeck,
-      loadMyDecks,
-      navigateToMyDecks,
-      refreshStats,
+      router,
       revokeObjectUrl,
       showNotice,
       user
@@ -95,10 +107,7 @@ describe('useApkgImport', () => {
     expect(flow.importPreview.value).toBeNull()
     expect(flow.importSaving.value).toBe(false)
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:1')
-    expect(loadMyDecks).toHaveBeenCalledWith(true)
-    expect(refreshStats).toHaveBeenCalled()
-    expect(navigateToMyDecks).toHaveBeenCalled()
-    expect(highlightDeck).toHaveBeenCalledWith(42)
+    expect(router.push).toHaveBeenCalledWith({ name: 'library-mine', query: { highlight: 42 } })
     expect(showNotice).toHaveBeenLastCalledWith('Baralho APKG salvo com 3 cartas e 1 midias.')
   })
 
@@ -122,37 +131,29 @@ describe('useApkgImport', () => {
 })
 
 function createSubject() {
-  const route = { name: 'import' } as { name: RouteLocationNormalizedLoaded['name'] }
+  const route = { name: 'import' }
+  const router = { push: vi.fn() }
   const user = ref<UserResponse | null>(null)
+  const showNotice = vi.fn()
+  const showError = vi.fn()
+  const withFeedback = vi.fn(async (task: () => Promise<void>) => {
+    await task()
+  })
+
+  vi.mocked(useRoute).mockReturnValue(route as any)
+  vi.mocked(useRouter).mockReturnValue(router as any)
+  vi.mocked(useFeedback).mockReturnValue({ showNotice, showError, withFeedback } as any)
+  vi.mocked(useAuthSession).mockReturnValue({ user } as any)
+
   const client = createClient()
   const mediaIndex = createMediaIndex()
   let urlIndex = 0
   const createObjectUrl = vi.fn(() => `blob:${++urlIndex}`)
   const revokeObjectUrl = vi.fn()
   const decodeImage = vi.fn(async () => undefined)
-  const openAuth = vi.fn(async () => undefined)
-  const loadMyDecks = vi.fn(async () => undefined)
-  const refreshStats = vi.fn(async () => undefined)
-  const highlightDeck = vi.fn(async () => undefined)
-  const navigateToMyDecks = vi.fn(async () => undefined)
-  const showNotice = vi.fn()
-  const showError = vi.fn()
-  const withFeedback = vi.fn(async (task: () => Promise<void>) => {
-    await task()
-  })
   const createMediaIndexMock = vi.fn(async () => mediaIndex)
 
   const flow = useApkgImport({
-    route: route as RouteLocationNormalizedLoaded,
-    user,
-    openAuth,
-    loadMyDecks,
-    refreshStats,
-    highlightDeck,
-    navigateToMyDecks,
-    showNotice,
-    showError,
-    withFeedback,
     client,
     createMediaIndex: createMediaIndexMock,
     createObjectUrl,
@@ -162,6 +163,7 @@ function createSubject() {
 
   return {
     route,
+    router,
     user,
     client,
     mediaIndex,
@@ -169,11 +171,6 @@ function createSubject() {
     createObjectUrl,
     revokeObjectUrl,
     decodeImage,
-    openAuth,
-    loadMyDecks,
-    refreshStats,
-    highlightDeck,
-    navigateToMyDecks,
     showNotice,
     showError,
     withFeedback,

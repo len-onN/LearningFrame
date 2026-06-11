@@ -4,9 +4,18 @@ import type { UserResponse } from '../types/api'
 
 const USER_STORAGE_KEY = 'learningframe.user'
 
-export function useAuthSession() {
-  const user = ref<UserResponse | null>(loadStoredUser())
+function loadStoredUser() {
+  try {
+    const raw = localStorage.getItem(USER_STORAGE_KEY)
+    return raw ? JSON.parse(raw) as UserResponse : null
+  } catch {
+    return null
+  }
+}
 
+const user = ref<UserResponse | null>(loadStoredUser())
+
+export function useAuthSession() {
   function persistSession(nextUser: UserResponse, token: string) {
     user.value = nextUser
     setAuthToken(token)
@@ -34,11 +43,3 @@ export function useAuthSession() {
   }
 }
 
-function loadStoredUser() {
-  try {
-    const raw = localStorage.getItem(USER_STORAGE_KEY)
-    return raw ? JSON.parse(raw) as UserResponse : null
-  } catch {
-    return null
-  }
-}

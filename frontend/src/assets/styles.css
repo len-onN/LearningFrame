@@ -735,7 +735,7 @@ textarea {
 }
 
 .library-grid .panel {
-  border: 0;
+  border: 2px solid var(--color-success-border);
   background: var(--color-library-section-bg);
   padding: 16px;
 }

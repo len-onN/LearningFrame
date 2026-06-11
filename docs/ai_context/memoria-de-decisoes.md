@@ -317,7 +317,10 @@ Estado atual:
 - próximos passos planejados em
   [plano final do App.vue como composition root](planos/plano-app-vue-composition-root-final.md)
   e no
-  [prompt App.vue 4](prompts/prompt-app.vue-4.md).
+  [prompt App.vue 4](prompts/prompt-app.vue-4.md);
+- refatorações adicionais corrigiram warnings de ciclo de vida do Vue (`onScopeDispose`) instanciando os composables de domínio (`useDeckLibrary`, `useStudySession`, etc) no escopo de configuração das rotas pai (`LibraryRoute`, `StudyRoute`, etc) ao invés de instanciar solto no App.vue. Isso evitou falhas de reatividade.
+- refinamos a UX da prática intercalada para apenas pré-selecionar o baralho atual (se houver), não iniciando com seleções aleatórias.
+- bordas padronizadas nos painéis da biblioteca.
 
 ## 14. Limites Diários de Estudo no AppUser vs SRP
 
@@ -340,3 +343,22 @@ Decisão final:
 
 Estado atual:
 - Decisão registrada no planejamento da funcionalidade `feature/daily-study-limits`.
+
+## 15. Editor WYSIWYG e Media Nativos
+
+Problema:
+- Cartões exigiam formatação HTML bruta e marcação estrita para áudio (`[sound:xxx]`).
+- Falta de praticidade para gravar áudios on-the-fly para estudo de pronúncia ou idiomas.
+
+Alternativas consideradas:
+- Quill, CKEditor ou Tiptap para WYSIWYG.
+- Servidor para receber áudio cru e converter vs. `MediaRecorder` nativo no browser.
+
+Decisão:
+- **Tiptap**: Selecionado por ser headless e não conflitar com o Design System.
+- **AnkiSoundExtension**: Desenvolvemos uma extensão customizada do Tiptap que faz parse bidirecional de `[sound:xxx]` para o player HTML `<audio>`, mascarando a complexidade para o usuário enquanto mantém compatibilidade estrita com Anki no banco de dados.
+- **MediaRecorder API**: Implementamos gravação no frontend e despacho de blobs (`.webm` ou `.mp4`). Para evitar abusos, impôs-se um teto de 60 segundos por gravação e desabilitou-se a barra de formatação durante a captura.
+
+Estado atual:
+- Editor funcional implementado.
+- Gravação de áudio web nativa habilitada no ambiente Tiptap.

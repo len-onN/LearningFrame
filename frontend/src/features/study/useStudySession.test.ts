@@ -16,6 +16,31 @@ import {
   useStudySession,
   type StudySessionApi
 } from './useStudySession'
+import { useAuthSession } from '../../composables/useAuthSession'
+import { useFeedback } from '../../composables/useFeedback'
+import { useDeckLibrary } from '../library/useDeckLibrary'
+import { useStatsSummary } from '../../app/useStatsSummary'
+
+vi.mock('../../composables/useAuthSession', () => ({
+  useAuthSession: vi.fn(() => ({ user: ref(null) }))
+}))
+
+vi.mock('../../composables/useFeedback', () => ({
+  useFeedback: vi.fn(() => ({ showNotice: vi.fn(), withFeedback: vi.fn() }))
+}))
+
+vi.mock('../library/useDeckLibrary', () => ({
+  useDeckLibrary: vi.fn(() => ({
+    publicDecks: ref([]),
+    myDecks: ref([]),
+    loadPublicDecks: vi.fn(),
+    loadMyDecks: vi.fn()
+  }))
+}))
+
+vi.mock('../../app/useStatsSummary', () => ({
+  useStatsSummary: vi.fn(() => ({ refreshStats: vi.fn() }))
+}))
 
 describe('useStudySession', () => {
   beforeEach(() => {
@@ -23,6 +48,10 @@ describe('useStudySession', () => {
     localStorage.clear()
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-06-09T12:00:00Z'))
+    const session = useStudySession()
+    session.resetStudySession()
+    session.__reloadLocalStatesForTesting()
+    session.clearPublicStudyDeckCache()
   })
 
   afterEach(() => {
@@ -91,6 +120,7 @@ describe('useStudySession', () => {
     const { client, session, showNotice, withFeedback } = createSubject({
       publicDeckCacheLimit: 1
     })
+    session.__reloadLocalStatesForTesting()
     client.deck.mockResolvedValueOnce(deckDetail(7, [
       cardResponse(70, { frontHtml: '<p>Frente <script>alert(1)</script></p>' })
     ]))
@@ -159,7 +189,7 @@ describe('useStudySession', () => {
     expect(session.sessionTitle.value).toBe('Pratica intercalada')
     expect(session.interleavedSelection.value.active).toBe(true)
     expect(session.interleavedSelection.value.options.map((deck) => deck.id)).toEqual([1, 2, 3, 4, 5])
-    expect(session.interleavedSelection.value.selectedIds).toEqual([1, 2, 3, 4])
+    expect(session.interleavedSelection.value.selectedIds).toEqual([])
   })
 
   it('carrega decks publicos antes de preparar selecao anonima quando a lista esta vazia', async () => {
@@ -173,7 +203,7 @@ describe('useStudySession', () => {
 
     expect(loadPublicDecks).toHaveBeenCalledWith(true)
     expect(client.deck).not.toHaveBeenCalled()
-    expect(session.interleavedSelection.value.selectedIds).toEqual([11])
+    expect(session.interleavedSelection.value.selectedIds).toEqual([])
   })
 
   it('prepara selecao autenticada usando meus baralhos e publicos disponiveis', async () => {
@@ -206,7 +236,7 @@ describe('useStudySession', () => {
       { id: 2, source: 'mine' },
       { id: 3, source: 'public' }
     ])
-    expect(session.interleavedSelection.value.selectedIds).toEqual([2, 3])
+    expect(session.interleavedSelection.value.selectedIds).toEqual([])
   })
 
   it('seleciona e desseleciona decks respeitando limite maximo', async () => {
@@ -214,7 +244,7 @@ describe('useStudySession', () => {
     const { session } = createSubject({ publicDecks })
 
     await session.prepareInterleavedPracticeSelection()
-    ;[5, 6, 7, 8, 9].forEach(session.toggleInterleavedDeckSelection)
+    ;[1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(session.toggleInterleavedDeckSelection)
 
     expect(session.interleavedSelection.value.selectedIds).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
 
@@ -233,7 +263,7 @@ describe('useStudySession', () => {
     const { client, session } = createSubject({ user, myDecks })
     client.due.mockResolvedValueOnce(dueResponse([studyCardResponse(21)]))
 
-    await session.prepareInterleavedPracticeSelection()
+    await session.prepareInterleavedPracticeSelection([1, 2])
     await session.startInterleavedPracticeSession()
 
     expect(client.due).toHaveBeenCalledWith({
@@ -257,7 +287,7 @@ describe('useStudySession', () => {
       cardResponse(deckId * 10 + 1)
     ]))
 
-    await session.prepareInterleavedPracticeSelection()
+    await session.prepareInterleavedPracticeSelection([1, 2, 3])
     session.toggleInterleavedDeckSelection(2)
     await session.startInterleavedPracticeSession()
 
@@ -275,7 +305,7 @@ describe('useStudySession', () => {
     const publicDecks = ref([deckSummary(1)])
     const { client, session, showNotice, withFeedback } = createSubject({ publicDecks })
 
-    await session.prepareInterleavedPracticeSelection()
+    await session.prepareInterleavedPracticeSelection([1])
     session.toggleInterleavedDeckSelection(1)
     await session.startInterleavedPracticeSession()
 
@@ -291,7 +321,7 @@ describe('useStudySession', () => {
     const { client, session, showNotice } = createSubject({ publicDecks })
     client.deck.mockResolvedValueOnce(deckDetail(1, []))
 
-    await session.prepareInterleavedPracticeSelection()
+    await session.prepareInterleavedPracticeSelection([1])
     await session.startInterleavedPracticeSession()
 
     expect(session.studyEmptyReason.value).toBe('no-due')
@@ -360,15 +390,12 @@ function createSubject(overrides: Partial<{
     await task()
   })
 
+  vi.mocked(useAuthSession).mockReturnValue({ user } as any)
+  vi.mocked(useFeedback).mockReturnValue({ showNotice, withFeedback } as any)
+  vi.mocked(useDeckLibrary).mockReturnValue({ publicDecks, myDecks, loadPublicDecks, loadMyDecks } as any)
+  vi.mocked(useStatsSummary).mockReturnValue({ refreshStats } as any)
+
   const session = useStudySession({
-    user,
-    publicDecks,
-    myDecks,
-    loadPublicDecks,
-    loadMyDecks,
-    refreshStats,
-    showNotice,
-    withFeedback,
     client,
     publicDeckCacheLimit: overrides.publicDeckCacheLimit
   })

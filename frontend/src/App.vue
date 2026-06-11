@@ -16,15 +16,11 @@ import { useDeckManagement } from './features/library/useDeckManagement'
 import { useAuthFlow } from './features/auth/useAuthFlow'
 import { useCreateDeckFlow } from './features/create/useCreateDeckFlow'
 import { htmlSummary } from './features/import/importPreview'
-import { useApkgImport } from './features/import/useApkgImport'
 import { useStudySession } from './features/study/useStudySession'
 import {
   authRouteKey,
   createDeckRouteKey,
-  importRouteKey,
-  libraryRouteKey,
-  progressRouteKey,
-  studyRouteKey
+  progressRouteKey
 } from './routes/routeContext'
 import type { AuthMode } from './utils/authValidation'
 import { useAppNavigation } from './app/useAppNavigation'
@@ -90,28 +86,12 @@ const {
   myDeckPage,
   publicDeckQuery,
   myDeckQuery,
-  highlightedDeckId,
-  deckSelectionMode,
-  selectedMyDeckIds,
-  publicDecksHasMore,
-  myDecksHasMore,
-  filteredPublicDecks,
-  filteredMyDecks,
-  selectedMyDecksCount,
-  allVisibleMyDecksSelected,
-  activeLibraryCountLabel,
   currentLibraryQuery,
   loadPublicDecks,
   loadMyDecks,
-  highlightDeck,
-  toggleDeckSelectionMode,
-  exitDeckSelectionMode,
-  toggleMyDeckSelection,
-  toggleVisibleMyDeckSelection,
-  clearMyDeckSelection
+  exitDeckSelectionMode
 } = useDeckLibrary({
   librarySection,
-  user,
   pageSize: DECK_PAGE_SIZE
 })
 const {
@@ -119,55 +99,23 @@ const {
   refreshStats,
   clearStats,
   syncProgressRoute
-} = useStatsSummary({
-  route,
-  user,
-  withFeedback
-})
+} = useStatsSummary()
 
 const {
   managedDeck,
-  managedDeckForm,
-  managedDeckDirty,
-  managedCards,
-  managedCardsSearch,
-  managedCardsView,
   cardEditorOpen,
   cardEditorForm,
   cardEditorTitle,
   cardEditorFrontPreview,
   cardEditorBackPreview,
   setManagedDeck,
-  updateManagedDeckForm,
   loadManagedDeckRoute,
   closeManagedDeck,
-  loadManagedCards,
-  loadingMoreManagedCards,
-  loadMoreManagedCards,
-  saveManagedDeck,
-  deleteManagedDeck,
-  openCreateCardEditor,
-  openEditCardEditor,
   closeCardEditor,
   saveCardEditor,
-  deleteManagedCard,
-  deleteSelectedManagedCards,
-  selectManagedCard,
-  toggleManagedCardSelection,
-  toggleVisibleManagedCardsSelection,
-  clearManagedCardSelection,
   uploadCardEditorMedia,
   handleCardEditorUploadError
-} = useDeckManagement({
-  pageSize: CARD_PAGE_SIZE,
-  searchDebounceMs: SEARCH_DEBOUNCE_MS,
-  showNotice,
-  showError,
-  withFeedback,
-  loadMyDecks,
-  refreshStats,
-  navigateToMyDecks
-})
+} = useDeckManagement()
 
 const {
   syncLibraryRoute,
@@ -197,32 +145,8 @@ const {
 })
 
 const {
-  refreshAll,
-  loadingMorePublicDecks,
-  loadingMoreMyDecks,
-  loadMorePublicDecks,
-  loadMoreMyDecks,
-  savePublicDeck,
-  deleteSelectedMyDecks,
-  clearSelectedMyDecks,
-  openManagedDeck
-} = useLibraryActions({
-  user,
-  librarySearch,
-  selectedMyDeckIds,
-  loadPublicDecks,
-  loadMyDecks,
-  setManagedDeck,
-  highlightDeck,
-  exitDeckSelectionMode,
-  clearMyDeckSelection,
-  openAuth,
-  navigateToMyDecks,
-  navigateToManagedDeck,
-  refreshStats,
-  showNotice,
-  withFeedback
-})
+  refreshAll
+} = useLibraryActions()
 
 const createDeckFlow = useCreateDeckFlow({
   client: api,
@@ -233,42 +157,6 @@ const createDeckFlow = useCreateDeckFlow({
   withFeedback
 })
 
-const {
-  selectedFile,
-  importVisibility,
-  importTitle,
-  importPreview,
-  importSaving,
-  currentPreviewCard,
-  currentPreviewHtml,
-  previewCardIndex,
-  previewFace,
-  previewPickerOpen,
-  previewCardSearch,
-  previewCardOptions,
-  previewCardTitle,
-  handleApkgChange,
-  selectPreviewCard,
-  movePreviewCard,
-  togglePreviewFace,
-  persistImport,
-  consumeReturnToImportAfterAuth,
-  clearImportStateForRouteChange,
-  disposeApkgImport
-} = useApkgImport({
-  route,
-  user,
-  openAuth,
-  loadMyDecks,
-  refreshStats,
-  highlightDeck,
-  navigateToMyDecks,
-  showNotice,
-  showError,
-  withFeedback,
-  client: api
-})
-
 const authFlow = useAuthFlow({
   authMode,
   route,
@@ -276,7 +164,6 @@ const authFlow = useAuthFlow({
   register: (displayName, email, password) => api.register(displayName, email, password),
   persistSession,
   refreshAfterAuth: refreshAll,
-  consumeReturnToImportAfterAuth,
   closeManagedDeck,
   navigateToImport: async () => {
     await router.replace({ name: 'import' })
@@ -297,46 +184,13 @@ const authFlow = useAuthFlow({
   withFeedback
 })
 
-const {
-  sessionTitle,
-  answerVisible,
-  lastStudyFeedback,
-  studyEmptyReason,
-  currentCard,
-  frontHtml,
-  backHtml,
-  currentDueLabel,
-  studyProgress,
-  studySummary,
-  predictedIntervals,
-  interleavedSelection,
-  resetStudySession,
-  loadStudyDeck,
-  prepareInterleavedPracticeSelection,
-  startInterleavedPracticeSession,
-  toggleInterleavedDeckSelection,
-  reviewCurrent,
-  skipCurrentCard,
-  clearPublicStudyDeckCache
-} = useStudySession({
-  user,
-  publicDecks,
-  myDecks,
-  loadPublicDecks,
-  loadMyDecks,
-  refreshStats,
-  showNotice,
-  withFeedback,
-  client: api,
-  publicDeckCacheLimit: PUBLIC_STUDY_DECK_CACHE_LIMIT
-})
 const userDisplayName = computed(() => user.value?.displayName ?? 'Visitante')
 const deckFormatters = {
   cardCount: cardCountLabel,
   due: (deck: DeckSummary) => deckDueLabel(deck, Boolean(user.value))
 }
 const cardTextSummary = (card: CardResponse) => summarizeCardText(card, managedCards.value, htmlSummary)
-const loadingMessage = computed(() => importSaving.value ? 'Preparando seu baralho com mídia...' : 'Carregando...')
+const loadingMessage = computed(() => 'Carregando...')
 onMounted(() => {
   applyThemePreference()
 })
@@ -359,13 +213,11 @@ watch(tab, (nextTab) => {
   }
 })
 
-onBeforeUnmount(() => {
-  disposeApkgImport()
-})
+const studySession = useStudySession()
 
 async function syncStudyRoute() {
   if (route.name === 'study') {
-    resetStudySession()
+    studySession.resetStudySession()
     return
   }
 
@@ -375,7 +227,7 @@ async function syncStudyRoute() {
       await router.replace({ name: 'study' })
       return
     }
-    await loadStudyDeck(deckId)
+    await studySession.loadStudyDeck(deckId)
     return
   }
 
@@ -383,21 +235,21 @@ async function syncStudyRoute() {
     const ids = route.query.decks
       ? (route.query.decks as string).split(',').map(Number).filter(n => !Number.isNaN(n))
       : []
-    await prepareInterleavedPracticeSelection(ids)
+    await studySession.prepareInterleavedPracticeSelection(ids)
     if (ids.length > 0) {
-      await startInterleavedPracticeSession()
+      await studySession.startInterleavedPracticeSession()
     }
   }
 }
 
 function cleanupStudyRoute() {
-  resetStudySession()
+  studySession.resetStudySession()
 }
 
 async function logout() {
   closeManagedDeck(true, false)
   exitDeckSelectionMode()
-  clearPublicStudyDeckCache()
+  studySession.clearPublicStudyDeckCache()
   clearSession()
   clearStats()
   myDecks.value = []
@@ -419,9 +271,9 @@ async function openAuth(mode: AuthMode = 'login') {
 }
 
 async function startDeck(deck: DeckSummary) {
-  sessionTitle.value = deck.title
+  studySession.sessionTitle.value = deck.title
   if (route.name === 'study-deck' && routeDeckId() === deck.id) {
-    await loadStudyDeck(deck.id)
+    await studySession.loadStudyDeck(deck.id)
     return
   }
   await router.push({ name: 'study-deck', params: { deckId: deck.id } })
@@ -446,8 +298,7 @@ useRouteLifecycle({
   syncStudyRoute,
   cleanupStudyRoute,
   syncProgressRoute,
-  clearFeedbackForRouteChange,
-  clearImportStateForRouteChange
+  clearFeedbackForRouteChange
 })
 
 const authRouteContext = {
@@ -457,103 +308,8 @@ const authRouteContext = {
 
 provide(authRouteKey, authRouteContext)
 
-provide(libraryRouteKey, {
-  librarySearch,
-  librarySection,
-  libraryView,
-  user,
-  activeLibraryCountLabel,
-  filteredPublicDecks,
-  filteredMyDecks,
-  publicDecksHasMore,
-  myDecksHasMore,
-  loadingMorePublicDecks,
-  loadingMoreMyDecks,
-  highlightedDeckId,
-  deckSelectionMode,
-  selectedMyDeckIds,
-  selectedMyDecksCount,
-  allVisibleMyDecksSelected,
-  managedDeck,
-  managedDeckForm,
-  managedDeckDirty,
-  managedCardsView,
-  managedCardsSearch,
-  loadingMoreManagedCards,
-  deckFormatters,
-  cardTextSummary,
-  cardCountLabel,
-  navigateTo,
-  refreshAll,
-  startDeck,
-  startInterleavedFromSelection,
-  savePublicDeck,
-  loadMorePublicDecks,
-  loadMoreMyDecks,
-  openManagedDeck,
-  toggleDeckSelectionMode,
-  toggleVisibleMyDeckSelection,
-  clearSelectedMyDecks,
-  deleteSelectedMyDecks,
-  toggleMyDeckSelection,
-  openAuth,
-  closeManagedDeck,
-  saveManagedDeck,
-  deleteManagedDeck,
-  updateManagedDeckForm,
-  openCreateCardEditor,
-  toggleVisibleManagedCardsSelection,
-  clearManagedCardSelection,
-  deleteSelectedManagedCards,
-  selectManagedCard,
-  toggleManagedCardSelection,
-  loadMoreManagedCards,
-  openEditCardEditor,
-  deleteManagedCard
-})
 
-provide(studyRouteKey, {
-  sessionTitle,
-  currentCard,
-  currentDueLabel,
-  frontHtml,
-  backHtml,
-  answerVisible,
-  studyProgress,
-  studyEmptyReason,
-  lastStudyFeedback,
-  studySummary,
-  predictedIntervals,
-  interleavedSelection,
-  goToLibrary: goHome,
-  startInterleavedPractice,
-  startSelectedInterleavedPractice: startInterleavedPracticeSession,
-  toggleInterleavedDeckSelection,
-  reviewCurrent,
-  skipCurrentCard
-})
 
-provide(importRouteKey, {
-  importTitle,
-  importVisibility,
-  selectedFile,
-  loading,
-  importPreview,
-  currentPreviewCard,
-  previewCardIndex,
-  previewFace,
-  previewPickerOpen,
-  previewCardSearch,
-  previewCardOptions,
-  previewCardTitle,
-  currentPreviewHtml,
-  user,
-  handleApkgChange,
-  selectPreviewCard,
-  movePreviewCard,
-  togglePreviewFace,
-  persistImport
-})
 
 provide(createDeckRouteKey, {
   ...createDeckFlow,

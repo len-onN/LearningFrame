@@ -2,6 +2,11 @@ import { effectScope, ref } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { DeckSummary, PageResponse, UserResponse } from '../../types/api'
 import { deckPageCountLabel, mergeDeckPages, normalizeSearch, useDeckLibrary } from './useDeckLibrary'
+import { useAuthSession } from '../../composables/useAuthSession'
+
+vi.mock('../../composables/useAuthSession', () => ({
+  useAuthSession: vi.fn()
+}))
 
 const publicDeck = deck(1, 'Publico')
 const myDeck = deck(2, 'Meu')
@@ -10,6 +15,7 @@ describe('useDeckLibrary', () => {
   afterEach(() => {
     vi.useRealTimers()
     vi.unstubAllGlobals()
+    vi.clearAllMocks()
   })
 
   it('mescla paginas sem duplicar decks pelo id', () => {
@@ -41,9 +47,9 @@ describe('useDeckLibrary', () => {
       publicDecks: vi.fn(async () => page([publicDeck], 0, 1, true)),
       myDecks: vi.fn(async () => page([], 0, 0, true))
     }
+    vi.mocked(useAuthSession).mockReturnValue({ user: ref(null) } as any)
     const library = useDeckLibrary({
       librarySection: ref('public'),
-      user: ref(null),
       pageSize: 8,
       client
     })
@@ -62,9 +68,9 @@ describe('useDeckLibrary', () => {
       publicDecks: vi.fn(async () => page([], 0, 0, true)),
       myDecks: vi.fn(async () => page([myDeck], 0, 1, true))
     }
+    vi.mocked(useAuthSession).mockReturnValue({ user: ref(null) } as any)
     const library = useDeckLibrary({
       librarySection: ref('mine'),
-      user: ref(null),
       client
     })
 
@@ -81,7 +87,8 @@ describe('useDeckLibrary', () => {
       publicDecks: vi.fn(async () => page([publicDeck], 0, 3, false)),
       myDecks: vi.fn(async () => page([myDeck], 0, 2, false))
     }
-    const library = useDeckLibrary({ librarySection, user, client })
+    vi.mocked(useAuthSession).mockReturnValue({ user } as any)
+    const library = useDeckLibrary({ librarySection, client })
 
     await library.loadPublicDecks(true)
     expect(library.activeLibraryCountLabel.value).toBe('1 de 3 baralhos')
@@ -103,9 +110,9 @@ describe('useDeckLibrary', () => {
       publicDecks: vi.fn(async () => page([], 0, 0, true)),
       myDecks: vi.fn(async () => page([myDeck], 0, 1, true))
     }
+    vi.mocked(useAuthSession).mockReturnValue({ user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }) } as any)
     const library = useDeckLibrary({
       librarySection: ref('mine'),
-      user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }),
       client
     })
 
@@ -128,9 +135,9 @@ describe('useDeckLibrary', () => {
       publicDecks: vi.fn(async () => page([], 0, 0, true)),
       myDecks: vi.fn(async () => page(decks, 0, 2, true))
     }
+    vi.mocked(useAuthSession).mockReturnValue({ user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }) } as any)
     const library = useDeckLibrary({
       librarySection: ref('mine'),
-      user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }),
       client
     })
 
@@ -155,9 +162,9 @@ describe('useDeckLibrary', () => {
         .mockResolvedValueOnce(firstPage)
         .mockResolvedValueOnce(secondPage)
     }
+    vi.mocked(useAuthSession).mockReturnValue({ user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }) } as any)
     const library = useDeckLibrary({
       librarySection: ref('mine'),
-      user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }),
       client
     })
 
@@ -171,9 +178,9 @@ describe('useDeckLibrary', () => {
   it('destaca deck no proximo frame e limpa apos a duracao visual', async () => {
     vi.useFakeTimers()
     const browser = installHighlightBrowserStubs()
+    vi.mocked(useAuthSession).mockReturnValue({ user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }) } as any)
     const library = useDeckLibrary({
       librarySection: ref('mine'),
-      user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }),
       client: emptyClient()
     })
 
@@ -196,9 +203,9 @@ describe('useDeckLibrary', () => {
     vi.useFakeTimers()
     const browser = installHighlightBrowserStubs()
     const scope = effectScope()
+    vi.mocked(useAuthSession).mockReturnValue({ user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }) } as any)
     const library = scope.run(() => useDeckLibrary({
       librarySection: ref('mine'),
-      user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }),
       client: emptyClient()
     }))
 

@@ -20,7 +20,6 @@ export interface AuthFlowOptions {
   register?: (displayName: string, email: string, password: string) => Promise<AuthResponse>
   persistSession: (user: UserResponse, token: string) => void
   refreshAfterAuth: () => Promise<void>
-  consumeReturnToImportAfterAuth: () => boolean
   closeManagedDeck: (force?: boolean, navigateToList?: boolean) => Promise<boolean> | boolean
   navigateToImport: () => Promise<void>
   navigateToRedirect: (to: RouteLocationRaw, method?: AuthNavigationMethod) => Promise<void>
@@ -54,7 +53,6 @@ export function useAuthFlow({
   register = api.register,
   persistSession,
   refreshAfterAuth,
-  consumeReturnToImportAfterAuth,
   closeManagedDeck,
   navigateToImport,
   navigateToRedirect,
@@ -84,9 +82,7 @@ export function useAuthFlow({
       authForm.value.password = ''
       resetAuthValidation()
       await refreshAfterAuth()
-      if (consumeReturnToImportAfterAuth()) {
-        await navigateToImport()
-      } else if (typeof route.query.redirect === 'string' && route.query.redirect) {
+      if (typeof route.query.redirect === 'string' && route.query.redirect) {
         await navigateToRedirect(route.query.redirect)
       } else {
         await navigateToMyDecks()

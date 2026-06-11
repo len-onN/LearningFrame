@@ -2,6 +2,26 @@ import { nextTick } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CardResponse, DeckSummary, PageResponse } from '../../types/api'
 import { useDeckManagement, type DeckManagementApi } from './useDeckManagement'
+import { useRouter } from 'vue-router'
+import { useFeedback } from '../../composables/useFeedback'
+import { useDeckLibrary } from './useDeckLibrary'
+import { useStatsSummary } from '../../app/useStatsSummary'
+
+vi.mock('vue-router', () => ({
+  useRouter: vi.fn()
+}))
+
+vi.mock('../../composables/useFeedback', () => ({
+  useFeedback: vi.fn()
+}))
+
+vi.mock('./useDeckLibrary', () => ({
+  useDeckLibrary: vi.fn()
+}))
+
+vi.mock('../../app/useStatsSummary', () => ({
+  useStatsSummary: vi.fn()
+}))
 
 describe('useDeckManagement', () => {
   afterEach(() => {
@@ -202,15 +222,27 @@ function createSubject(options: {
     await task()
   })
 
+  vi.mocked(useRouter).mockReturnValue({
+    replace: navigateToMyDecks
+  } as any)
+
+  vi.mocked(useFeedback).mockReturnValue({
+    showNotice,
+    showError,
+    withFeedback
+  } as any)
+
+  vi.mocked(useDeckLibrary).mockReturnValue({
+    loadMyDecks
+  } as any)
+
+  vi.mocked(useStatsSummary).mockReturnValue({
+    refreshStats
+  } as any)
+
   const management = useDeckManagement({
     pageSize: 2,
     client,
-    showNotice,
-    showError,
-    withFeedback,
-    loadMyDecks,
-    refreshStats,
-    navigateToMyDecks,
     confirm: options.confirm ?? (() => true)
   })
 

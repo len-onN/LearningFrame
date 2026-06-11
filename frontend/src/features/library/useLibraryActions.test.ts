@@ -2,6 +2,41 @@ import { ref } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import type { DeckSummary, UserResponse } from '../../types/api'
 import { useLibraryActions, type LibraryActionsApi } from './useLibraryActions'
+import { useRouter } from 'vue-router'
+import { useAuthSession } from '../../composables/useAuthSession'
+import { useFeedback } from '../../composables/useFeedback'
+import { useDeckLibrary } from './useDeckLibrary'
+import { useStatsSummary } from '../../app/useStatsSummary'
+import { useDeckManagement } from './useDeckManagement'
+import { useAuthFlow } from '../auth/useAuthFlow'
+
+vi.mock('vue-router', () => ({
+  useRouter: vi.fn()
+}))
+
+vi.mock('../../composables/useAuthSession', () => ({
+  useAuthSession: vi.fn()
+}))
+
+vi.mock('../../composables/useFeedback', () => ({
+  useFeedback: vi.fn()
+}))
+
+vi.mock('./useDeckLibrary', () => ({
+  useDeckLibrary: vi.fn()
+}))
+
+vi.mock('../../app/useStatsSummary', () => ({
+  useStatsSummary: vi.fn()
+}))
+
+vi.mock('./useDeckManagement', () => ({
+  useDeckManagement: vi.fn()
+}))
+
+vi.mock('../auth/useAuthFlow', () => ({
+  useAuthFlow: vi.fn()
+}))
 
 describe('useLibraryActions', () => {
   it('atualiza publica, meus baralhos e stats quando ha usuario', async () => {
@@ -96,7 +131,7 @@ describe('useLibraryActions', () => {
     expect(subject.withFeedback).toHaveBeenCalledWith(expect.any(Function), false)
     expect(subject.setManagedDeck).toHaveBeenCalledWith(selectedDeck)
     expect(subject.librarySearch.value).toBe('')
-    expect(subject.navigateToManagedDeck).toHaveBeenCalledWith(7)
+    expect(subject.navigateToManagedDeck).toHaveBeenCalledWith({ name: 'library-deck-manage', params: { deckId: 7 } })
   })
 })
 
@@ -126,23 +161,45 @@ function createSubject(options: {
   })
   const confirm = options.confirm ?? vi.fn(() => true)
 
-  const actions = useLibraryActions({
-    user,
+  vi.mocked(useRouter).mockReturnValue({
+    replace: navigateToMyDecks,
+    push: navigateToManagedDeck,
+    currentRoute: ref({ name: 'library-public' })
+  } as any)
+
+  vi.mocked(useAuthSession).mockReturnValue({
+    user
+  } as any)
+
+  vi.mocked(useFeedback).mockReturnValue({
+    showNotice,
+    withFeedback
+  } as any)
+
+  vi.mocked(useDeckLibrary).mockReturnValue({
     librarySearch,
     selectedMyDeckIds,
-    client,
     loadPublicDecks,
     loadMyDecks,
-    setManagedDeck,
     highlightDeck,
     exitDeckSelectionMode,
-    clearMyDeckSelection,
-    openAuth,
-    navigateToMyDecks,
-    navigateToManagedDeck,
-    refreshStats,
-    showNotice,
-    withFeedback,
+    clearMyDeckSelection
+  } as any)
+
+  vi.mocked(useStatsSummary).mockReturnValue({
+    refreshStats
+  } as any)
+
+  vi.mocked(useDeckManagement).mockReturnValue({
+    setManagedDeck
+  } as any)
+
+  vi.mocked(useAuthFlow).mockReturnValue({
+    openAuth
+  } as any)
+
+  const actions = useLibraryActions({
+    client,
     confirm
   })
 

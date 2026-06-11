@@ -1,8 +1,18 @@
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
 import StudyPage from '../pages/StudyPage.vue'
-import { studyRouteKey, useRequiredRouteContext } from './routeContext'
+import { useStudySession } from '../features/study/useStudySession'
 
-const study = useRequiredRouteContext(studyRouteKey, 'Study')
+const router = useRouter()
+const study = useStudySession()
+
+function goToLibrary() {
+  router.push({ name: 'library-public' })
+}
+
+function startInterleavedPractice() {
+  router.push({ name: 'study-interleaved' })
+}
 </script>
 
 <template>
@@ -19,9 +29,9 @@ const study = useRequiredRouteContext(studyRouteKey, 'Study')
     :summary="study.studySummary.value"
     :predicted-intervals="study.predictedIntervals.value"
     :interleaved-selection="study.interleavedSelection.value"
-    @go-library="study.goToLibrary"
-    @start-interleaved="study.startInterleavedPractice"
-    @start-selected-interleaved="study.startSelectedInterleavedPractice"
+    @go-library="goToLibrary"
+    @start-interleaved="startInterleavedPractice"
+    @start-selected-interleaved="study.startInterleavedPracticeSession"
     @toggle-interleaved-deck="study.toggleInterleavedDeckSelection"
     @reveal-answer="study.answerVisible.value = true"
     @review="study.reviewCurrent"

@@ -1,31 +1,23 @@
 import { ref, type Ref } from 'vue'
-import type { RouteLocationNormalizedLoaded } from 'vue-router'
-import type { FeedbackOptions } from '../composables/useFeedback'
+import { useRoute } from 'vue-router'
 import { api } from '../services/api'
 import type { StatsSummary, UserResponse } from '../types/api'
+
+import { useAuthSession } from '../composables/useAuthSession'
+import { useFeedback } from '../composables/useFeedback'
 
 export interface StatsSummaryApi {
   stats(): Promise<StatsSummary>
 }
 
-export interface StatsSummaryOptions {
-  route: RouteLocationNormalizedLoaded
-  user: Ref<UserResponse | null>
-  client?: StatsSummaryApi
-  withFeedback: (
-    task: () => Promise<void>,
-    optionsOrShowLoading?: FeedbackOptions | boolean,
-    legacyClearOnStart?: boolean
-  ) => Promise<void>
-}
+const stats = ref<StatsSummary | null>(null)
 
 export function useStatsSummary({
-  route,
-  user,
-  client = api,
-  withFeedback
-}: StatsSummaryOptions) {
-  const stats = ref<StatsSummary | null>(null)
+  client = api
+}: { client?: StatsSummaryApi } = {}) {
+  const route = useRoute()
+  const { user } = useAuthSession()
+  const { withFeedback } = useFeedback()
 
   async function refreshStats() {
     if (!user.value) {

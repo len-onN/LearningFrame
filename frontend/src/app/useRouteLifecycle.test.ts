@@ -68,7 +68,6 @@ describe('useRouteLifecycle', () => {
     await nextTick()
 
     expect(callbacks.clearFeedbackForRouteChange).toHaveBeenLastCalledWith('/importar', '/entrar')
-    expect(callbacks.clearImportStateForRouteChange).toHaveBeenLastCalledWith('/importar')
   })
 })
 
@@ -79,8 +78,7 @@ function createCallbacks() {
     syncStudyRoute: vi.fn(async () => undefined),
     cleanupStudyRoute: vi.fn(),
     syncProgressRoute: vi.fn(async () => undefined),
-    clearFeedbackForRouteChange: vi.fn(),
-    clearImportStateForRouteChange: vi.fn()
+    clearFeedbackForRouteChange: vi.fn()
   }
 }
 

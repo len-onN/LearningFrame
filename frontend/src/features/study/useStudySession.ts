@@ -34,6 +34,11 @@ import type {
   StudyEmptyReason
 } from './studySessionTypes'
 
+import { useAuthSession } from '../../composables/useAuthSession'
+import { useFeedback } from '../../composables/useFeedback'
+import { useDeckLibrary } from '../library/useDeckLibrary'
+import { useStatsSummary } from '../../app/useStatsSummary'
+
 const DEFAULT_PUBLIC_DECK_CACHE_LIMIT = 6
 const INTERLEAVED_STUDY_LIMIT = 24
 const INTERLEAVED_MAX_SELECTED_DECKS = 8
@@ -46,48 +51,30 @@ export interface StudySessionApi {
   review(cardId: number, rating: ReviewRating): Promise<ReviewResult>
 }
 
-export interface StudySessionOptions {
-  user: Ref<UserResponse | null>
-  publicDecks: Ref<DeckSummary[]>
-  myDecks: Ref<DeckSummary[]>
-  loadPublicDecks: (reset?: boolean) => Promise<void>
-  loadMyDecks: (reset?: boolean) => Promise<void>
-  refreshStats: () => Promise<void>
-  showNotice: (message: string) => void
-  withFeedback: (
-    task: () => Promise<void>,
-    optionsOrShowLoading?: FeedbackOptions | boolean,
-    legacyClearOnStart?: boolean
-  ) => Promise<void>
-  client?: StudySessionApi
-  publicDeckCacheLimit?: number
-}
+const studyQueue = ref<StudyCard[]>([])
+const sessionTitle = ref('Selecione um baralho ou inicie a prática intercalada.')
+const answerVisible = ref(false)
+const studyInitialTotal = ref(0)
+const studyReviewedCount = ref(0)
+const studyRatingCounts = ref<StudyRatingCounts>(emptyStudyRatingCounts())
+const lastStudyFeedback = ref<StudyReviewFeedback | null>(null)
+const studyEmptyReason = ref<StudyEmptyReason>('idle')
+const publicStudyDeckCache = ref<LocalDeck[]>([])
+const localStates = ref(loadLocalStates())
+const interleavedSelection = ref<InterleavedSelectionState>(emptyInterleavedSelection())
+const currentStudyRequest = ref<DueRequestOptions | null>(null)
 
 export function useStudySession({
-  user,
-  publicDecks,
-  myDecks,
-  loadPublicDecks,
-  loadMyDecks,
-  refreshStats,
-  showNotice,
-  withFeedback,
   client = api,
   publicDeckCacheLimit = DEFAULT_PUBLIC_DECK_CACHE_LIMIT
-}: StudySessionOptions) {
-  const studyQueue = ref<StudyCard[]>([])
-  const sessionTitle = ref('Selecione um baralho ou inicie a prática intercalada.')
-  const answerVisible = ref(false)
-  const studyInitialTotal = ref(0)
-  const studyReviewedCount = ref(0)
-  const studyRatingCounts = ref<StudyRatingCounts>(emptyStudyRatingCounts())
-  const lastStudyFeedback = ref<StudyReviewFeedback | null>(null)
-  const studyEmptyReason = ref<StudyEmptyReason>('idle')
-  const publicStudyDeckCache = ref<LocalDeck[]>([])
-  const localStates = ref(loadLocalStates())
-  const interleavedSelection = ref<InterleavedSelectionState>(emptyInterleavedSelection())
-  const currentStudyRequest = ref<DueRequestOptions | null>(null)
-
+}: {
+  client?: StudySessionApi
+  publicDeckCacheLimit?: number
+} = {}) {
+  const { user } = useAuthSession()
+  const { showNotice, withFeedback } = useFeedback()
+  const { publicDecks, myDecks, loadPublicDecks, loadMyDecks } = useDeckLibrary({ librarySection: ref('mine') })
+  const { refreshStats } = useStatsSummary()
   const currentCard = computed(() => studyQueue.value[0])
   const frontHtml = computed(() => currentCard.value ? safeStudyHtml(currentCard.value.frontHtml, currentCard.value.deckId) : '')
   const backHtml = computed(() => currentCard.value ? safeStudyHtml(currentCard.value.backHtml, currentCard.value.deckId) : '')
@@ -149,6 +136,10 @@ export function useStudySession({
     studyEmptyReason.value = 'idle'
     interleavedSelection.value = emptyInterleavedSelection()
     currentStudyRequest.value = null
+  }
+
+  function __reloadLocalStatesForTesting() {
+    localStates.value = loadLocalStates()
   }
 
   function setStudySessionCards(cards: StudyCard[], emptyReason: StudyEmptyReason) {
@@ -254,10 +245,14 @@ export function useStudySession({
         .filter((id) => options.some((opt) => opt.id === id))
         .slice(0, INTERLEAVED_MAX_SELECTED_DECKS)
 
+      const currentDeckId = currentStudyRequest.value && 'deckId' in currentStudyRequest.value 
+        ? currentStudyRequest.value.deckId 
+        : null
+
       interleavedSelection.value = {
         active: true,
         options,
-        selectedIds: validSelectedIds.length > 0 ? validSelectedIds : initialInterleavedSelection(options),
+        selectedIds: validSelectedIds.length > 0 ? validSelectedIds : initialInterleavedSelection(options, currentDeckId),
         maxSelected: INTERLEAVED_MAX_SELECTED_DECKS
       }
     })
@@ -410,7 +405,8 @@ export function useStudySession({
     toggleInterleavedDeckSelection,
     reviewCurrent,
     clearPublicStudyDeckCache,
-    skipCurrentCard
+    skipCurrentCard,
+    __reloadLocalStatesForTesting
   }
 }
 
@@ -482,11 +478,11 @@ function appendDeckOptions(
   }
 }
 
-function initialInterleavedSelection(options: InterleavedDeckOption[]) {
-  return options
-    .filter((opt) => opt.source === 'public' || (opt.dueCount ?? 0) > 0)
-    .slice(0, INTERLEAVED_INITIAL_SELECTED_DECKS)
-    .map((opt) => opt.id)
+function initialInterleavedSelection(options: InterleavedDeckOption[], currentDeckId: number | null) {
+  if (currentDeckId !== null && options.some((opt) => opt.id === currentDeckId)) {
+    return [currentDeckId]
+  }
+  return []
 }
 
 function serverCardToStudyCard(card: StudyCardResponse): StudyCard {

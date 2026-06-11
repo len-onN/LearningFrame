@@ -11,7 +11,6 @@ export interface RouteLifecycleOptions {
   cleanupStudyRoute: () => void
   syncProgressRoute: () => Promise<void>
   clearFeedbackForRouteChange: (previousFullPath?: string, currentFullPath?: string) => void
-  clearImportStateForRouteChange: (previousFullPath?: string) => void
 }
 
 export function useRouteLifecycle({
@@ -21,12 +20,10 @@ export function useRouteLifecycle({
   syncStudyRoute,
   cleanupStudyRoute,
   syncProgressRoute,
-  clearFeedbackForRouteChange,
-  clearImportStateForRouteChange
+  clearFeedbackForRouteChange
 }: RouteLifecycleOptions) {
   watch(() => route.fullPath, (nextFullPath, previousFullPath) => {
     clearFeedbackForRouteChange(previousFullPath, nextFullPath)
-    clearImportStateForRouteChange(previousFullPath)
   }, { immediate: true })
 
   watch(() => [route.name, route.params.deckId] as const, ([nextName], previous) => {

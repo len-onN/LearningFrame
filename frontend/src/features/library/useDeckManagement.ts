@@ -21,22 +21,11 @@ export interface DeckManagementApi {
   uploadMedia(deckId: number, file: File): Promise<MediaUploadResponse>
 }
 
-export interface DeckManagementOptions {
-  pageSize?: number
-  searchDebounceMs?: number
-  client?: DeckManagementApi
-  showNotice: (message: string) => void
-  showError: (message: string) => void
-  withFeedback: (
-    task: () => Promise<void>,
-    optionsOrShowLoading?: FeedbackOptions | boolean,
-    legacyClearOnStart?: boolean
-  ) => Promise<void>
-  loadMyDecks: (reset?: boolean) => Promise<void>
-  refreshStats: () => Promise<void>
-  navigateToMyDecks: () => Promise<void>
-  confirm?: (message: string) => boolean
-}
+import { useAuthSession } from '../../composables/useAuthSession'
+import { useFeedback } from '../../composables/useFeedback'
+import { useDeckLibrary } from './useDeckLibrary'
+import { useStatsSummary } from '../../app/useStatsSummary'
+import { useRouter } from 'vue-router'
 
 const emptyManagedDeckForm = (): ManagedDeckFormState => ({
   title: '',
@@ -50,31 +39,39 @@ const emptyCardEditorForm = () => ({
   tags: ''
 })
 
+const managedDeck = ref<DeckSummary | null>(null)
+const managedDeckForm = ref<ManagedDeckFormState>(emptyManagedDeckForm())
+const managedCards = ref<CardResponse[]>([])
+const managedCardsPage = ref<PageResponse<CardResponse> | null>(null)
+const managedCardsSearch = ref('')
+const selectedManagedCardId = ref<number | null>(null)
+const selectedManagedCardIds = ref<Set<number>>(new Set())
+
+const cardEditorOpen = ref(false)
+const cardEditorMode = ref<CardEditorMode>('create')
+const cardEditorCardId = ref<number | null>(null)
+const cardEditorForm = ref(emptyCardEditorForm())
+const cardEditorInitial = ref(emptyCardEditorForm())
+
 export function useDeckManagement({
   pageSize = 20,
   searchDebounceMs = 300,
   client = api,
-  showNotice,
-  showError,
-  withFeedback,
-  loadMyDecks,
-  refreshStats,
-  navigateToMyDecks,
   confirm = (message) => window.confirm(message)
-}: DeckManagementOptions) {
-  const managedDeck = ref<DeckSummary | null>(null)
-  const managedDeckForm = ref<ManagedDeckFormState>(emptyManagedDeckForm())
-  const managedCards = ref<CardResponse[]>([])
-  const managedCardsPage = ref<PageResponse<CardResponse> | null>(null)
-  const managedCardsSearch = ref('')
-  const selectedManagedCardId = ref<number | null>(null)
-  const selectedManagedCardIds = ref<Set<number>>(new Set())
+}: {
+  pageSize?: number
+  searchDebounceMs?: number
+  client?: DeckManagementApi
+  confirm?: (message: string) => boolean
+} = {}) {
+  const router = useRouter()
+  const { showNotice, showError, withFeedback } = useFeedback()
+  const { loadMyDecks } = useDeckLibrary({ librarySection: ref('mine') })
+  const { refreshStats } = useStatsSummary()
 
-  const cardEditorOpen = ref(false)
-  const cardEditorMode = ref<CardEditorMode>('create')
-  const cardEditorCardId = ref<number | null>(null)
-  const cardEditorForm = ref(emptyCardEditorForm())
-  const cardEditorInitial = ref(emptyCardEditorForm())
+  async function navigateToMyDecks() {
+    await router.replace({ name: 'library-mine' })
+  }
 
   const managedCardsHasMore = computed(() => managedCardsPage.value ? !managedCardsPage.value.last : false)
   const managedCardsCountLabel = computed(() => deckPageCountLabel(managedCards.value.length, managedCardsPage.value, 'cartas'))

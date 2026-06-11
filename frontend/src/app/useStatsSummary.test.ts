@@ -1,19 +1,30 @@
 import { ref } from 'vue'
-import type { RouteLocationNormalizedLoaded } from 'vue-router'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { useRoute } from 'vue-router'
+import { useFeedback } from '../composables/useFeedback'
+import { useAuthSession } from '../composables/useAuthSession'
 import type { StatsSummary, UserResponse } from '../types/api'
 import { useStatsSummary, type StatsSummaryApi } from './useStatsSummary'
 
+vi.mock('vue-router', () => ({
+  useRoute: vi.fn()
+}))
+
+vi.mock('../composables/useFeedback', () => ({
+  useFeedback: vi.fn()
+}))
+
+vi.mock('../composables/useAuthSession', () => ({
+  useAuthSession: vi.fn()
+}))
+
 describe('useStatsSummary', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   it('nao carrega stats sem usuario autenticado', async () => {
-    const client = createClient()
-    const withFeedback = createWithFeedback()
-    const statsSummary = useStatsSummary({
-      route: route('progress'),
-      user: ref<UserResponse | null>(null),
-      client,
-      withFeedback
-    })
+    const { client, withFeedback, statsSummary } = createSubject({ routeName: 'progress' })
 
     await statsSummary.refreshStats()
     await statsSummary.syncProgressRoute()
@@ -24,15 +35,8 @@ describe('useStatsSummary', () => {
   })
 
   it('sincroniza a rota de progresso com feedback discreto', async () => {
-    const client = createClient()
-    const withFeedback = createWithFeedback()
-    const user = ref<UserResponse | null>(userResponse())
-    const statsSummary = useStatsSummary({
-      route: route('progress'),
-      user,
-      client,
-      withFeedback
-    })
+    const { client, withFeedback, user, statsSummary } = createSubject({ routeName: 'progress' })
+    user.value = userResponse()
 
     await statsSummary.syncProgressRoute()
 
@@ -45,12 +49,8 @@ describe('useStatsSummary', () => {
   })
 
   it('limpa stats explicitamente', async () => {
-    const statsSummary = useStatsSummary({
-      route: route('library-public'),
-      user: ref<UserResponse | null>(userResponse()),
-      client: createClient(),
-      withFeedback: createWithFeedback()
-    })
+    const { statsSummary, user } = createSubject({ routeName: 'library-public' })
+    user.value = userResponse()
 
     await statsSummary.refreshStats()
     statsSummary.clearStats()
@@ -59,24 +59,32 @@ describe('useStatsSummary', () => {
   })
 })
 
+function createSubject(options: { routeName: string }) {
+  const route = { name: options.routeName }
+  const user = ref<UserResponse | null>(null)
+  const withFeedback = vi.fn(async (task: () => Promise<void>) => {
+    await task()
+  })
+
+  vi.mocked(useRoute).mockReturnValue(route as any)
+  vi.mocked(useFeedback).mockReturnValue({ withFeedback } as any)
+  vi.mocked(useAuthSession).mockReturnValue({ user } as any)
+
+  const client = createClient()
+  const statsSummary = useStatsSummary({ client })
+
+  return {
+    client,
+    withFeedback,
+    user,
+    statsSummary
+  }
+}
+
 function createClient() {
   return {
     stats: vi.fn(async () => statsResponse())
   } satisfies StatsSummaryApi
-}
-
-function createWithFeedback() {
-  return vi.fn(async (task: () => Promise<void>) => {
-    await task()
-  })
-}
-
-function route(name: string) {
-  return {
-    name,
-    meta: {},
-    params: {}
-  } as RouteLocationNormalizedLoaded
 }
 
 function userResponse(): UserResponse {
