@@ -38,13 +38,31 @@ watch(() => props.title, () => {
   // Focus via DOM query inside editor or leave it since Tiptap might grab focus natively later
 }, { immediate: true })
 
-function triggerMediaUpload(kind: CardEditorMediaKind, face: CardEditorFace) {
+function triggerMediaUpload(kind: CardEditorMediaKind, face: CardEditorFace, file?: File) {
   if (uploadingMedia.value) {
     return
   }
   mediaUploadKind.value = kind
   activeEditorFace.value = face
-  mediaInputRef.value?.click()
+  
+  if (file) {
+    processMediaFile(file)
+  } else {
+    mediaInputRef.value?.click()
+  }
+}
+
+async function processMediaFile(file: File) {
+  uploadingMedia.value = true
+  try {
+    const marker = await props.uploadMedia(file, mediaUploadKind.value)
+    insertIntoEditor(activeEditorFace.value, marker)
+    emit('upload-success', mediaUploadKind.value)
+  } catch (error) {
+    emit('upload-error', error instanceof Error ? error.message : 'Falha ao inserir midia.')
+  } finally {
+    uploadingMedia.value = false
+  }
 }
 
 async function handleMediaChange(event: Event) {
@@ -56,16 +74,7 @@ async function handleMediaChange(event: Event) {
     return
   }
 
-  uploadingMedia.value = true
-  try {
-    const marker = await props.uploadMedia(file, mediaUploadKind.value)
-    insertIntoEditor(activeEditorFace.value, marker)
-    emit('upload-success', mediaUploadKind.value)
-  } catch (error) {
-    emit('upload-error', error instanceof Error ? error.message : 'Falha ao inserir midia.')
-  } finally {
-    uploadingMedia.value = false
-  }
+  await processMediaFile(file)
 }
 
 function insertIntoEditor(face: CardEditorFace, text: string) {
@@ -104,7 +113,7 @@ function insertIntoEditor(face: CardEditorFace, text: string) {
               v-model="frontHtml"
               :deck-id="deckId"
               :uploading-media="uploadingMedia"
-              @upload-media="k => triggerMediaUpload(k, 'front')"
+              @upload-media="(k, f) => triggerMediaUpload(k, 'front', f)"
               @focusin="activeEditorFace = 'front'"
             />
           </section>
@@ -118,7 +127,7 @@ function insertIntoEditor(face: CardEditorFace, text: string) {
               v-model="backHtml"
               :deck-id="deckId"
               :uploading-media="uploadingMedia"
-              @upload-media="k => triggerMediaUpload(k, 'back')"
+              @upload-media="(k, f) => triggerMediaUpload(k, 'back', f)"
               @focusin="activeEditorFace = 'back'"
             />
           </section>

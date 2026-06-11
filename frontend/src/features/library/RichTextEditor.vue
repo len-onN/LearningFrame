@@ -5,10 +5,12 @@ import Underline from '@tiptap/extension-underline'
 import Image from '@tiptap/extension-image'
 import {
   Bold, Italic, Underline as UnderlineIcon,
-  List, ListOrdered, Image as ImageIcon, Volume2, Heading1, Heading2, Heading3
+  List, ListOrdered, Image as ImageIcon, Volume2, Heading1, Heading2, Heading3,
+  Mic, Square
 } from '@lucide/vue'
 import { watch, onBeforeUnmount } from 'vue'
 import { AnkiSoundExtension } from './extensions/AnkiSoundExtension'
+import { useAudioRecorder } from '../../composables/useAudioRecorder'
 
 const props = defineProps<{
   modelValue: string
@@ -35,8 +37,21 @@ function parseOutgoing(html: string) {
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
-  'upload-media': [kind: 'image' | 'audio']
+  'upload-media': [kind: 'image' | 'audio', file?: File]
 }>()
+
+const { isRecording, recordingTime, startRecording, stopRecording } = useAudioRecorder(60)
+
+async function handleStartRecording() {
+  const file = await startRecording()
+  if (file) {
+    emit('upload-media', 'audio', file)
+  }
+}
+
+function handleStopRecording() {
+  stopRecording()
+}
 
 const editor = useEditor({
   extensions: [
@@ -82,38 +97,45 @@ onBeforeUnmount(() => {
 <template>
   <div class="rich-text-editor">
     <div v-if="editor" class="toolbar">
-      <button type="button" @click="editor.chain().focus().toggleBold().run()" :class="{ 'is-active': editor.isActive('bold') }" title="Negrito">
+      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor.chain().focus().toggleBold().run()" :class="{ 'is-active': editor.isActive('bold') }" title="Negrito">
         <Bold :size="16" />
       </button>
-      <button type="button" @click="editor.chain().focus().toggleItalic().run()" :class="{ 'is-active': editor.isActive('italic') }" title="Itálico">
+      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor.chain().focus().toggleItalic().run()" :class="{ 'is-active': editor.isActive('italic') }" title="Itálico">
         <Italic :size="16" />
       </button>
-      <button type="button" @click="editor.chain().focus().toggleUnderline().run()" :class="{ 'is-active': editor.isActive('underline') }" title="Sublinhado">
+      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor.chain().focus().toggleUnderline().run()" :class="{ 'is-active': editor.isActive('underline') }" title="Sublinhado">
         <UnderlineIcon :size="16" />
       </button>
       <div class="divider"></div>
-      <button type="button" @click="editor.chain().focus().toggleHeading({ level: 1 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 1 }) }" title="Título 1">
+      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor.chain().focus().toggleHeading({ level: 1 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 1 }) }" title="Título 1">
         <Heading1 :size="16" />
       </button>
-      <button type="button" @click="editor.chain().focus().toggleHeading({ level: 2 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 2 }) }" title="Título 2">
+      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor.chain().focus().toggleHeading({ level: 2 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 2 }) }" title="Título 2">
         <Heading2 :size="16" />
       </button>
-      <button type="button" @click="editor.chain().focus().toggleHeading({ level: 3 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 3 }) }" title="Título 3">
+      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor.chain().focus().toggleHeading({ level: 3 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 3 }) }" title="Título 3">
         <Heading3 :size="16" />
       </button>
       <div class="divider"></div>
-      <button type="button" @click="editor.chain().focus().toggleBulletList().run()" :class="{ 'is-active': editor.isActive('bulletList') }" title="Lista com marcadores">
+      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor?.chain().focus().toggleBulletList().run()" :class="{ 'is-active': editor?.isActive('bulletList') }" title="Lista com marcadores">
         <List :size="16" />
       </button>
-      <button type="button" @click="editor.chain().focus().toggleOrderedList().run()" :class="{ 'is-active': editor.isActive('orderedList') }" title="Lista numerada">
+      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor?.chain().focus().toggleOrderedList().run()" :class="{ 'is-active': editor?.isActive('orderedList') }" title="Lista numerada">
         <ListOrdered :size="16" />
       </button>
       <div class="divider"></div>
-      <button type="button" :disabled="uploadingMedia" @click="$emit('upload-media', 'image')" title="Inserir Imagem">
+      <button type="button" :disabled="uploadingMedia || isRecording" @click="$emit('upload-media', 'image')" title="Inserir Imagem">
         <ImageIcon :size="16" />
       </button>
-      <button type="button" :disabled="uploadingMedia" @click="$emit('upload-media', 'audio')" title="Inserir Áudio">
+      <button type="button" :disabled="uploadingMedia || isRecording" @click="$emit('upload-media', 'audio')" title="Fazer Upload de Áudio">
         <Volume2 :size="16" />
+      </button>
+      <button v-if="!isRecording" type="button" :disabled="uploadingMedia" @click="handleStartRecording" title="Gravar Áudio (Microfone)">
+        <Mic :size="16" />
+      </button>
+      <button v-else type="button" class="recording-active" @click="handleStopRecording" title="Parar e Inserir Gravação">
+        <Square :size="14" fill="currentColor" />
+        <span class="recording-time">00:{{ recordingTime.toString().padStart(2, '0') }}</span>
       </button>
     </div>
     
@@ -167,6 +189,23 @@ onBeforeUnmount(() => {
 .toolbar button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.recording-active {
+  background-color: rgba(239, 68, 68, 0.1) !important;
+  color: #ef4444 !important;
+  animation: pulse-record 2s infinite;
+  display: flex;
+  gap: 0.25rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+@keyframes pulse-record {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
 }
 
 .divider {
