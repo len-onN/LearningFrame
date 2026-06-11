@@ -1862,3 +1862,17 @@ Implementações:
 - Adição da aba "Meu Perfil" e testes ajustados tanto no frontend quanto no backend.
 
 O próximo passo agora será iniciar a **Formatação de Cartas (Rich Text)**. Um plano de implementação foi gerado e aguarda aprovação para ser integrado.
+
+## 68. Editor de Cartas WYSIWYG (Tiptap)
+
+Data: 2026-06-10
+Branch de trabalho: `feature/card-editor-wysiwyg`
+
+A edição de cartas no formato de texto puro (`<textarea>`) com injeção manual de marcadores foi substituída por um editor WYSIWYG real.
+
+Decisões de UX e Arquitetura:
+- A biblioteca escolhida foi o **Tiptap** (nativo para Vue 3, headless, sem CSS forçado e compatível com as regras de design minimalista do MVP).
+- O `CardEditorOverlay.vue` foi refatorado para usar o novo componente encapsulado `RichTextEditor.vue`, que inclui uma barra de ferramentas (toolbar) com Negrito, Itálico, Sublinhado, Listas e Mídia (Imagens/Áudio).
+- Como o editor já exibe o que o usuário vai obter no final, a seção de *Preview* redundante, que ficava no overlay, foi removida.
+- O clique na caixa de texto foi ajustado (CSS `.tiptap` com `min-height: 100%`) para garantir que o foco seja ativado ao clicar em qualquer área vazia.
+- A restrição inicial de que áudios inseridos (`[sound:xxx]`) apareciam apenas como texto estático levantou a necessidade de um player tocável dentro do editor WYSIWYG, o que será abordado em seguida.
