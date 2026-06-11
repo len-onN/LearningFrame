@@ -169,13 +169,18 @@ async function confirmDeletion() {
 }
 
 .danger-button {
-  background-color: var(--color-danger);
-  color: white;
+  background-color: var(--color-danger-surface);
+  color: var(--color-danger-strong);
   padding: 0.5rem 1rem;
-  border: none;
+  border: 1px solid var(--color-danger-border-soft);
   border-radius: var(--radius-md);
   font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+.danger-button:hover:not(:disabled) {
+  background-color: var(--color-danger-focus);
+  border-color: var(--color-danger-border);
 }
 .danger-button:disabled {
   opacity: 0.5;

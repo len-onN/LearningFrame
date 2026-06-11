@@ -227,15 +227,17 @@ async function handleAccountDeleted() {
 }
 
 .danger-button {
-  background-color: var(--color-danger);
-  color: white;
+  background-color: var(--color-danger-surface);
+  color: var(--color-danger-strong);
   padding: 0.75rem 1.5rem;
-  border: none;
+  border: 1px solid var(--color-danger-border-soft);
   border-radius: var(--radius-md);
   font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
 }
 .danger-button:hover {
-  background-color: var(--color-danger-hover);
+  background-color: var(--color-danger-focus);
+  border-color: var(--color-danger-border);
 }
 </style>

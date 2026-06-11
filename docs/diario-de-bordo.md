@@ -1847,4 +1847,18 @@ Avançando além do escopo inicial, foram mapeados dois novos passos importantes
 1. **Gestão de Perfil**: Permitir que o usuário atualize seu Nome de Exibição (`DisplayName`), altere sua senha exigindo a antiga, e possa excluir sua conta (hard delete em cascata).
 2. **Formatação de Cartas**: Oferecer ferramentas para formatação rica das cartas ao criá-las.
 
-A primeira branch, `feature/profile-management`, iniciará a Gestão de Perfil. Para garantir a segurança e integridade dos dados, o hard delete removerá em cascata Progresso, Baralhos Privados, Cartas e Mídias do usuário. As alterações no `principios-e-padroes-mvp.md` também moveram a "gestão de perfil" para o escopo "Incluído".
+A primeira branch, `feature/profile-management`, iniciou a Gestão de Perfil. Para garantir a segurança e integridade dos dados, o hard delete removerá em cascata Progresso, Baralhos Privados, Cartas e Mídias do usuário. As alterações no `principios-e-padroes-mvp.md` também moveram a "gestão de perfil" para o escopo "Incluído".
+
+## 67. Conclusão da Gestão de Perfil
+
+Data: 2026-06-10
+Branch de trabalho: `feature/profile-management`
+
+O recurso de Gestão de Perfil foi concluído com sucesso. 
+Implementações:
+- Backend: Criado o `ProfileController` com endpoints protegidos para atualizar nome, atualizar senha (com verificação da senha antiga) e excluir a conta. Adicionado também o script de migração Flyway `V6__add_cascade_delete_to_decks.sql` para garantir a deleção em cascata (ON DELETE CASCADE) de todos os dados do usuário.
+- Frontend: Implementado a rota `Meu Perfil` com formulários para atualização de dados e o componente modal `AccountDeleteModal.vue` para confirmar a exclusão com a redigitação do e-mail.
+- UX/UI: Refinada a aparência do botão "Excluir minha conta" (Outlined Danger), melhorando o contraste da ação de exclusão.
+- Adição da aba "Meu Perfil" e testes ajustados tanto no frontend quanto no backend.
+
+O próximo passo agora será iniciar a **Formatação de Cartas (Rich Text)**. Um plano de implementação foi gerado e aguarda aprovação para ser integrado.
