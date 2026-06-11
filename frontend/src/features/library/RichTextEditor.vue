@@ -8,11 +8,30 @@ import {
   List, ListOrdered, Image as ImageIcon, Volume2, Heading1, Heading2, Heading3
 } from '@lucide/vue'
 import { watch, onBeforeUnmount } from 'vue'
+import { AnkiSoundExtension } from './extensions/AnkiSoundExtension'
 
 const props = defineProps<{
   modelValue: string
   uploadingMedia?: boolean
+  deckId?: number
 }>()
+
+const ANKI_SOUND_PATTERN = /\[sound:([^\]]+)]/gi
+const AUDIO_TAG_PATTERN = /<audio\b[^>]*\bdata-anki-sound\s*=\s*(["'])(.*?)\1[^>]*>[\s\S]*?<\/audio>/gi
+
+function parseIncoming(html: string) {
+  if (!props.deckId) return html
+  return html.replace(ANKI_SOUND_PATTERN, (_, fileName) => {
+    const safeFileName = fileName.trim().replaceAll('"', '&quot;')
+    return `<audio data-anki-sound="${safeFileName}" data-deck-id="${props.deckId}"></audio>`
+  })
+}
+
+function parseOutgoing(html: string) {
+  return html.replace(AUDIO_TAG_PATTERN, (_, quote, fileName) => {
+    return `[sound:${fileName}]`
+  })
+}
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
@@ -26,27 +45,28 @@ const editor = useEditor({
     Image.configure({
       inline: true,
       allowBase64: true
-    })
+    }),
+    AnkiSoundExtension
   ],
-  content: props.modelValue,
+  content: parseIncoming(props.modelValue),
   onUpdate: ({ editor }) => {
-    emit('update:modelValue', editor.getHTML())
+    emit('update:modelValue', parseOutgoing(editor.getHTML()))
   }
 })
 
 // Update editor content when v-model changes from outside
 watch(() => props.modelValue, (value) => {
   if (!editor.value) return
-  const isSame = editor.value.getHTML() === value
-  if (!isSame) {
-    editor.value.commands.setContent(value)
+  const currentOutgoing = parseOutgoing(editor.value.getHTML())
+  if (currentOutgoing !== value) {
+    editor.value.commands.setContent(parseIncoming(value))
   }
 })
 
 // Expose insert method so parent can insert media
 function insertHtml(html: string) {
   if (editor.value) {
-    editor.value.commands.insertContent(html)
+    editor.value.commands.insertContent(parseIncoming(html))
     editor.value.commands.focus()
   }
 }

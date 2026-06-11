@@ -9,6 +9,7 @@ import type {
 } from './cardEditorTypes'
 
 const props = defineProps<{
+  deckId: number
   deckTitle: string
   title: string
   uploadMedia: CardEditorMediaUploader
@@ -101,6 +102,7 @@ function insertIntoEditor(face: CardEditorFace, text: string) {
             <RichTextEditor
               ref="frontEditorRef"
               v-model="frontHtml"
+              :deck-id="deckId"
               :uploading-media="uploadingMedia"
               @upload-media="k => triggerMediaUpload(k, 'front')"
               @focusin="activeEditorFace = 'front'"
@@ -114,6 +116,7 @@ function insertIntoEditor(face: CardEditorFace, text: string) {
             <RichTextEditor
               ref="backEditorRef"
               v-model="backHtml"
+              :deck-id="deckId"
               :uploading-media="uploadingMedia"
               @upload-media="k => triggerMediaUpload(k, 'back')"
               @focusin="activeEditorFace = 'back'"
