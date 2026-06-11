@@ -1,9 +1,17 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount } from 'vue'
 import ImportPage from '../pages/ImportPage.vue'
-import { importRouteKey, useRequiredRouteContext } from './routeContext'
+import { useApkgImport } from '../features/import/useApkgImport'
+import { useAuthSession } from '../composables/useAuthSession'
+import { useFeedback } from '../composables/useFeedback'
 
-const importFlow = useRequiredRouteContext(importRouteKey, 'Import')
+const importFlow = useApkgImport()
+const { user } = useAuthSession()
+const { loading } = useFeedback()
+
+onBeforeUnmount(() => {
+  importFlow.disposeApkgImport()
+})
 
 const importTitle = computed({
   get: () => importFlow.importTitle.value,
@@ -24,7 +32,7 @@ const importVisibility = computed({
     v-model:import-title="importTitle"
     v-model:import-visibility="importVisibility"
     :selected-file="importFlow.selectedFile.value"
-    :loading="importFlow.loading.value"
+    :loading="loading"
     :import-preview="importFlow.importPreview.value"
     :current-preview-card="importFlow.currentPreviewCard.value"
     :preview-card-index="importFlow.previewCardIndex.value"
@@ -34,7 +42,7 @@ const importVisibility = computed({
     :preview-card-options="importFlow.previewCardOptions.value"
     :preview-card-title="importFlow.previewCardTitle(importFlow.previewCardIndex.value)"
     :current-preview-html="importFlow.currentPreviewHtml.value"
-    :user="importFlow.user.value"
+    :user="user"
     @file-change="importFlow.handleApkgChange"
     @update:preview-picker-open="importFlow.previewPickerOpen.value = $event"
     @update:preview-card-search="importFlow.previewCardSearch.value = $event"

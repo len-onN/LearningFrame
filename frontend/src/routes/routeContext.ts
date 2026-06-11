@@ -13,15 +13,7 @@ import type {
   UserResponse
 } from '../types/api'
 import type { AuthField, AuthMode } from '../utils/authValidation'
-import type {
-  CardTextFormatter,
-  DeckListFormatters,
-  LibrarySection,
-  LibraryView,
-  ManagedCardsViewState,
-  ManagedDeckFormState
-} from '../features/library/libraryTypes'
-import type { PreviewCardOption, PreviewFace } from '../features/import/importTypes'
+
 import type {
   InterleavedSelectionState,
   StudyEmptyReason,
@@ -51,103 +43,6 @@ export interface AuthRouteContext {
   touchAuthField: (field: AuthField) => void
 }
 
-export interface LibraryRouteContext {
-  librarySearch: Ref<string>
-  librarySection: ComputedRef<LibrarySection>
-  libraryView: ComputedRef<LibraryView>
-  user: Ref<UserResponse | null>
-  activeLibraryCountLabel: ComputedRef<string>
-  filteredPublicDecks: ComputedRef<DeckSummary[]>
-  filteredMyDecks: ComputedRef<DeckSummary[]>
-  publicDecksHasMore: ComputedRef<boolean>
-  myDecksHasMore: ComputedRef<boolean>
-  loadingMorePublicDecks: Ref<boolean>
-  loadingMoreMyDecks: Ref<boolean>
-  highlightedDeckId: Ref<number | null>
-  deckSelectionMode: Ref<boolean>
-  selectedMyDeckIds: Ref<Set<number>>
-  selectedMyDecksCount: ComputedRef<number>
-  allVisibleMyDecksSelected: ComputedRef<boolean>
-  managedDeck: Ref<DeckSummary | null>
-  managedDeckForm: Ref<ManagedDeckFormState>
-  managedDeckDirty: ComputedRef<boolean>
-  managedCardsView: ComputedRef<ManagedCardsViewState>
-  managedCardsSearch: Ref<string>
-  loadingMoreManagedCards: Ref<boolean>
-  deckFormatters: DeckListFormatters
-  cardTextSummary: CardTextFormatter
-  cardCountLabel: (count: number) => string
-  navigateTo: (to: RouteLocationRaw) => Promise<void>
-  refreshAll: () => Promise<void>
-  startDeck: (deck: DeckSummary) => Promise<void>
-  startInterleavedFromSelection: (deckIds: number[]) => Promise<void>
-  savePublicDeck: (deck: DeckSummary) => Promise<void>
-  loadMorePublicDecks: () => Promise<void>
-  loadMoreMyDecks: () => Promise<void>
-  openManagedDeck: (deck: DeckSummary) => Promise<void>
-  toggleDeckSelectionMode: () => void
-  toggleVisibleMyDeckSelection: () => void
-  clearSelectedMyDecks: () => void
-  deleteSelectedMyDecks: () => Promise<void>
-  toggleMyDeckSelection: (deckId: number) => void
-  openAuth: (mode?: AuthMode) => Promise<void>
-  closeManagedDeck: () => Promise<boolean>
-  saveManagedDeck: () => Promise<void>
-  deleteManagedDeck: () => Promise<void>
-  updateManagedDeckForm: (form: ManagedDeckFormState) => void
-  openCreateCardEditor: () => void
-  toggleVisibleManagedCardsSelection: () => void
-  clearManagedCardSelection: () => void
-  deleteSelectedManagedCards: () => Promise<void>
-  selectManagedCard: (card: CardResponse) => void
-  toggleManagedCardSelection: (cardId: number) => void
-  loadMoreManagedCards: () => Promise<void>
-  openEditCardEditor: (card: CardResponse) => void
-  deleteManagedCard: (card: CardResponse) => Promise<void>
-}
-
-export interface StudyRouteContext {
-  sessionTitle: Ref<string>
-  currentCard: ComputedRef<StudyCard | undefined>
-  currentDueLabel: ComputedRef<string>
-  frontHtml: ComputedRef<string>
-  backHtml: ComputedRef<string>
-  answerVisible: Ref<boolean>
-  studyProgress: ComputedRef<StudySessionProgress>
-  studyEmptyReason: Ref<StudyEmptyReason>
-  lastStudyFeedback: Ref<StudyReviewFeedback | null>
-  studySummary: ComputedRef<StudySessionSummary | null>
-  predictedIntervals: ComputedRef<Record<ReviewRating, string> | null>
-  interleavedSelection: Ref<InterleavedSelectionState>
-  goToLibrary: () => Promise<void>
-  startInterleavedPractice: () => Promise<void>
-  startSelectedInterleavedPractice: () => Promise<void>
-  toggleInterleavedDeckSelection: (deckId: number) => void
-  reviewCurrent: (rating: ReviewRating) => Promise<void>
-  skipCurrentCard: () => void
-}
-
-export interface ImportRouteContext {
-  importTitle: Ref<string>
-  importVisibility: Ref<DeckVisibility>
-  selectedFile: Ref<File | null>
-  loading: Ref<boolean>
-  importPreview: Ref<ApkgPreviewResponse | null>
-  currentPreviewCard: ComputedRef<ApkgCard | null>
-  previewCardIndex: Ref<number>
-  previewFace: Ref<PreviewFace>
-  previewPickerOpen: Ref<boolean>
-  previewCardSearch: Ref<string>
-  previewCardOptions: ComputedRef<PreviewCardOption[]>
-  previewCardTitle: (index: number) => string
-  currentPreviewHtml: ComputedRef<string>
-  user: Ref<UserResponse | null>
-  handleApkgChange: (event: Event) => Promise<void>
-  selectPreviewCard: (index: number) => Promise<void>
-  movePreviewCard: (direction: -1 | 1) => Promise<void>
-  togglePreviewFace: () => Promise<void>
-  persistImport: () => Promise<void>
-}
 
 export interface CreateDeckRouteContext {
   deckForm: Ref<{
@@ -165,9 +60,6 @@ export interface ProgressRouteContext {
 }
 
 export const authRouteKey: InjectionKey<AuthRouteContext> = Symbol('auth-route')
-export const libraryRouteKey: InjectionKey<LibraryRouteContext> = Symbol('library-route')
-export const studyRouteKey: InjectionKey<StudyRouteContext> = Symbol('study-route')
-export const importRouteKey: InjectionKey<ImportRouteContext> = Symbol('import-route')
 export const createDeckRouteKey: InjectionKey<CreateDeckRouteContext> = Symbol('create-deck-route')
 export const progressRouteKey: InjectionKey<ProgressRouteContext> = Symbol('progress-route')
 

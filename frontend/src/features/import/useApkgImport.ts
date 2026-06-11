@@ -1,5 +1,7 @@
-import { computed, ref, type Ref } from 'vue'
-import type { RouteLocationNormalizedLoaded } from 'vue-router'
+import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useFeedback } from '../../composables/useFeedback'
+import { useAuthSession } from '../../composables/useAuthSession'
 import { api } from '../../services/api'
 import type {
   ApkgCard,
@@ -23,26 +25,7 @@ export interface ApkgImportApi {
   importApkg(file: File, title: string, visibility: DeckVisibility): Promise<ApkgImportResponse>
 }
 
-interface FeedbackOptions {
-  showLoading?: boolean
-  clearOnStart?: boolean
-}
-
 export interface ApkgImportOptions {
-  route: RouteLocationNormalizedLoaded
-  user: Ref<UserResponse | null>
-  openAuth: (mode?: AuthMode) => Promise<void>
-  loadMyDecks: (reset?: boolean) => Promise<void>
-  refreshStats: () => Promise<void>
-  highlightDeck: (deckId: number) => Promise<void>
-  navigateToMyDecks: () => Promise<void>
-  showNotice: (message: string) => void
-  showError: (message: string) => void
-  withFeedback: (
-    task: () => Promise<void>,
-    optionsOrShowLoading?: FeedbackOptions | boolean,
-    legacyClearOnStart?: boolean
-  ) => Promise<void>
   client?: ApkgImportApi
   createMediaIndex?: (file: File) => Promise<ApkgMediaIndex | null>
   createObjectUrl?: (blob: Blob) => string
@@ -51,22 +34,17 @@ export interface ApkgImportOptions {
 }
 
 export function useApkgImport({
-  route,
-  user,
-  openAuth,
-  loadMyDecks,
-  refreshStats,
-  highlightDeck,
-  navigateToMyDecks,
-  showNotice,
-  showError,
-  withFeedback,
   client = api,
   createMediaIndex = readApkgMediaIndex,
   createObjectUrl = (blob) => URL.createObjectURL(blob),
   revokeObjectUrl = (url) => URL.revokeObjectURL(url),
   decodeImage = decodePreviewImage
-}: ApkgImportOptions) {
+}: ApkgImportOptions = {}) {
+  const route = useRoute()
+  const router = useRouter()
+  const { user } = useAuthSession()
+  const { showNotice, showError, withFeedback } = useFeedback()
+
   const selectedFile = ref<File | null>(null)
   const importVisibility = ref<DeckVisibility>('PRIVATE')
   const importTitle = ref('')
@@ -157,7 +135,7 @@ export function useApkgImport({
 
     if (!user.value) {
       returnToImportAfterAuth.value = true
-      await openAuth('login')
+      await router.push({ name: 'login', query: { redirect: '/importar' } })
       showNotice('Entre para salvar o APKG com midia em Meus baralhos.')
       return
     }
@@ -169,15 +147,12 @@ export function useApkgImport({
         importResult.value = result
         resetImportPreviewState()
         selectedFile.value = null
-        await loadMyDecks(true)
-        if (user.value) {
-          await refreshStats()
-        }
-        await navigateToMyDecks()
+        
         showNotice(result.mediaImported > 0
           ? `Baralho APKG salvo com ${result.cardsImported} cartas e ${result.mediaImported} midias.`
           : 'Baralho APKG salvo em Meus baralhos.')
-        await highlightDeck(result.deckId)
+          
+        await router.push({ name: 'library-mine', query: { highlight: result.deckId } })
       })
     } finally {
       importSaving.value = false

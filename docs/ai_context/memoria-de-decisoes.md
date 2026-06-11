@@ -317,7 +317,10 @@ Estado atual:
 - próximos passos planejados em
   [plano final do App.vue como composition root](planos/plano-app-vue-composition-root-final.md)
   e no
-  [prompt App.vue 4](prompts/prompt-app.vue-4.md).
+  [prompt App.vue 4](prompts/prompt-app.vue-4.md);
+- refatorações adicionais corrigiram warnings de ciclo de vida do Vue (`onScopeDispose`) instanciando os composables de domínio (`useDeckLibrary`, `useStudySession`, etc) no escopo de configuração das rotas pai (`LibraryRoute`, `StudyRoute`, etc) ao invés de instanciar solto no App.vue. Isso evitou falhas de reatividade.
+- refinamos a UX da prática intercalada para apenas pré-selecionar o baralho atual (se houver), não iniciando com seleções aleatórias.
+- bordas padronizadas nos painéis da biblioteca.
 
 ## 14. Limites Diários de Estudo no AppUser vs SRP
 

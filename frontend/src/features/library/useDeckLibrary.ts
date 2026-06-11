@@ -1,37 +1,35 @@
-import { computed, nextTick, onScopeDispose, ref, type Ref } from 'vue'
+import { computed, nextTick, ref, type Ref, onScopeDispose } from 'vue'
 import { api } from '../../services/api'
 import type { DeckSummary, PageResponse, UserResponse } from '../../types/api'
 import type { LibrarySection } from './libraryTypes'
+import { useAuthSession } from '../../composables/useAuthSession'
 
 export interface DeckLibraryApi {
   publicDecks(page?: number, size?: number, query?: string): Promise<PageResponse<DeckSummary>>
   myDecks(page?: number, size?: number, query?: string): Promise<PageResponse<DeckSummary>>
 }
 
-export interface DeckLibraryOptions {
-  librarySection: Ref<LibrarySection>
-  user: Ref<UserResponse | null>
-  pageSize?: number
-  client?: DeckLibraryApi
-}
+const librarySearch = ref('')
+const publicDecks = ref<DeckSummary[]>([])
+const myDecks = ref<DeckSummary[]>([])
+const publicDeckPage = ref<PageResponse<DeckSummary> | null>(null)
+const myDeckPage = ref<PageResponse<DeckSummary> | null>(null)
+const publicDeckQuery = ref('')
+const myDeckQuery = ref('')
+const highlightedDeckId = ref<number | null>(null)
+const deckSelectionMode = ref(false)
+const selectedMyDeckIds = ref<Set<number>>(new Set())
 
 export function useDeckLibrary({
   librarySection,
-  user,
   pageSize = 8,
   client = api
-}: DeckLibraryOptions) {
-  const librarySearch = ref('')
-  const publicDecks = ref<DeckSummary[]>([])
-  const myDecks = ref<DeckSummary[]>([])
-  const publicDeckPage = ref<PageResponse<DeckSummary> | null>(null)
-  const myDeckPage = ref<PageResponse<DeckSummary> | null>(null)
-  const publicDeckQuery = ref('')
-  const myDeckQuery = ref('')
-  const highlightedDeckId = ref<number | null>(null)
-  const deckSelectionMode = ref(false)
-  const selectedMyDeckIds = ref<Set<number>>(new Set())
-
+}: {
+  librarySection: Ref<LibrarySection>
+  pageSize?: number
+  client?: DeckLibraryApi
+}) {
+  const { user } = useAuthSession()
   let highlightDeckTimer: number | undefined
   let highlightDeckFrame: number | undefined
   let disposed = false
@@ -70,6 +68,7 @@ export function useDeckLibrary({
     const query = currentLibraryQuery()
     const response = await client.publicDecks(page, pageSize, query)
     publicDecks.value = reset ? response.content : mergeDeckPages(publicDecks.value, response.content)
+    console.log('DEBUG: loadPublicDecks fetched', response.content.length, 'decks. publicDecks.value is now:', publicDecks.value)
     publicDeckPage.value = response
     publicDeckQuery.value = query
   }
@@ -124,10 +123,12 @@ export function useDeckLibrary({
     }
   }
 
-  onScopeDispose(() => {
+  function disposeLibrary() {
     disposed = true
     clearHighlightDeckTimer()
-  }, true)
+  }
+
+  onScopeDispose(disposeLibrary)
 
   function toggleDeckSelectionMode() {
     deckSelectionMode.value = !deckSelectionMode.value
@@ -211,7 +212,8 @@ export function useDeckLibrary({
     exitDeckSelectionMode,
     toggleMyDeckSelection,
     toggleVisibleMyDeckSelection,
-    clearMyDeckSelection
+    clearMyDeckSelection,
+    disposeLibrary
   }
 }
 

@@ -10,49 +10,55 @@ export interface LibraryActionsApi {
   deleteDecks(deckIds: number[]): Promise<void>
 }
 
-export interface LibraryActionsOptions {
-  user: Ref<UserResponse | null>
-  librarySearch: Ref<string>
-  selectedMyDeckIds: Ref<Set<number>>
-  client?: LibraryActionsApi
-  loadPublicDecks: (reset?: boolean) => Promise<void>
-  loadMyDecks: (reset?: boolean) => Promise<void>
-  setManagedDeck: (deck: DeckSummary) => void
-  highlightDeck: (deckId: number) => Promise<void>
-  exitDeckSelectionMode: () => void
-  clearMyDeckSelection: () => void
-  openAuth: (mode?: AuthMode) => Promise<void>
-  navigateToMyDecks: () => Promise<void>
-  navigateToManagedDeck: (deckId: number) => Promise<void>
-  refreshStats: () => Promise<void>
-  showNotice: (message: string) => void
-  withFeedback: (
-    task: () => Promise<void>,
-    optionsOrShowLoading?: FeedbackOptions | boolean,
-    legacyClearOnStart?: boolean
-  ) => Promise<void>
-  confirm?: (message: string) => boolean
-}
+import { useAuthSession } from '../../composables/useAuthSession'
+import { useFeedback } from '../../composables/useFeedback'
+import { useDeckLibrary } from './useDeckLibrary'
+import { useStatsSummary } from '../../app/useStatsSummary'
+import { useDeckManagement } from './useDeckManagement'
+import { useRouter } from 'vue-router'
+import { useAuthFlow } from '../auth/useAuthFlow'
+
+const loadingMorePublicDecks = ref(false)
+const loadingMoreMyDecks = ref(false)
 
 export function useLibraryActions({
-  user,
-  librarySearch,
-  selectedMyDeckIds,
   client = api,
-  loadPublicDecks,
-  loadMyDecks,
-  setManagedDeck,
-  highlightDeck,
-  exitDeckSelectionMode,
-  clearMyDeckSelection,
-  openAuth,
-  navigateToMyDecks,
-  navigateToManagedDeck,
-  refreshStats,
-  showNotice,
-  withFeedback,
   confirm = (message) => window.confirm(message)
-}: LibraryActionsOptions) {
+}: {
+  client?: LibraryActionsApi
+  confirm?: (message: string) => boolean
+} = {}) {
+  const router = useRouter()
+  const { user } = useAuthSession()
+  const { showNotice, withFeedback } = useFeedback()
+  const { librarySearch, selectedMyDeckIds, loadPublicDecks, loadMyDecks, highlightDeck, exitDeckSelectionMode, clearMyDeckSelection } = useDeckLibrary({ librarySection: ref('public') })
+  const { refreshStats } = useStatsSummary()
+  const { setManagedDeck } = useDeckManagement()
+  const authFlow = useAuthFlow({
+    authMode: ref('login'),
+    route: router.currentRoute.value,
+    login: () => Promise.resolve(),
+    register: () => Promise.resolve(),
+    persistSession: () => {},
+    refreshAfterAuth: () => Promise.resolve(),
+    closeManagedDeck: () => Promise.resolve(true),
+    navigateToImport: () => Promise.resolve(),
+    navigateToRedirect: () => Promise.resolve(),
+    navigateToMyDecks: () => Promise.resolve(),
+    clearFeedback: () => {},
+    dismissError: () => {},
+    showNotice,
+    withFeedback
+  })
+
+  async function navigateToMyDecks() {
+    await router.replace({ name: 'library-mine' })
+  }
+
+  async function navigateToManagedDeck(deckId: number) {
+    await router.push({ name: 'library-deck-manage', params: { deckId } })
+  }
+
   async function refreshAll() {
     await withFeedback(async () => {
       await loadPublicDecks(true)
@@ -62,8 +68,6 @@ export function useLibraryActions({
       }
     }, { showLoading: false })
   }
-
-  const loadingMorePublicDecks = ref(false)
   async function loadMorePublicDecks() {
     loadingMorePublicDecks.value = true
     try {
@@ -89,7 +93,7 @@ export function useLibraryActions({
 
   async function savePublicDeck(deck: DeckSummary) {
     if (!user.value) {
-      await openAuth('login')
+      await authFlow.openAuth('login')
       showNotice('Entre para salvar este baralho em Meus baralhos.')
       return
     }
@@ -132,7 +136,7 @@ export function useLibraryActions({
 
   async function openManagedDeck(deck: DeckSummary, showLoading = true) {
     if (!user.value) {
-      await openAuth('login')
+      await authFlow.openAuth('login')
       return
     }
     await withFeedback(async () => {

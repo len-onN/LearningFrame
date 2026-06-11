@@ -52,34 +52,12 @@ describe('useAuthFlow', () => {
     expect(subject.events).toEqual([
       'persist',
       'refresh:password=',
-      'consume-import',
       'redirect:/criar',
       'notice:Sessao iniciada como Ada.'
     ])
   })
 
-  it('retoma APKG preservado antes de redirect pos-login', async () => {
-    const subject = createSubject({
-      redirect: '/progresso',
-      consumeReturnToImportAfterAuth: () => true
-    })
-    subject.flow.authForm.value.email = 'ada@example.com'
-    subject.flow.authForm.value.password = 'Senha123!'
-    subject.login.mockResolvedValueOnce(authResponse('Ada'))
 
-    await subject.flow.submitAuth()
-
-    expect(subject.navigateToImport).toHaveBeenCalled()
-    expect(subject.navigateToRedirect).not.toHaveBeenCalledWith('/progresso')
-    expect(subject.navigateToMyDecks).not.toHaveBeenCalled()
-    expect(subject.events).toEqual([
-      'persist',
-      'refresh:password=',
-      'consume-import',
-      'import',
-      'notice:Sessao iniciada como Ada.'
-    ])
-  })
 
   it('faz login sem redirect indo para Meus baralhos', async () => {
     const subject = createSubject()
@@ -136,7 +114,6 @@ function createSubject(options: {
   redirect?: string
   fullPath?: string
   routeMeta?: RouteLocationNormalizedLoaded['meta']
-  consumeReturnToImportAfterAuth?: () => boolean
 } = {}) {
   const events: string[] = []
   const mode = ref<AuthMode>(options.mode ?? 'login')
@@ -154,10 +131,7 @@ function createSubject(options: {
   const refreshAfterAuth = vi.fn(async () => {
     events.push(`refresh:password=${readPassword()}`)
   })
-  const consumeReturnToImportAfterAuth = vi.fn(() => {
-    events.push('consume-import')
-    return options.consumeReturnToImportAfterAuth?.() ?? false
-  })
+
   const closeManagedDeck = vi.fn(async () => true)
   const navigateToImport = vi.fn(async () => {
     events.push('import')
@@ -184,7 +158,6 @@ function createSubject(options: {
     register,
     persistSession,
     refreshAfterAuth,
-    consumeReturnToImportAfterAuth,
     closeManagedDeck,
     navigateToImport,
     navigateToRedirect,
@@ -204,7 +177,6 @@ function createSubject(options: {
     register,
     persistSession,
     refreshAfterAuth,
-    consumeReturnToImportAfterAuth,
     closeManagedDeck,
     navigateToImport,
     navigateToRedirect,

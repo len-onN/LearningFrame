@@ -7,12 +7,12 @@ export interface FeedbackOptions {
   clearOnStart?: boolean
 }
 
-export function useFeedback() {
-  const notice = ref('')
-  const error = ref('')
-  const loading = ref(false)
-  const feedbackLifetime = ref<FeedbackLifetime>('route')
+const notice = ref('')
+const error = ref('')
+const loading = ref(false)
+const feedbackLifetime = ref<FeedbackLifetime>('route')
 
+export function useFeedback() {
   function showNotice(message: string, lifetime: FeedbackLifetime = 'route') {
     notice.value = message
     error.value = ''
