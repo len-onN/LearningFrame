@@ -95,6 +95,24 @@ export const api = {
       body: JSON.stringify(settings)
     })
   },
+  updateDisplayName(displayName: string) {
+    return request<void>('/api/profile/display-name', {
+      method: 'PUT',
+      body: JSON.stringify({ displayName })
+    })
+  },
+  updatePassword(oldPassword: string, newPassword: string) {
+    return request<void>('/api/profile/password', {
+      method: 'PUT',
+      body: JSON.stringify({ oldPassword, newPassword })
+    })
+  },
+  deleteAccount() {
+    return request<void>('/api/profile', {
+      method: 'DELETE'
+    })
+  },
+
   publicDecks(page = 0, size = 8, query = '') {
     const params = new URLSearchParams({ page: String(page), size: String(size) })
     if (query.trim()) {

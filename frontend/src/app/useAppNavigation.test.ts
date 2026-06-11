@@ -16,8 +16,7 @@ describe('useAppNavigation', () => {
     expect(navigation.visibleTabs.value.map((item) => item.id)).toEqual([
       'library',
       'study',
-      'import',
-      'progress'
+      'import'
     ])
 
     user.value = userResponse()
@@ -27,7 +26,9 @@ describe('useAppNavigation', () => {
       'study',
       'import',
       'create',
-      'progress'
+      'progress',
+      'settings',
+      'profile'
     ])
   })
 
