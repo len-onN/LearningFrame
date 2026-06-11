@@ -1876,3 +1876,17 @@ Decisões de UX e Arquitetura:
 - Como o editor já exibe o que o usuário vai obter no final, a seção de *Preview* redundante, que ficava no overlay, foi removida.
 - O clique na caixa de texto foi ajustado (CSS `.tiptap` com `min-height: 100%`) para garantir que o foco seja ativado ao clicar em qualquer área vazia.
 - A restrição inicial de que áudios inseridos (`[sound:xxx]`) apareciam apenas como texto estático levantou a necessidade de um player tocável dentro do editor WYSIWYG, o que será abordado em seguida.
+
+## 69. Extensão Nativa de Áudio e Gravação via Microfone
+
+Data: 2026-06-11
+Branch de trabalho: `feature/card-editor-wysiwyg`
+
+A experiência WYSIWYG foi consolidada com suporte completo à mídia e gravação nativa.
+
+Implementações:
+- **AnkiSoundExtension**: Criada uma extensão customizada no Tiptap que age como uma "capa da invisibilidade". Ela varre o conteúdo procurando a sintaxe do Anki (`[sound:xxx]`) e injeta um `<audio controls data-anki-sound="xxx">` diretamente na área de edição. Ao salvar, a extensão limpa o HTML e devolve a string `[sound:xxx]` original para o banco de dados.
+- **Gravação de Áudio Nativca**: Implementado o composable `useAudioRecorder` utilizando a **Web Audio API** (`MediaRecorder`). Adicionado um botão de Microfone na barra de ferramentas do editor. Ao clicar, o sistema grava o áudio do usuário (com limite de 60s), empacota o arquivo gerado (como `.webm` ou `.mp4`) e dispara a mesma rotina de upload de arquivos do servidor. O arquivo sobe, o backend retorna a tag `[sound:...]`, e a extensão renderiza o player de áudio na mesma hora.
+- **UI Tweak**: O painel de gerenciamento de baralhos ganhou um contorno verde sólido (2px da cor `--color-success-border`) para melhor definição e contraste.
+
+A seguir: Iniciar refatoração arquitetural para descentralização do `App.vue`.

@@ -340,3 +340,22 @@ Decisão final:
 
 Estado atual:
 - Decisão registrada no planejamento da funcionalidade `feature/daily-study-limits`.
+
+## 15. Editor WYSIWYG e Media Nativos
+
+Problema:
+- Cartões exigiam formatação HTML bruta e marcação estrita para áudio (`[sound:xxx]`).
+- Falta de praticidade para gravar áudios on-the-fly para estudo de pronúncia ou idiomas.
+
+Alternativas consideradas:
+- Quill, CKEditor ou Tiptap para WYSIWYG.
+- Servidor para receber áudio cru e converter vs. `MediaRecorder` nativo no browser.
+
+Decisão:
+- **Tiptap**: Selecionado por ser headless e não conflitar com o Design System.
+- **AnkiSoundExtension**: Desenvolvemos uma extensão customizada do Tiptap que faz parse bidirecional de `[sound:xxx]` para o player HTML `<audio>`, mascarando a complexidade para o usuário enquanto mantém compatibilidade estrita com Anki no banco de dados.
+- **MediaRecorder API**: Implementamos gravação no frontend e despacho de blobs (`.webm` ou `.mp4`). Para evitar abusos, impôs-se um teto de 60 segundos por gravação e desabilitou-se a barra de formatação durante a captura.
+
+Estado atual:
+- Editor funcional implementado.
+- Gravação de áudio web nativa habilitada no ambiente Tiptap.

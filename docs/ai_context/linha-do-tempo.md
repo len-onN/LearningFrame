@@ -86,4 +86,5 @@ Ao criar nova branch relevante:
 | Branch | Documento principal | Resultado |
 | --- | --- | --- |
 | `feature/profile-management` | `prompt-gestao-perfil.md` | Planejamento da Gestão de Perfil (alteração de dados e exclusão de conta) |
-| `feature/card-formatting` | (A definir) | Planejamento da Formatação de Cartas ao criá-las |
+| `feature/card-editor-wysiwyg` | `docs/diario-de-bordo.md` | Implementação do editor de texto rico com Tiptap e gravação nativa de áudio |
+| `refactor/app-vue-architecture` | `implementation_plan.md` | Início do planejamento para descentralização do App.vue (Co-location de estado) |
