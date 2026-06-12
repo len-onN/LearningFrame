@@ -1,6 +1,8 @@
 .idea/
 .vscode/
 .DS_Store
+.tmp-playwright/
+.agents/
 
 backend/target/
 backend/.mvn/wrapper/maven-wrapper.jar
