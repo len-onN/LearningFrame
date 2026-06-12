@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
-import Underline from '@tiptap/extension-underline'
 import Image from '@tiptap/extension-image'
 import {
   Bold, Italic, Underline as UnderlineIcon,
@@ -57,7 +56,6 @@ function handleStopRecording() {
 const editor = useEditor({
   extensions: [
     StarterKit,
-    Underline,
     Image.configure({
       inline: true,
       allowBase64: true
