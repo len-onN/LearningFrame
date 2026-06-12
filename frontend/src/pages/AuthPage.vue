@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { User } from '@lucide/vue'
+import { ref } from 'vue'
+import { User, Eye, EyeOff } from '@lucide/vue'
 import type { AuthField, AuthMode } from '../utils/authValidation'
 
 defineProps<{
@@ -17,6 +18,8 @@ defineEmits<{
 const displayName = defineModel<string>('displayName', { required: true })
 const email = defineModel<string>('email', { required: true })
 const password = defineModel<string>('password', { required: true })
+
+const showPassword = ref(false)
 </script>
 
 <template>
@@ -74,18 +77,23 @@ const password = defineModel<string>('password', { required: true })
 
       <div class="form-field">
         <label class="field-label" for="auth-password">Senha</label>
-        <input
-          id="auth-password"
-          v-model="password"
-          class="field-control"
-          :class="{ invalid: Boolean(fieldError('password')) }"
-          type="password"
-          :autocomplete="mode === 'login' ? 'current-password' : 'new-password'"
-          placeholder="Sua senha"
-          :aria-invalid="Boolean(fieldError('password'))"
-          :aria-describedby="fieldError('password') ? 'auth-password-error' : undefined"
-          @blur="$emit('touch-field', 'password')"
-        />
+        <div class="password-input-wrapper">
+          <input
+            id="auth-password"
+            v-model="password"
+            class="field-control"
+            :class="{ invalid: Boolean(fieldError('password')) }"
+            :type="showPassword ? 'text' : 'password'"
+            :autocomplete="mode === 'login' ? 'current-password' : 'new-password'"
+            placeholder="Sua senha"
+            :aria-invalid="Boolean(fieldError('password'))"
+            :aria-describedby="fieldError('password') ? 'auth-password-error' : undefined"
+            @blur="$emit('touch-field', 'password')"
+          />
+          <button type="button" class="icon-button toggle-password" @click="showPassword = !showPassword" aria-label="Alternar visibilidade da senha">
+            <component :is="showPassword ? EyeOff : Eye" class="icon" />
+          </button>
+        </div>
         <p v-if="fieldError('password')" id="auth-password-error" class="field-error">
           {{ fieldError('password') }}
         </p>
@@ -104,3 +112,39 @@ const password = defineModel<string>('password', { required: true })
     </form>
   </section>
 </template>
+
+<style scoped>
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper .field-control {
+  width: 100%;
+  padding-right: 2.5rem;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  color: var(--color-text-dimmed);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  transition: color 0.2s;
+}
+
+.toggle-password:hover {
+  color: var(--color-text);
+}
+
+.toggle-password .icon {
+  width: 20px;
+  height: 20px;
+}
+</style>

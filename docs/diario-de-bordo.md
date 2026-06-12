@@ -1916,3 +1916,15 @@ Decis√µes de Refatora√ß√£o:
  -   * * T e s t e s   A j u s t a d o s * * :   A d i c i o n a d o s   m o c k s   d e   u s e L i b r a r y S t o r e   e   u s e A u t h S t o r e   n o s   t e s t e s   q u e   s u b i a m   o   V i t e s t   s e m   c o n t e x t o   V u e   l i m p o . 
  -   T o d o s   o s   t e s t e s   V i t e s t   ( 1 0 7 / 1 0 7 )   e   E 2 E   P l a y w r i g h t   ( 1 4 / 1 4 )   p a s s a r a m   a p Û s   a   r e f a t o r a Á „ o .  
  
+## 72. Melhorias de UX em Formularios de Senha
+
+Data: 2026-06-12
+Branch de trabalho: `feature/profile-password-ux`
+
+Ocorreram melhorias visuais e semanticas importantes nos formularios de criacao e alteracao de senhas (ProfileRoute.vue e AuthPage.vue).
+
+Implementacoes:
+- **Visibilidade de Senhas:** Adicionado um icone de olho (via Lucide) para alternar a visibilidade de cada campo de senha.
+- **Validacao de Forca:** Adicionada validacao em tempo real das regras de senha, exibindo icones de Check e X (verde e vermelho).
+- **Semantica HTML:** Inclusao dos atributos autocomplete para facilitar o reconhecimento por gerenciadores de senha.
+
