@@ -7,7 +7,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/useAuthStore'
 import { useFeedbackStore } from '../../stores/useFeedbackStore'
 import { useDeckLibrary } from './useDeckLibrary'
-import { useStatsSummary } from '../../app/useStatsSummary'
+import { useStatsStore } from '../../stores/useStatsStore'
 import { useDeckManagement } from './useDeckManagement'
 import { useAuthFlow } from '../auth/useAuthFlow'
 
@@ -23,8 +23,8 @@ vi.mock('./useDeckLibrary', () => ({
   useDeckLibrary: vi.fn()
 }))
 
-vi.mock('../../app/useStatsSummary', () => ({
-  useStatsSummary: vi.fn()
+vi.mock('../../stores/useStatsStore', () => ({
+  useStatsStore: vi.fn()
 }))
 
 vi.mock('./useDeckManagement', () => ({
@@ -183,7 +183,7 @@ function createSubject(options: {
     clearMyDeckSelection
   } as any)
 
-  vi.mocked(useStatsSummary).mockReturnValue({
+  vi.mocked(useStatsStore).mockReturnValue({
     refreshStats
   } as any)
 

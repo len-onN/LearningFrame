@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted } from 'vue'
+import { onBeforeUnmount, onMounted } from 'vue'
 import ImportPage from '../pages/ImportPage.vue'
 import { useApkgImport } from '../features/import/useApkgImport'
 import { useAuthStore } from '../stores/useAuthStore'

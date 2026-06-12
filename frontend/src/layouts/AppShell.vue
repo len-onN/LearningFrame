@@ -8,7 +8,6 @@ import {
   LogOut,
   Moon,
   RotateCcw,
-  Shuffle,
   Sun,
   User,
   X

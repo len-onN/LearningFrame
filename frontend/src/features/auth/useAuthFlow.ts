@@ -1,8 +1,11 @@
-import { computed, ref, type ComputedRef } from 'vue'
-import type { RouteLocationNormalizedLoaded, RouteLocationRaw } from 'vue-router'
+import { computed, ref } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { api } from '../../services/api'
-import type { AuthResponse, UserResponse } from '../../types/api'
+import type { AuthResponse } from '../../types/api'
 import { useFeedbackStore } from '../../stores/useFeedbackStore'
+import { useAuthStore } from '../../stores/useAuthStore'
+import { useLibraryStore } from '../../stores/useLibraryStore'
+import { useDeckManagementStore } from '../../stores/useDeckManagementStore'
 import {
   validateAuthForm,
   type AuthErrors,
@@ -11,19 +14,10 @@ import {
   type AuthMode
 } from '../../utils/authValidation'
 
-export type AuthNavigationMethod = 'push' | 'replace'
 
 export interface AuthFlowOptions {
-  authMode: ComputedRef<AuthMode>
-  route: RouteLocationNormalizedLoaded
-  login?: (email: string, password: string) => Promise<AuthResponse>
-  register?: (displayName: string, email: string, password: string) => Promise<AuthResponse>
-  persistSession: (user: UserResponse, token: string) => void
-  refreshAfterAuth: () => Promise<void>
-  closeManagedDeck: (force?: boolean, navigateToList?: boolean) => Promise<boolean> | boolean
-  navigateToImport: () => Promise<void>
-  navigateToRedirect: (to: RouteLocationRaw, method?: AuthNavigationMethod) => Promise<void>
-  navigateToMyDecks: () => Promise<void>
+  clientLogin?: (email: string, password: string) => Promise<AuthResponse>
+  clientRegister?: (displayName: string, email: string, password: string) => Promise<AuthResponse>
 }
 
 const emptyAuthForm = (): AuthFormValues => ({
@@ -39,18 +33,18 @@ const emptyAuthTouched = (): Record<AuthField, boolean> => ({
 })
 
 export function useAuthFlow({
-  authMode,
-  route,
-  login = api.login,
-  register = api.register,
-  persistSession,
-  refreshAfterAuth,
-  closeManagedDeck,
-  navigateToImport,
-  navigateToRedirect,
-  navigateToMyDecks
-}: AuthFlowOptions) {
+  clientLogin = api.login,
+  clientRegister = api.register
+}: AuthFlowOptions = {}) {
+  const router = useRouter()
+  const route = useRoute()
   const feedbackStore = useFeedbackStore()
+  const authStore = useAuthStore()
+  const libraryStore = useLibraryStore()
+  const deckManagementStore = useDeckManagementStore()
+  
+  const authMode = computed<AuthMode>(() => route.meta.authMode ?? 'login')
+
   const authForm = ref<AuthFormValues>(emptyAuthForm())
   const authTouched = ref<Record<AuthField, boolean>>(emptyAuthTouched())
   const authSubmitted = ref(false)
@@ -64,17 +58,22 @@ export function useAuthFlow({
 
     await feedbackStore.withFeedback(async () => {
       const response = authMode.value === 'login'
-        ? await login(authForm.value.email, authForm.value.password)
-        : await register(authForm.value.displayName, authForm.value.email, authForm.value.password)
+        ? await clientLogin(authForm.value.email, authForm.value.password)
+        : await clientRegister(authForm.value.displayName, authForm.value.email, authForm.value.password)
 
-      persistSession(response.user, response.token)
+      authStore.persistSession(response.user, response.token)
       authForm.value.password = ''
       resetAuthValidation()
-      await refreshAfterAuth()
+      libraryStore.resetLibrary()
+      await Promise.all([
+        libraryStore.loadMyDecks(api, 8, true),
+        libraryStore.loadPublicDecks(api, 8, true)
+      ])
+      
       if (typeof route.query.redirect === 'string' && route.query.redirect) {
-        await navigateToRedirect(route.query.redirect)
+        await router.replace(route.query.redirect)
       } else {
-        await navigateToMyDecks()
+        await router.replace({ name: 'library-mine' })
       }
       feedbackStore.showNotice(`Sessao iniciada como ${response.user.displayName}.`)
     })
@@ -111,21 +110,28 @@ export function useAuthFlow({
   }
 
   async function openAuth(mode: AuthMode = 'login') {
-    await closeManagedDeck(true, false)
+    deckManagementStore.closeManagedDeck(async () => {}, true)
     const redirect = route.meta.requiresAuth ? route.fullPath : route.query.redirect
-    await navigateToRedirect({
+    await router.push({
       name: mode === 'login' ? 'login' : 'register',
       query: typeof redirect === 'string' && redirect ? { redirect } : {}
-    }, 'push')
+    })
     feedbackStore.clearFeedback()
     resetAuthValidation()
   }
 
   async function toggleAuthMode() {
-    await navigateToRedirect({
+    await router.push({
       name: authMode.value === 'login' ? 'register' : 'login',
       query: typeof route.query.redirect === 'string' ? { redirect: route.query.redirect } : {}
-    }, 'push')
+    })
+    feedbackStore.dismissError()
+    resetAuthValidation()
+  }
+  
+  async function goHome() {
+    deckManagementStore.closeManagedDeck(async () => {}, true)
+    await router.push({ name: 'library-public' })
     feedbackStore.dismissError()
     resetAuthValidation()
   }
@@ -144,6 +150,7 @@ export function useAuthFlow({
     authFieldError,
     resetAuthValidation,
     openAuth,
-    toggleAuthMode
+    toggleAuthMode,
+    goHome
   }
 }

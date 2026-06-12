@@ -1,29 +1,18 @@
 <script setup lang="ts">
-import { computed, onMounted, provide, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import AppShell from './layouts/AppShell.vue'
-import { api } from './services/api'
 import CardEditorOverlay from './features/library/CardEditorOverlay.vue'
 import { useDeckLibrary } from './features/library/useDeckLibrary'
-import { useLibraryActions } from './features/library/useLibraryActions'
 import { useDeckManagement } from './features/library/useDeckManagement'
-import { useAuthFlow } from './features/auth/useAuthFlow'
-import { useCreateDeckFlow } from './features/create/useCreateDeckFlow'
-import { useStudySession } from './features/study/useStudySession'
-import {
-  authRouteKey,
-  createDeckRouteKey,
-  progressRouteKey
-} from './routes/routeContext'
 import type { AuthMode } from './utils/authValidation'
 import { useAppNavigation } from './app/useAppNavigation'
 import { useLibraryRouteSync } from './app/useLibraryRouteSync'
 import { useLibrarySearchLifecycle } from './app/useLibrarySearchLifecycle'
-import { useRouteLifecycle } from './app/useRouteLifecycle'
-import { useStatsSummary } from './app/useStatsSummary'
 import { useAuthStore } from './stores/useAuthStore'
 import { useThemeStore } from './stores/useThemeStore'
 import { useFeedbackStore } from './stores/useFeedbackStore'
+import { useStudyStore } from './stores/useStudyStore'
 import { storeToRefs } from 'pinia'
 
 const DECK_PAGE_SIZE = 8
@@ -40,13 +29,11 @@ const feedbackStore = useFeedbackStore()
 const {
   tab,
   librarySection,
-  authMode,
   sidebarCollapsed,
   sidebarToggleLabel,
   visibleTabs,
   currentTitle,
   toggleSidebar,
-  navigateToManagedDeck,
   routeDeckId
 } = useAppNavigation({
   route,
@@ -69,27 +56,14 @@ const {
   librarySection,
   pageSize: DECK_PAGE_SIZE
 })
-const {
-  stats,
-  refreshStats,
-  clearStats,
-  syncProgressRoute
-} = useStatsSummary()
+
 
 const {
   managedDeck,
   cardEditorOpen,
-  cardEditorForm,
-  cardEditorTitle,
-  cardEditorFrontPreview,
-  cardEditorBackPreview,
-  setManagedDeck,
   loadManagedDeckRoute,
   closeManagedDeck,
-  closeCardEditor,
-  saveCardEditor,
-  uploadCardEditorMedia,
-  handleCardEditorUploadError
+  closeCardEditor
 } = useDeckManagement()
 
 const {
@@ -118,42 +92,8 @@ const {
   }
 })
 
-const {
-  refreshAll
-} = useLibraryActions()
-
-const createDeckFlow = useCreateDeckFlow({
-  client: api,
-  loadMyDecks,
-  setManagedDeck,
-  navigateToManagedDeck
-})
-
-const authFlow = useAuthFlow({
-  authMode,
-  route,
-  login: (email, password) => api.login(email, password),
-  register: (displayName, email, password) => api.register(displayName, email, password),
-  persistSession: authStore.persistSession,
-  refreshAfterAuth: refreshAll,
-  closeManagedDeck,
-  navigateToImport: async () => {
-    await router.replace({ name: 'import' })
-  },
-  navigateToRedirect: async (to, method = 'replace') => {
-    if (method === 'push') {
-      await router.push(to)
-      return
-    }
-    await router.replace(to)
-  },
-  navigateToMyDecks: async () => {
-    await router.replace({ name: 'library-mine' })
-  }
-})
-
 const userDisplayName = computed(() => user.value?.displayName ?? 'Visitante')
-const loadingMessage = computed(() => 'Carregando...')
+
 onMounted(() => {
   themeStore.applyThemePreference()
 })
@@ -175,45 +115,30 @@ watch(tab, (nextTab) => {
   }
 })
 
-const studySession = useStudySession()
+const studyStore = useStudyStore()
 
-async function syncStudyRoute() {
-  if (route.name === 'study') {
-    studySession.resetStudySession()
-    return
-  }
-
-  if (route.name === 'study-deck') {
-    const deckId = routeDeckId()
-    if (!deckId) {
-      await router.replace({ name: 'study' })
-      return
-    }
-    await studySession.loadStudyDeck(deckId)
-    return
-  }
-
-  if (route.name === 'study-interleaved') {
-    const ids = route.query.decks
-      ? (route.query.decks as string).split(',').map(Number).filter(n => !Number.isNaN(n))
-      : []
-    await studySession.prepareInterleavedPracticeSelection(ids)
-    if (ids.length > 0) {
-      await studySession.startInterleavedPracticeSession()
-    }
-  }
+function isLibraryRoute(name: string | symbol | null | undefined) {
+  return name === 'library-public'
+    || name === 'library-mine'
+    || name === 'library-deck-manage'
 }
 
-function cleanupStudyRoute() {
-  studySession.resetStudySession()
-}
+watch(() => [route.name, route.params.deckId] as const, ([nextName], previous) => {
+  const previousName = previous?.[0]
+  if (previousName && isLibraryRoute(previousName) && !isLibraryRoute(nextName)) {
+    cleanupLibraryRoute()
+  }
+
+  if (isLibraryRoute(nextName)) {
+    void syncLibraryRoute()
+  }
+}, { immediate: true })
 
 async function logout() {
   closeManagedDeck(true, false)
   exitDeckSelectionMode()
-  studySession.clearPublicStudyDeckCache()
+  studyStore.clearPublicStudyDeckCache()
   authStore.clearSession()
-  clearStats()
   myDecks.value = []
   myDeckPage.value = null
   myDeckQuery.value = ''
@@ -225,11 +150,13 @@ async function goHome() {
   closeManagedDeck(true, false)
   await router.push({ name: 'library-public' })
   feedbackStore.dismissError()
-  authFlow.resetAuthValidation()
 }
 
 async function openAuth(mode: AuthMode = 'login') {
-  await authFlow.openAuth(mode)
+  await router.push({
+    name: mode === 'login' ? 'login' : 'register',
+    query: route.meta.requiresAuth ? { redirect: route.fullPath } : (route.query.redirect ? { redirect: route.query.redirect } : {})
+  })
 }
 
 async function startInterleavedPractice() {
@@ -239,32 +166,6 @@ async function startInterleavedPractice() {
   }
   await router.push({ name: 'study-interleaved' })
 }
-
-useRouteLifecycle({
-  route,
-  syncLibraryRoute,
-  cleanupLibraryRoute,
-  syncStudyRoute,
-  cleanupStudyRoute,
-  syncProgressRoute
-})
-
-const authRouteContext = {
-  ...authFlow,
-  goHome
-}
-
-provide(authRouteKey, authRouteContext)
-
-provide(createDeckRouteKey, {
-  ...createDeckFlow,
-  user,
-})
-
-provide(progressRouteKey, {
-  user,
-  stats
-})
 
 </script>
 

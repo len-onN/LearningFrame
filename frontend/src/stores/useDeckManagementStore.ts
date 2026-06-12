@@ -10,7 +10,7 @@ import { deckPageCountLabel } from '../features/library/useDeckLibrary'
 import { mergeCardsPages, splitTags } from '../features/library/cardText'
 import { useFeedbackStore } from './useFeedbackStore'
 import { useLibraryStore } from './useLibraryStore'
-import { useStatsSummary } from '../app/useStatsSummary'
+import { useStatsStore } from './useStatsStore'
 
 export interface DeckManagementApi {
   deckMetadata(deckId: number): Promise<DeckSummary>
@@ -39,7 +39,7 @@ export const emptyCardEditorForm = () => ({
 export const useDeckManagementStore = defineStore('deckManagement', () => {
   const feedbackStore = useFeedbackStore()
   const libraryStore = useLibraryStore()
-  const { refreshStats } = useStatsSummary()
+  const statsStore = useStatsStore()
 
   const managedDeck = ref<DeckSummary | null>(null)
   const managedDeckForm = ref<ManagedDeckFormState>(emptyManagedDeckForm())
@@ -225,7 +225,7 @@ export const useDeckManagementStore = defineStore('deckManagement', () => {
       await client.deleteDeck(deck.id)
       await closeManagedDeck(navigateToList, true, confirmPrompt)
       await libraryStore.loadMyDecks()
-      await refreshStats()
+      await statsStore.refreshStats()
       selectedManagedCardIds.value = new Set()
       feedbackStore.showNotice('Baralho excluido.')
     })

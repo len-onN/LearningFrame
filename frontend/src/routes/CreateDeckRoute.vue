@@ -1,26 +1,31 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { storeToRefs } from 'pinia'
 import CreateDeckPage from '../pages/CreateDeckPage.vue'
-import { createDeckRouteKey, useRequiredRouteContext } from './routeContext'
+import { useCreateDeckFlow } from '../features/create/useCreateDeckFlow'
+import { useAuthStore } from '../stores/useAuthStore'
 
-const createDeckRoute = useRequiredRouteContext(createDeckRouteKey, 'Create deck')
+const authStore = useAuthStore()
+const { user } = storeToRefs(authStore)
+
+const { deckForm, createDeck } = useCreateDeckFlow()
 
 const title = computed({
-  get: () => createDeckRoute.deckForm.value.title,
+  get: () => deckForm.value.title,
   set: (value: string) => {
-    createDeckRoute.deckForm.value.title = value
+    deckForm.value.title = value
   }
 })
 const description = computed({
-  get: () => createDeckRoute.deckForm.value.description,
+  get: () => deckForm.value.description,
   set: (value: string) => {
-    createDeckRoute.deckForm.value.description = value
+    deckForm.value.description = value
   }
 })
 const visibility = computed({
-  get: () => createDeckRoute.deckForm.value.visibility,
+  get: () => deckForm.value.visibility,
   set: (value) => {
-    createDeckRoute.deckForm.value.visibility = value
+    deckForm.value.visibility = value
   }
 })
 </script>
@@ -30,7 +35,7 @@ const visibility = computed({
     v-model:title="title"
     v-model:description="description"
     v-model:visibility="visibility"
-    :user="createDeckRoute.user.value"
-    @submit="createDeckRoute.createDeck"
+    :user="user"
+    @submit="createDeck"
   />
 </template>

@@ -1,7 +1,10 @@
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { api } from '../../services/api'
 import type { DeckSummary, DeckVisibility } from '../../types/api'
 import { useFeedbackStore } from '../../stores/useFeedbackStore'
+import { useLibraryStore } from '../../stores/useLibraryStore'
+import { useDeckManagementStore } from '../../stores/useDeckManagementStore'
 
 export interface CreateDeckApi {
   createDeck(title: string, description: string, visibility: DeckVisibility): Promise<DeckSummary>
@@ -15,9 +18,6 @@ export interface CreateDeckFormState {
 
 export interface CreateDeckFlowOptions {
   client?: CreateDeckApi
-  loadMyDecks: (reset?: boolean) => Promise<void>
-  setManagedDeck: (deck: DeckSummary) => void
-  navigateToManagedDeck: (deckId: number) => Promise<void>
 }
 
 const emptyDeckForm = (): CreateDeckFormState => ({
@@ -27,12 +27,13 @@ const emptyDeckForm = (): CreateDeckFormState => ({
 })
 
 export function useCreateDeckFlow({
-  client = api,
-  loadMyDecks,
-  setManagedDeck,
-  navigateToManagedDeck
-}: CreateDeckFlowOptions) {
+  client = api
+}: CreateDeckFlowOptions = {}) {
+  const router = useRouter()
   const feedbackStore = useFeedbackStore()
+  const libraryStore = useLibraryStore()
+  const deckManagementStore = useDeckManagementStore()
+  
   const deckForm = ref<CreateDeckFormState>(emptyDeckForm())
 
   async function createDeck() {
@@ -43,9 +44,9 @@ export function useCreateDeckFlow({
         deckForm.value.visibility
       )
       deckForm.value = emptyDeckForm()
-      await loadMyDecks(true)
-      setManagedDeck(created)
-      await navigateToManagedDeck(created.id)
+      await libraryStore.loadMyDecks(undefined, undefined, true)
+      deckManagementStore.setManagedDeck(created)
+      await router.push({ name: 'library-deck-manage', params: { deckId: created.id } })
       feedbackStore.showNotice('Baralho criado. Adicione as primeiras cartas.')
     })
   }

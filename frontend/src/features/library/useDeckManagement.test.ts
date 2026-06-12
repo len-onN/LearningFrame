@@ -6,7 +6,7 @@ import { useDeckManagement, type DeckManagementApi } from './useDeckManagement'
 import { useRouter } from 'vue-router'
 import { useFeedbackStore } from '../../stores/useFeedbackStore'
 import { useLibraryStore } from '../../stores/useLibraryStore'
-import { useStatsSummary } from '../../app/useStatsSummary'
+import { useStatsStore } from '../../stores/useStatsStore'
 import { api } from '../../services/api'
 
 vi.mock('vue-router', () => ({
@@ -21,8 +21,8 @@ vi.mock('../../stores/useLibraryStore', async (importOriginal) => {
   }
 })
 
-vi.mock('../../app/useStatsSummary', () => ({
-  useStatsSummary: vi.fn()
+vi.mock('../../stores/useStatsStore', () => ({
+  useStatsStore: vi.fn()
 }))
 
 vi.mock('../../services/api', async (importOriginal) => {
@@ -249,7 +249,7 @@ function createSubject(options: {
     loadMyDecks
   } as any)
 
-  vi.mocked(useStatsSummary).mockReturnValue({
+  vi.mocked(useStatsStore).mockReturnValue({
     refreshStats
   } as any)
 

@@ -4,7 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import LibraryPage from '../pages/LibraryPage.vue'
 import { useDeckLibrary } from '../features/library/useDeckLibrary'
 import { useDeckManagement } from '../features/library/useDeckManagement'
-import { useFeedbackStore } from '../stores/useFeedbackStore'
+
 import { useLibraryActions } from '../features/library/useLibraryActions'
 import { useAuthFlow } from '../features/auth/useAuthFlow'
 import { useAuthStore } from '../stores/useAuthStore'
@@ -19,7 +19,6 @@ const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const { user } = storeToRefs(authStore)
-const feedbackStore = useFeedbackStore()
 
 
 const librarySection = computed<'public' | 'mine'>(() => {
@@ -91,20 +90,7 @@ const {
   deleteSelectedMyDecks
 } = useLibraryActions()
 
-const authFlow = useAuthFlow({
-  authMode: computed(() => 'login' as const),
-  route,
-  login: () => Promise.resolve({} as any),
-  register: () => Promise.resolve({} as any),
-  persistSession: () => {},
-  refreshAfterAuth: refreshAll,
-  closeManagedDeck: closeManagedDeck,
-  navigateToImport: async () => {},
-  navigateToRedirect: async () => {},
-  navigateToMyDecks: async () => {},
-  
-  
-})
+const authFlow = useAuthFlow()
 
 const deckFormatters = {
   cardCount: cardCountLabel,

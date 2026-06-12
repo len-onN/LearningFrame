@@ -9,12 +9,10 @@ import type {
   ApkgCard,
   ApkgImportResponse,
   ApkgPreviewResponse,
-  DeckVisibility,
-  UserResponse
+  DeckVisibility
 } from '../../types/api'
 import { createApkgMediaIndex, normalizeMediaName, type ApkgMediaIndex } from '../../utils/apkgMedia'
 import { extractRelativeMediaSources, safePreviewHtml } from '../../utils/html'
-import type { AuthMode } from '../../utils/authValidation'
 import {
   previewCardOptionLabel,
   previewCardSearchText,

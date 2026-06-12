@@ -5,10 +5,10 @@ import type { ReviewRating, StudyCard } from '../types/api'
 import type {
   InterleavedSelectionState,
   StudyEmptyReason,
-  StudyReviewFeedback,
   StudySessionProgress,
   StudySessionSummary
-} from '../routes/routeContext'
+} from '../features/study/studySessionTypes'
+import type { StudyReviewFeedback } from '../features/study/studyFeedback'
 
 const props = defineProps<{
   sessionTitle: string

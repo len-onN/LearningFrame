@@ -397,3 +397,18 @@ Decisão:
 Estado atual:
 - Componentes refatorados.
 - Testes mockando Pinia corretamente, mantendo 100% de passagem nos Unitários (Vitest) e E2E (Playwright).
+
+## 18. Finalização da Migração Pinia e Limpeza de Código
+
+Problema:
+- Após as refatorações arquiteturais para adoção do Pinia, acumulou-se lixo no código: variáveis de estado sem uso, rotinas de gerenciamento de estado obsoletas (legacy injects/provides), imports de componentes e funções que deixaram de existir, e console.logs de depuração esquecidos.
+
+Decisão:
+- **vue-tsc rigoroso**: Habilitamos temporariamente regras restritas (`noUnusedLocals`, `noUnusedParameters`) no `tsconfig.json` para realizar uma varredura completa da base de código do frontend com o compilador TypeScript.
+- **Limpeza Sistemática**: Todos os falsos positivos, variáveis de retorno não consumidas, metadados sem utilidade, e lixos residuais nos testes unitários e de integração E2E foram limpos e validados por builds determinísticos.
+- **Remoção de Logs**: Retirou-se as saídas no console não intencionais tanto de artefatos de debug (ex. rotas de importação apkg) quanto hooks reativos que deixaram de ser problemáticos com a entrada do Pinia.
+
+Estado atual:
+- A base de código está 100% livre de warnings do TS.
+- Testes continuam 100% passando após a deleção de dezenas de imports não utilizados e variáveis vazias.
+- O build final do Vite é otimizado e seguro, consolidando o encerramento da fase de migração.

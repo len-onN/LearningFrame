@@ -31,7 +31,7 @@ function parseIncoming(html: string) {
 }
 
 function parseOutgoing(html: string) {
-  return html.replace(AUDIO_TAG_PATTERN, (_, quote, fileName) => {
+  return html.replace(AUDIO_TAG_PATTERN, (_, _quote, fileName) => {
     return `[sound:${fileName}]`
   })
 }

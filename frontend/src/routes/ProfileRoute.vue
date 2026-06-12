@@ -10,7 +10,6 @@ const authStore = useAuthStore()
 const { user } = storeToRefs(authStore)
 const router = useRouter()
 
-const loading = ref(false)
 const savingName = ref(false)
 const savingPass = ref(false)
 const errorName = ref('')

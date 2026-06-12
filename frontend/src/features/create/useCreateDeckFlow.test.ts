@@ -3,6 +3,14 @@ import {  describe, expect, it, vi , beforeEach } from 'vitest'
 import type { DeckSummary, DeckVisibility } from '../../types/api'
 import { useCreateDeckFlow, type CreateDeckApi } from './useCreateDeckFlow'
 import { useFeedbackStore } from '../../stores/useFeedbackStore'
+import { useLibraryStore } from '../../stores/useLibraryStore'
+import { useDeckManagementStore } from '../../stores/useDeckManagementStore'
+import { useRouter } from 'vue-router'
+
+vi.mock('vue-router', () => ({
+  useRouter: vi.fn()
+}))
+
 describe('useCreateDeckFlow', () => {
   beforeEach(() => { setActivePinia(createPinia()) })
 
@@ -10,9 +18,9 @@ describe('useCreateDeckFlow', () => {
     const {
       client,
       flow,
-      loadMyDecks,
-      navigateToManagedDeck,
-      setManagedDeck
+      mockRouter,
+      libraryStore,
+      deckManagementStore
     } = createSubject()
     const created = deck(42, 'Neuro', {
       description: 'Memoria',
@@ -35,36 +43,43 @@ describe('useCreateDeckFlow', () => {
       description: '',
       visibility: 'PRIVATE'
     })
-    expect(loadMyDecks).toHaveBeenCalledWith(true)
-    expect(setManagedDeck).toHaveBeenCalledWith(created)
-    expect(navigateToManagedDeck).toHaveBeenCalledWith(42)
+    expect(libraryStore.loadMyDecks).toHaveBeenCalledWith(true)
+    expect(deckManagementStore.setManagedDeck).toHaveBeenCalledWith(created)
+    expect(mockRouter.push).toHaveBeenCalledWith({ name: 'library-deck-manage', params: { deckId: 42 } })
     expect(feedbackStore.showNotice).toHaveBeenCalledWith('Baralho criado. Adicione as primeiras cartas.')
   })
 })
 
 function createSubject() {
   const client = createClient()
-  const loadMyDecks = vi.fn(async () => undefined)
-  const setManagedDeck = vi.fn()
-  const navigateToManagedDeck = vi.fn(async () => undefined)
-  const feedbackStore = useFeedbackStore(); feedbackStore.showNotice = vi.fn()
+  
+  const mockRouter = {
+    push: vi.fn()
+  }
+  vi.mocked(useRouter).mockReturnValue(mockRouter as any)
+
+  const feedbackStore = useFeedbackStore()
+  feedbackStore.showNotice = vi.fn()
   feedbackStore.withFeedback = vi.fn(async (task: () => Promise<void>) => {
     await task()
   })
 
+  const libraryStore = useLibraryStore()
+  libraryStore.loadMyDecks = vi.fn(async () => undefined)
+
+  const deckManagementStore = useDeckManagementStore()
+  deckManagementStore.setManagedDeck = vi.fn()
+
   const flow = useCreateDeckFlow({
-    client,
-    loadMyDecks,
-    setManagedDeck,
-    navigateToManagedDeck
+    client
   })
 
   return {
     client,
     flow,
-    loadMyDecks,
-    setManagedDeck,
-    navigateToManagedDeck
+    mockRouter,
+    libraryStore,
+    deckManagementStore
   }
 }
 

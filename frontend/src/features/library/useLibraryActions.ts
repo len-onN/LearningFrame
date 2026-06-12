@@ -1,9 +1,8 @@
-import type { Ref } from 'vue'
 import { ref } from 'vue'
 import { api } from '../../services/api'
 import { useFeedbackStore } from '../../stores/useFeedbackStore'
-import type { DeckSummary, UserResponse } from '../../types/api'
-import type { AuthMode } from '../../utils/authValidation'
+import type { DeckSummary } from '../../types/api'
+
 
 export interface LibraryActionsApi {
   copyPublicDeck(deckId: number): Promise<DeckSummary>
@@ -14,13 +13,11 @@ import { useAuthStore } from '../../stores/useAuthStore'
 import { storeToRefs } from 'pinia'
 
 import { useDeckLibrary } from './useDeckLibrary'
-import { useStatsSummary } from '../../app/useStatsSummary'
+import { useStatsStore } from '../../stores/useStatsStore'
 import { useDeckManagement } from './useDeckManagement'
 import { useRouter } from 'vue-router'
 import { useAuthFlow } from '../auth/useAuthFlow'
 
-const loadingMorePublicDecks = ref(false)
-const loadingMoreMyDecks = ref(false)
 
 export function useLibraryActions({
   client = api,
@@ -34,20 +31,11 @@ export function useLibraryActions({
   const { user } = storeToRefs(authStore)
   const feedbackStore = useFeedbackStore()
   const { librarySearch, selectedMyDeckIds, loadPublicDecks, loadMyDecks, highlightDeck, exitDeckSelectionMode, clearMyDeckSelection } = useDeckLibrary({ librarySection: ref('public') })
-  const { refreshStats } = useStatsSummary()
+  const statsStore = useStatsStore()
   const { setManagedDeck } = useDeckManagement()
-  const authFlow = useAuthFlow({
-    authMode: ref('login') as any,
-    route: router.currentRoute.value,
-    login: () => Promise.resolve({} as any),
-    register: () => Promise.resolve({} as any),
-    persistSession: () => {},
-    refreshAfterAuth: () => Promise.resolve(),
-    closeManagedDeck: () => Promise.resolve(true),
-    navigateToImport: () => Promise.resolve(),
-    navigateToRedirect: () => Promise.resolve(),
-    navigateToMyDecks: () => Promise.resolve()
-  })
+  const authFlow = useAuthFlow()
+  const loadingMorePublicDecks = ref(false)
+  const loadingMoreMyDecks = ref(false)
 
   async function navigateToMyDecks() {
     await router.replace({ name: 'library-mine' })
@@ -62,7 +50,7 @@ export function useLibraryActions({
       await loadPublicDecks(true)
       if (user.value) {
         await loadMyDecks(true)
-        await refreshStats()
+        await statsStore.refreshStats()
       }
     }, { showLoading: false })
   }
@@ -77,7 +65,7 @@ export function useLibraryActions({
     }
   }
 
-  const loadingMoreMyDecks = ref(false)
+
   async function loadMoreMyDecks() {
     loadingMoreMyDecks.value = true
     try {
@@ -100,7 +88,7 @@ export function useLibraryActions({
       const saved = await client.copyPublicDeck(deck.id)
       librarySearch.value = ''
       await loadMyDecks(true)
-      await refreshStats()
+      await statsStore.refreshStats()
       await navigateToMyDecks()
       feedbackStore.showNotice('Baralho salvo em Meus baralhos como copia privada.')
       await highlightDeck(saved.id)
@@ -122,7 +110,7 @@ export function useLibraryActions({
       exitDeckSelectionMode()
       await loadMyDecks(true)
       if (user.value) {
-        await refreshStats()
+        await statsStore.refreshStats()
       }
       feedbackStore.showNotice(deckIds.length === 1 ? 'Baralho excluido.' : 'Baralhos selecionados excluidos.')
     })
