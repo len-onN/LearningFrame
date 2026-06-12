@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
+import { Eye, EyeOff, X, Check } from '@lucide/vue'
 import { api } from '../services/api'
 import { useAuthStore } from '../stores/useAuthStore'
 import { storeToRefs } from 'pinia'
@@ -23,7 +24,29 @@ const formName = ref({
 
 const formPass = ref({
   oldPassword: '',
-  newPassword: ''
+  newPassword: '',
+  confirmPassword: ''
+})
+
+const showOldPassword = ref(false)
+const showNewPassword = ref(false)
+const showConfirmPassword = ref(false)
+
+const passwordRules = computed(() => [
+  { label: 'Mínimo de 8 caracteres', isValid: formPass.value.newPassword.length >= 8 },
+  { label: 'Uma letra maiúscula', isValid: /[A-Z]/.test(formPass.value.newPassword) },
+  { label: 'Um número', isValid: /\d/.test(formPass.value.newPassword) },
+  { label: 'Um símbolo', isValid: /[^A-Za-z0-9\s]/.test(formPass.value.newPassword) }
+])
+
+const passwordsMatch = computed(() => {
+  return formPass.value.newPassword !== '' && formPass.value.newPassword === formPass.value.confirmPassword
+})
+
+const isPasswordFormValid = computed(() => {
+  return formPass.value.oldPassword.length > 0 && 
+         passwordRules.value.every(rule => rule.isValid) && 
+         passwordsMatch.value
 })
 
 const showDeleteModal = ref(false)
@@ -51,6 +74,8 @@ async function saveDisplayName() {
 }
 
 async function savePassword() {
+  if (!isPasswordFormValid.value) return;
+
   savingPass.value = true
   errorPass.value = ''
   noticePass.value = ''
@@ -59,6 +84,7 @@ async function savePassword() {
     noticePass.value = 'Senha atualizada com sucesso!'
     formPass.value.oldPassword = ''
     formPass.value.newPassword = ''
+    formPass.value.confirmPassword = ''
     setTimeout(() => { noticePass.value = '' }, 3000)
   } catch (err: any) {
     errorPass.value = err.message || 'Erro ao alterar a senha.'
@@ -115,28 +141,68 @@ async function handleAccountDeleted() {
         <form @submit.prevent="savePassword" class="settings-form">
           <div class="form-group">
             <label for="old-password">Senha Atual</label>
-            <input
-              id="old-password"
-              v-model="formPass.oldPassword"
-              type="password"
-              required
-              class="input-control"
-            />
+            <div class="password-input-wrapper">
+              <input
+                id="old-password"
+                v-model="formPass.oldPassword"
+                :type="showOldPassword ? 'text' : 'password'"
+                autocomplete="current-password"
+                required
+                class="input-control"
+              />
+              <button type="button" class="icon-button toggle-password" @click="showOldPassword = !showOldPassword" aria-label="Alternar visibilidade da senha">
+                <component :is="showOldPassword ? EyeOff : Eye" class="icon" />
+              </button>
+            </div>
           </div>
+          
           <div class="form-group">
             <label for="new-password">Nova Senha</label>
-            <input
-              id="new-password"
-              v-model="formPass.newPassword"
-              type="password"
-              minlength="8"
-              required
-              class="input-control"
-            />
-            <small class="hint">A nova senha deve ter no mínimo 8 caracteres.</small>
+            <div class="password-input-wrapper">
+              <input
+                id="new-password"
+                v-model="formPass.newPassword"
+                :type="showNewPassword ? 'text' : 'password'"
+                autocomplete="new-password"
+                required
+                class="input-control"
+              />
+              <button type="button" class="icon-button toggle-password" @click="showNewPassword = !showNewPassword" aria-label="Alternar visibilidade da senha">
+                <component :is="showNewPassword ? EyeOff : Eye" class="icon" />
+              </button>
+            </div>
+            
+            <ul class="password-rules">
+              <li v-for="rule in passwordRules" :key="rule.label" :class="{ 'rule-valid': rule.isValid, 'rule-invalid': !rule.isValid }">
+                <component :is="rule.isValid ? Check : X" class="rule-icon" />
+                {{ rule.label }}
+              </li>
+            </ul>
           </div>
+
+          <div class="form-group">
+            <label for="confirm-password">Confirmar Nova Senha</label>
+            <div class="password-input-wrapper">
+              <input
+                id="confirm-password"
+                v-model="formPass.confirmPassword"
+                :type="showConfirmPassword ? 'text' : 'password'"
+                autocomplete="new-password"
+                required
+                class="input-control"
+              />
+              <button type="button" class="icon-button toggle-password" @click="showConfirmPassword = !showConfirmPassword" aria-label="Alternar visibilidade da senha">
+                <component :is="showConfirmPassword ? EyeOff : Eye" class="icon" />
+              </button>
+            </div>
+            <div v-if="formPass.confirmPassword" class="password-match-status" :class="passwordsMatch ? 'status-match' : 'status-mismatch'">
+              <component :is="passwordsMatch ? Check : X" class="rule-icon" />
+              {{ passwordsMatch ? 'As senhas coincidem' : 'As senhas não coincidem' }}
+            </div>
+          </div>
+
           <div class="form-actions">
-            <button type="submit" class="primary" :disabled="savingPass">
+            <button type="submit" class="primary" :disabled="savingPass || !isPasswordFormValid">
               {{ savingPass ? 'Alterando...' : 'Alterar Senha' }}
             </button>
           </div>
@@ -240,5 +306,76 @@ async function handleAccountDeleted() {
 .danger-button:hover {
   background-color: var(--color-danger-focus);
   border-color: var(--color-danger-border);
+}
+
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper .input-control {
+  width: 100%;
+  padding-right: 2.5rem;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  color: var(--color-text-dimmed);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  transition: color 0.2s;
+}
+
+.toggle-password:hover {
+  color: var(--color-text);
+}
+
+.toggle-password .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.password-rules {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.password-rules li,
+.password-match-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rule-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.rule-valid,
+.status-match {
+  color: var(--color-success);
+}
+
+.rule-invalid,
+.status-mismatch {
+  color: var(--color-danger);
+}
+
+.password-match-status {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
 }
 </style>

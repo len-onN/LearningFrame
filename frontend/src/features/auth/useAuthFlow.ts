@@ -23,13 +23,15 @@ export interface AuthFlowOptions {
 const emptyAuthForm = (): AuthFormValues => ({
   displayName: '',
   email: '',
-  password: ''
+  password: '',
+  confirmPassword: ''
 })
 
 const emptyAuthTouched = (): Record<AuthField, boolean> => ({
   displayName: false,
   email: false,
-  password: false
+  password: false,
+  confirmPassword: false
 })
 
 export function useAuthFlow({
@@ -85,6 +87,7 @@ export function useAuthFlow({
     authTouched.value.password = true
     if (authMode.value === 'register') {
       authTouched.value.displayName = true
+      authTouched.value.confirmPassword = true
     }
   }
 

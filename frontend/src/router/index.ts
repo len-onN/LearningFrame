@@ -27,7 +27,12 @@ export type AppRouteName =
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    redirect: { name: 'library-public' }
+    redirect: () => {
+      if (getAuthToken()) {
+        return { name: 'library-mine' }
+      }
+      return { name: 'login' }
+    }
   },
   {
     path: '/biblioteca/publicos',
@@ -109,7 +114,12 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: { name: 'library-public' }
+    redirect: () => {
+      if (getAuthToken()) {
+        return { name: 'library-mine' }
+      }
+      return { name: 'login' }
+    }
   }
 ]
 

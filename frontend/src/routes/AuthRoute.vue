@@ -31,6 +31,12 @@ const password = computed({
     authForm.value.password = value
   }
 })
+const confirmPassword = computed({
+  get: () => authForm.value.confirmPassword,
+  set: (value: string) => {
+    authForm.value.confirmPassword = value
+  }
+})
 </script>
 
 <template>
@@ -38,6 +44,7 @@ const password = computed({
     v-model:display-name="displayName"
     v-model:email="email"
     v-model:password="password"
+    v-model:confirm-password="confirmPassword"
     :mode="authMode"
     :field-error="authFieldError"
     @submit="submitAuth"
