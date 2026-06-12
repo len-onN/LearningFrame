@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import {  describe, expect, it , beforeEach } from 'vitest'
 import { validateAuthForm } from './authValidation'
 
 describe('validacao do formulario de autenticacao', () => {
+  beforeEach(() => { setActivePinia(createPinia()) })
+
   it('exige e-mail e senha para login', () => {
     expect(validateAuthForm({ displayName: '', email: '', password: '' }, 'login')).toEqual({
       email: 'Informe seu e-mail.',

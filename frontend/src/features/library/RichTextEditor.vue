@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
-import Underline from '@tiptap/extension-underline'
 import Image from '@tiptap/extension-image'
 import {
   Bold, Italic, Underline as UnderlineIcon,
@@ -16,6 +15,7 @@ const props = defineProps<{
   modelValue: string
   uploadingMedia?: boolean
   deckId?: number
+  ariaLabel?: string
 }>()
 
 const ANKI_SOUND_PATTERN = /\[sound:([^\]]+)]/gi
@@ -30,7 +30,7 @@ function parseIncoming(html: string) {
 }
 
 function parseOutgoing(html: string) {
-  return html.replace(AUDIO_TAG_PATTERN, (_, quote, fileName) => {
+  return html.replace(AUDIO_TAG_PATTERN, (_, _quote, fileName) => {
     return `[sound:${fileName}]`
   })
 }
@@ -56,7 +56,6 @@ function handleStopRecording() {
 const editor = useEditor({
   extensions: [
     StarterKit,
-    Underline,
     Image.configure({
       inline: true,
       allowBase64: true
@@ -64,6 +63,11 @@ const editor = useEditor({
     AnkiSoundExtension
   ],
   content: parseIncoming(props.modelValue),
+  editorProps: {
+    attributes: {
+      ...(props.ariaLabel ? { 'aria-label': props.ariaLabel } : {})
+    }
+  },
   onUpdate: ({ editor }) => {
     emit('update:modelValue', parseOutgoing(editor.getHTML()))
   }

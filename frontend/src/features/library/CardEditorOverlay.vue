@@ -1,30 +1,21 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Save, X } from '@lucide/vue'
 import RichTextEditor from './RichTextEditor.vue'
-import type {
-  CardEditorFace,
-  CardEditorMediaKind,
-  CardEditorMediaUploader
-} from './cardEditorTypes'
+import type { CardEditorFace, CardEditorMediaKind } from './cardEditorTypes'
+import { useDeckManagementStore } from '../../stores/useDeckManagementStore'
+import { storeToRefs } from 'pinia'
 
-const props = defineProps<{
-  deckId: number
-  deckTitle: string
-  title: string
-  uploadMedia: CardEditorMediaUploader
-}>()
+const store = useDeckManagementStore()
 
-const emit = defineEmits<{
-  save: []
-  close: []
-  'upload-success': [kind: CardEditorMediaKind]
-  'upload-error': [message: string]
-}>()
+const {
+  managedDeck,
+  cardEditorForm,
+  cardEditorTitle: title,
+} = storeToRefs(store)
 
-const frontHtml = defineModel<string>('frontHtml', { required: true })
-const backHtml = defineModel<string>('backHtml', { required: true })
-const tags = defineModel<string>('tags', { required: true })
+const deckId = computed(() => managedDeck.value?.id ?? 0)
+const deckTitle = computed(() => managedDeck.value?.title ?? '')
 
 const activeEditorFace = ref<CardEditorFace>('front')
 const frontEditorRef = ref<InstanceType<typeof RichTextEditor> | null>(null)
@@ -33,9 +24,8 @@ const mediaInputRef = ref<HTMLInputElement | null>(null)
 const mediaUploadKind = ref<CardEditorMediaKind>('image')
 const uploadingMedia = ref(false)
 
-watch(() => props.title, () => {
+watch(title, () => {
   activeEditorFace.value = 'front'
-  // Focus via DOM query inside editor or leave it since Tiptap might grab focus natively later
 }, { immediate: true })
 
 function triggerMediaUpload(kind: CardEditorMediaKind, face: CardEditorFace, file?: File) {
@@ -55,11 +45,10 @@ function triggerMediaUpload(kind: CardEditorMediaKind, face: CardEditorFace, fil
 async function processMediaFile(file: File) {
   uploadingMedia.value = true
   try {
-    const marker = await props.uploadMedia(file, mediaUploadKind.value)
+    const marker = await store.uploadCardEditorMedia(file, mediaUploadKind.value)
     insertIntoEditor(activeEditorFace.value, marker)
-    emit('upload-success', mediaUploadKind.value)
   } catch (error) {
-    emit('upload-error', error instanceof Error ? error.message : 'Falha ao inserir midia.')
+    store.handleCardEditorUploadError(error instanceof Error ? error.message : 'Falha ao inserir midia.')
   } finally {
     uploadingMedia.value = false
   }
@@ -81,6 +70,14 @@ function insertIntoEditor(face: CardEditorFace, text: string) {
   const target = face === 'front' ? frontEditorRef.value : backEditorRef.value
   target?.insertHtml(text)
 }
+
+function handleSave() {
+  void store.saveCardEditor()
+}
+
+function handleClose() {
+  store.closeCardEditor()
+}
 </script>
 
 <template>
@@ -92,27 +89,28 @@ function insertIntoEditor(face: CardEditorFace, text: string) {
           <h2>{{ title }}</h2>
         </div>
         <div class="row-actions">
-          <button class="primary compact" type="button" @click="$emit('save')">
+          <button class="primary compact" type="button" @click="handleSave">
             <Save :size="16" aria-hidden="true" />
             Salvar carta
           </button>
-          <button class="ghost icon-button" type="button" title="Fechar editor" aria-label="Fechar editor" @click="$emit('close')">
+          <button class="ghost icon-button" type="button" title="Fechar editor" aria-label="Fechar editor" @click="handleClose">
             <X :size="16" aria-hidden="true" />
           </button>
         </div>
       </header>
 
       <div class="card-editor-body">
-        <form class="card-editor-form" @submit.prevent="$emit('save')">
+        <form class="card-editor-form" @submit.prevent="handleSave">
           <section class="editor-face-block">
             <div class="section-title compact-title">
               <h3>Frente</h3>
             </div>
             <RichTextEditor
               ref="frontEditorRef"
-              v-model="frontHtml"
+              v-model="cardEditorForm.frontHtml"
               :deck-id="deckId"
               :uploading-media="uploadingMedia"
+              aria-label="Frente da carta"
               @upload-media="(k, f) => triggerMediaUpload(k, 'front', f)"
               @focusin="activeEditorFace = 'front'"
             />
@@ -124,9 +122,10 @@ function insertIntoEditor(face: CardEditorFace, text: string) {
             </div>
             <RichTextEditor
               ref="backEditorRef"
-              v-model="backHtml"
+              v-model="cardEditorForm.backHtml"
               :deck-id="deckId"
               :uploading-media="uploadingMedia"
+              aria-label="Verso da carta"
               @upload-media="(k, f) => triggerMediaUpload(k, 'back', f)"
               @focusin="activeEditorFace = 'back'"
             />
@@ -134,10 +133,9 @@ function insertIntoEditor(face: CardEditorFace, text: string) {
 
           <label class="form-field">
             <span class="field-label">Tags</span>
-            <input v-model="tags" type="text" maxlength="400" placeholder="separadas por virgula" aria-label="Tags da carta" />
+            <input v-model="cardEditorForm.tags" type="text" maxlength="400" placeholder="separadas por virgula" aria-label="Tags da carta" />
           </label>
         </form>
-
 
       </div>
 

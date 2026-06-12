@@ -1,3 +1,4 @@
+import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { clearAuthToken, setAuthToken } from '../services/api'
 import type { UserResponse } from '../types/api'
@@ -13,9 +14,9 @@ function loadStoredUser() {
   }
 }
 
-const user = ref<UserResponse | null>(loadStoredUser())
+export const useAuthStore = defineStore('auth', () => {
+  const user = ref<UserResponse | null>(loadStoredUser())
 
-export function useAuthSession() {
   function persistSession(nextUser: UserResponse, token: string) {
     user.value = nextUser
     setAuthToken(token)
@@ -41,5 +42,4 @@ export function useAuthSession() {
     clearSession,
     updateDisplayName
   }
-}
-
+})

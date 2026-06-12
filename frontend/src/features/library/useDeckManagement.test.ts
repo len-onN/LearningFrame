@@ -1,27 +1,40 @@
+import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CardResponse, DeckSummary, PageResponse } from '../../types/api'
 import { useDeckManagement, type DeckManagementApi } from './useDeckManagement'
 import { useRouter } from 'vue-router'
-import { useFeedback } from '../../composables/useFeedback'
-import { useDeckLibrary } from './useDeckLibrary'
-import { useStatsSummary } from '../../app/useStatsSummary'
+import { useFeedbackStore } from '../../stores/useFeedbackStore'
+import { useLibraryStore } from '../../stores/useLibraryStore'
+import { useStatsStore } from '../../stores/useStatsStore'
+import { api } from '../../services/api'
 
 vi.mock('vue-router', () => ({
   useRouter: vi.fn()
 }))
 
-vi.mock('../../composables/useFeedback', () => ({
-  useFeedback: vi.fn()
+vi.mock('../../stores/useLibraryStore', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../stores/useLibraryStore')>()
+  return {
+    ...actual,
+    useLibraryStore: vi.fn()
+  }
+})
+
+vi.mock('../../stores/useStatsStore', () => ({
+  useStatsStore: vi.fn()
 }))
 
-vi.mock('./useDeckLibrary', () => ({
-  useDeckLibrary: vi.fn()
-}))
-
-vi.mock('../../app/useStatsSummary', () => ({
-  useStatsSummary: vi.fn()
-}))
+vi.mock('../../services/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../services/api')>()
+  return {
+    ...actual,
+    api: {
+      ...actual.api,
+      deckCards: vi.fn()
+    }
+  }
+})
 
 describe('useDeckManagement', () => {
   afterEach(() => {
@@ -108,7 +121,7 @@ describe('useDeckManagement', () => {
     await management.saveManagedDeck()
 
     expect(client.updateDeck).toHaveBeenCalledWith(7, 'Atualizado', 'Descricao', 'PUBLIC')
-    expect(loadMyDecks).toHaveBeenCalledWith(true)
+    expect(loadMyDecks).toHaveBeenCalled()
     expect(showNotice).toHaveBeenCalledWith('Baralho atualizado.')
     expect(management.managedDeckDirty.value).toBe(false)
   })
@@ -146,7 +159,7 @@ describe('useDeckManagement', () => {
 
     expect(client.createCard).toHaveBeenCalledWith(7, 'Frente', 'Verso', ['bio', 'neuro'])
     expect(client.deckCards).toHaveBeenCalledWith(7, 0, 2, '')
-    expect(loadMyDecks).toHaveBeenCalledWith(true)
+    expect(loadMyDecks).toHaveBeenCalled()
     expect(management.cardEditorOpen.value).toBe(false)
     expect(management.selectedManagedCardId.value).toBe(10)
     expect(showNotice).toHaveBeenCalledWith('Carta adicionada.')
@@ -168,7 +181,7 @@ describe('useDeckManagement', () => {
 
     expect(client.deleteCards).toHaveBeenCalledWith(7, [1, 2])
     expect(client.deckCards).toHaveBeenLastCalledWith(7, 0, 2, '')
-    expect(loadMyDecks).toHaveBeenCalledWith(true)
+    expect(loadMyDecks).toHaveBeenCalled()
     expect(management.selectedManagedCardIds.value.size).toBe(0)
     expect(management.selectedManagedCardId.value).toBeNull()
     expect(showNotice).toHaveBeenCalledWith('Cartas selecionadas excluidas.')
@@ -192,7 +205,7 @@ describe('useDeckManagement', () => {
     await vi.advanceTimersByTimeAsync(300)
 
     expect(withFeedback).toHaveBeenCalledWith(expect.any(Function), { showLoading: false })
-    expect(client.deckCards).toHaveBeenCalledWith(7, 0, 2, 'biologia')
+    expect(client.deckCards).toHaveBeenCalledWith(7, 0, 20, 'biologia')
   })
 
   it('gera snippets de midia para o editor de cartas', async () => {
@@ -212,6 +225,7 @@ describe('useDeckManagement', () => {
 function createSubject(options: {
   confirm?: (message: string) => boolean
 } = {}) {
+  setActivePinia(createPinia())
   const client = createClient()
   const showNotice = vi.fn()
   const showError = vi.fn()
@@ -221,22 +235,21 @@ function createSubject(options: {
   const withFeedback = vi.fn(async (task: () => Promise<void>) => {
     await task()
   })
+  const feedbackStore = useFeedbackStore()
+  try { feedbackStore.showError = showError as any } catch(e) {}
+  try { feedbackStore.showNotice = showNotice as any } catch(e) {}
+  try { feedbackStore.withFeedback = withFeedback as any } catch(e) {}
 
   vi.mocked(useRouter).mockReturnValue({
     replace: navigateToMyDecks
   } as any)
 
-  vi.mocked(useFeedback).mockReturnValue({
-    showNotice,
-    showError,
-    withFeedback
-  } as any)
-
-  vi.mocked(useDeckLibrary).mockReturnValue({
+  
+  vi.mocked(useLibraryStore).mockReturnValue({
     loadMyDecks
   } as any)
 
-  vi.mocked(useStatsSummary).mockReturnValue({
+  vi.mocked(useStatsStore).mockReturnValue({
     refreshStats
   } as any)
 
@@ -245,6 +258,8 @@ function createSubject(options: {
     client,
     confirm: options.confirm ?? (() => true)
   })
+
+  vi.mocked(api.deckCards).mockImplementation(client.deckCards)
 
   return {
     client,

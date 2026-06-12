@@ -1,10 +1,18 @@
+import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 export type ThemePreference = 'light' | 'dark'
 
 const THEME_STORAGE_KEY = 'learningframe.theme'
 
-export function useTheme() {
+function loadStoredThemePreference(): ThemePreference {
+  const storedTheme = localStorage.getItem(THEME_STORAGE_KEY)
+  return storedTheme === 'light' || storedTheme === 'dark'
+    ? storedTheme
+    : 'light'
+}
+
+export const useThemeStore = defineStore('theme', () => {
   const themePreference = ref<ThemePreference>(loadStoredThemePreference())
   const nextThemeLabel = computed(() => themePreference.value === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro')
 
@@ -25,11 +33,4 @@ export function useTheme() {
     toggleThemePreference,
     applyThemePreference
   }
-}
-
-function loadStoredThemePreference(): ThemePreference {
-  const storedTheme = localStorage.getItem(THEME_STORAGE_KEY)
-  return storedTheme === 'light' || storedTheme === 'dark'
-    ? storedTheme
-    : 'light'
-}
+})

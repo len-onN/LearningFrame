@@ -28,7 +28,7 @@ test('estudo autenticado registra progresso', async ({ page, seed }) => {
       && response.request().method() === 'POST'
       && response.ok()
     ),
-    page.getByRole('button', { name: 'Dificil' }).click()
+    page.getByRole('button', { name: 'Difícil' }).click()
   ])
 
   await expect(page.getByRole('heading', { name: 'Sessão concluída' })).toBeVisible()

@@ -1,6 +1,10 @@
-import { computed, ref, type Ref } from 'vue'
-import type { FeedbackOptions } from '../../composables/useFeedback'
-import { api, type DueRequestOptions } from '../../services/api'
+import { computed, ref } from 'vue'
+import { defineStore, storeToRefs } from 'pinia'
+import { useFeedbackStore } from './useFeedbackStore'
+import { useAuthStore } from './useAuthStore'
+import { useLibraryStore } from './useLibraryStore'
+import { useStatsStore } from './useStatsStore'
+import { api, type DueRequestOptions } from '../services/api'
 import type {
   DeckDetail,
   DeckSummary,
@@ -9,40 +13,33 @@ import type {
   ReviewRating,
   ReviewResult,
   StudyCard,
-  StudyCardResponse,
-  UserResponse
-} from '../../types/api'
-import { formatDueIn } from '../../utils/dueTime'
-import { safeStudyHtml } from '../../utils/html'
+  StudyCardResponse
+} from '../types/api'
+import { formatDueIn } from '../utils/dueTime'
+import { safeStudyHtml } from '../utils/html'
 import {
   deckDetailToLocal,
   loadLocalStates,
   localDeckToStudyCards,
   saveLocalStates
-} from '../../utils/localStudy'
-import { nextReview } from '../../utils/srs'
+} from '../utils/localStudy'
+import { nextReview } from '../utils/srs'
 import {
   emptyStudyRatingCounts,
   studyFeedbackFromResult,
   studyFeedbackFromReviewResult,
   type StudyRatingCounts,
   type StudyReviewFeedback
-} from './studyFeedback'
+} from '../features/study/studyFeedback'
 import type {
   InterleavedDeckOption,
   InterleavedSelectionState,
   StudyEmptyReason
-} from './studySessionTypes'
-
-import { useAuthSession } from '../../composables/useAuthSession'
-import { useFeedback } from '../../composables/useFeedback'
-import { useDeckLibrary } from '../library/useDeckLibrary'
-import { useStatsSummary } from '../../app/useStatsSummary'
+} from '../features/study/studySessionTypes'
 
 const DEFAULT_PUBLIC_DECK_CACHE_LIMIT = 6
 const INTERLEAVED_STUDY_LIMIT = 24
 const INTERLEAVED_MAX_SELECTED_DECKS = 8
-const INTERLEAVED_INITIAL_SELECTED_DECKS = 4
 
 export interface StudySessionApi {
   deck(deckId: number): Promise<DeckDetail>
@@ -51,30 +48,37 @@ export interface StudySessionApi {
   review(cardId: number, rating: ReviewRating): Promise<ReviewResult>
 }
 
-const studyQueue = ref<StudyCard[]>([])
-const sessionTitle = ref('Selecione um baralho ou inicie a prática intercalada.')
-const answerVisible = ref(false)
-const studyInitialTotal = ref(0)
-const studyReviewedCount = ref(0)
-const studyRatingCounts = ref<StudyRatingCounts>(emptyStudyRatingCounts())
-const lastStudyFeedback = ref<StudyReviewFeedback | null>(null)
-const studyEmptyReason = ref<StudyEmptyReason>('idle')
-const publicStudyDeckCache = ref<LocalDeck[]>([])
-const localStates = ref(loadLocalStates())
-const interleavedSelection = ref<InterleavedSelectionState>(emptyInterleavedSelection())
-const currentStudyRequest = ref<DueRequestOptions | null>(null)
+export const useStudyStore = defineStore('study', () => {
+  const authStore = useAuthStore()
+  const { user } = storeToRefs(authStore)
+  const feedbackStore = useFeedbackStore()
+  const libraryStore = useLibraryStore()
+  const statsStore = useStatsStore()
 
-export function useStudySession({
-  client = api,
-  publicDeckCacheLimit = DEFAULT_PUBLIC_DECK_CACHE_LIMIT
-}: {
-  client?: StudySessionApi
-  publicDeckCacheLimit?: number
-} = {}) {
-  const { user } = useAuthSession()
-  const { showNotice, withFeedback } = useFeedback()
-  const { publicDecks, myDecks, loadPublicDecks, loadMyDecks } = useDeckLibrary({ librarySection: ref('mine') })
-  const { refreshStats } = useStatsSummary()
+  const studyQueue = ref<StudyCard[]>([])
+  const sessionTitle = ref('Selecione um baralho ou inicie a prática intercalada.')
+  const answerVisible = ref(false)
+  const studyInitialTotal = ref(0)
+  const studyReviewedCount = ref(0)
+  const studyRatingCounts = ref<StudyRatingCounts>(emptyStudyRatingCounts())
+  const lastStudyFeedback = ref<StudyReviewFeedback | null>(null)
+  const studyEmptyReason = ref<StudyEmptyReason>('idle')
+  const publicStudyDeckCache = ref<LocalDeck[]>([])
+  const localStates = ref(loadLocalStates())
+  const interleavedSelection = ref<InterleavedSelectionState>(emptyInterleavedSelection())
+  const currentStudyRequest = ref<DueRequestOptions | null>(null)
+
+  let client: StudySessionApi = api
+  let publicDeckCacheLimit = DEFAULT_PUBLIC_DECK_CACHE_LIMIT
+
+  function setClient(newClient: StudySessionApi) {
+    client = newClient
+  }
+
+  function setPublicDeckCacheLimit(limit: number) {
+    publicDeckCacheLimit = limit
+  }
+
   const currentCard = computed(() => studyQueue.value[0])
   const frontHtml = computed(() => currentCard.value ? safeStudyHtml(currentCard.value.frontHtml, currentCard.value.deckId) : '')
   const backHtml = computed(() => currentCard.value ? safeStudyHtml(currentCard.value.backHtml, currentCard.value.deckId) : '')
@@ -187,7 +191,7 @@ export function useStudySession({
   async function loadStudyDeck(deckId: number) {
     answerVisible.value = false
 
-    await withFeedback(async () => {
+    await feedbackStore.withFeedback(async () => {
       const metadata = await client.deckMetadata(deckId).catch(() => null)
       sessionTitle.value = metadata?.title ?? 'Baralho'
       let cards: StudyCard[]
@@ -210,9 +214,9 @@ export function useStudySession({
       setStudySessionCards(cards, emptyReason)
       if (cards.length === 0) {
         if (emptyReason === 'limit-reached') {
-          showNotice('Voce atingiu o limite diario de estudos.')
+          feedbackStore.showNotice('Voce atingiu o limite diario de estudos.')
         } else {
-          showNotice('Nenhum card vencido agora para esta sessao.')
+          feedbackStore.showNotice('Nenhum card vencido agora para esta sessao.')
         }
       }
     })
@@ -228,25 +232,25 @@ export function useStudySession({
     lastStudyFeedback.value = null
     studyEmptyReason.value = 'idle'
 
-    await withFeedback(async () => {
+    await feedbackStore.withFeedback(async () => {
       if (user.value) {
-        if (myDecks.value.length === 0) {
-          await loadMyDecks(true)
+        if (libraryStore.myDecks.length === 0) {
+          await libraryStore.loadMyDecks(undefined, undefined, true)
         }
-        if (publicDecks.value.length === 0) {
-          await loadPublicDecks(true)
+        if (libraryStore.publicDecks.length === 0) {
+          await libraryStore.loadPublicDecks(undefined, undefined, true)
         }
-      } else if (publicDecks.value.length === 0) {
-        await loadPublicDecks(true)
+      } else if (libraryStore.publicDecks.length === 0) {
+        await libraryStore.loadPublicDecks(undefined, undefined, true)
       }
 
-      const options = interleavedDeckOptions(user.value ? myDecks.value : [], publicDecks.value, Boolean(user.value))
+      const options = interleavedDeckOptions(user.value ? libraryStore.myDecks : [], libraryStore.publicDecks, Boolean(user.value))
       const validSelectedIds = initialSelectedIds
         .filter((id) => options.some((opt) => opt.id === id))
         .slice(0, INTERLEAVED_MAX_SELECTED_DECKS)
 
       const currentDeckId = currentStudyRequest.value && 'deckId' in currentStudyRequest.value 
-        ? currentStudyRequest.value.deckId 
+        ? (currentStudyRequest.value.deckId ?? null)
         : null
 
       interleavedSelection.value = {
@@ -261,14 +265,14 @@ export function useStudySession({
   async function startInterleavedPracticeSession() {
     const selectedIds = interleavedSelection.value.selectedIds
     if (selectedIds.length === 0) {
-      showNotice('Selecione pelo menos um baralho para iniciar.')
+      feedbackStore.showNotice('Selecione pelo menos um baralho para iniciar.')
       return
     }
 
     sessionTitle.value = 'Pratica intercalada'
     answerVisible.value = false
 
-    await withFeedback(async () => {
+    await feedbackStore.withFeedback(async () => {
       let cards: StudyCard[]
       let emptyReason: StudyEmptyReason = 'no-due'
 
@@ -300,9 +304,9 @@ export function useStudySession({
       setStudySessionCards(cards, emptyReason)
       if (cards.length === 0) {
         if (emptyReason === 'limit-reached') {
-          showNotice('Voce atingiu o limite diario de estudos.')
+          feedbackStore.showNotice('Voce atingiu o limite diario de estudos.')
         } else {
-          showNotice('Pratica intercalada sem cards vencidos agora.')
+          feedbackStore.showNotice('Pratica intercalada sem cards vencidos agora.')
         }
       }
     })
@@ -328,7 +332,7 @@ export function useStudySession({
       return
     }
 
-    await withFeedback(async () => {
+    await feedbackStore.withFeedback(async () => {
       let feedback: StudyReviewFeedback | null = null
       if (card.local) {
         const result = nextReview(localStates.value[card.clientId], rating)
@@ -339,7 +343,7 @@ export function useStudySession({
         const result = await client.review(card.cardId, rating)
         feedback = studyFeedbackFromReviewResult(result)
         if (user.value) {
-          await refreshStats()
+          await statsStore.refreshStats()
         }
       }
       completeCurrentReview(rating, feedback)
@@ -406,9 +410,11 @@ export function useStudySession({
     reviewCurrent,
     clearPublicStudyDeckCache,
     skipCurrentCard,
-    __reloadLocalStatesForTesting
+    __reloadLocalStatesForTesting,
+    setClient,
+    setPublicDeckCacheLimit
   }
-}
+})
 
 export function interleaveDeckCardGroups(groups: StudyCard[][], limit = INTERLEAVED_STUDY_LIMIT) {
   const mixed: StudyCard[] = []

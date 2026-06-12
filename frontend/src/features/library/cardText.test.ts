@@ -1,8 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import {  describe, expect, it , beforeEach } from 'vitest'
 import type { CardResponse } from '../../types/api'
 import { cardTextSummary, fallbackCardLabel, mergeCardsPages, splitTags } from './cardText'
 
 describe('cardText', () => {
+  beforeEach(() => { setActivePinia(createPinia()) })
+
   it('separa tags por virgula removendo espacos e entradas vazias', () => {
     expect(splitTags(' anatomia, , fisiologia ,')).toEqual(['anatomia', 'fisiologia'])
   })

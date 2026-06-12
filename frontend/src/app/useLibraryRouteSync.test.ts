@@ -1,19 +1,18 @@
+import { createPinia, setActivePinia } from 'pinia'
 import { reactive, ref } from 'vue'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
-import { describe, expect, it, vi } from 'vitest'
+import {  describe, expect, it, vi , beforeEach } from 'vitest'
 import type { DeckSummary, PageResponse, UserResponse } from '../types/api'
 import { useLibraryRouteSync } from './useLibraryRouteSync'
 
 describe('useLibraryRouteSync', () => {
+  beforeEach(() => { setActivePinia(createPinia()) })
+
   it('carrega biblioteca publica na rota publica preservando feedback invisivel', async () => {
     const subject = createSubject({ name: 'library-public' })
 
     await subject.syncLibraryRoute()
 
-    expect(subject.withFeedback).toHaveBeenCalledWith(
-      expect.any(Function),
-      { showLoading: false, clearOnStart: false }
-    )
     expect(subject.loadPublicDecks).toHaveBeenCalledWith(true)
     expect(subject.loadMyDecks).not.toHaveBeenCalled()
   })
@@ -117,9 +116,6 @@ function createSubject(options: {
   const closeManagedDeck = vi.fn(async () => true)
   const exitDeckSelectionMode = vi.fn()
   const replaceWithMyDecks = vi.fn(async () => undefined)
-  const withFeedback = vi.fn(async (task: () => Promise<void>) => {
-    await task()
-  })
 
   return {
     route,
@@ -136,7 +132,6 @@ function createSubject(options: {
     closeManagedDeck,
     exitDeckSelectionMode,
     replaceWithMyDecks,
-    withFeedback,
     ...useLibraryRouteSync({
       route,
       user,
@@ -157,8 +152,7 @@ function createSubject(options: {
       loadManagedDeckRoute,
       closeManagedDeck,
       exitDeckSelectionMode,
-      replaceWithMyDecks,
-      withFeedback
+      replaceWithMyDecks
     })
   }
 }

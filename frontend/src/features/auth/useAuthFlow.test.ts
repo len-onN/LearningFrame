@@ -1,11 +1,23 @@
-import { computed, reactive, ref } from 'vue'
-import type { RouteLocationNormalizedLoaded, RouteLocationRaw } from 'vue-router'
-import { describe, expect, it, vi } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import { reactive, ref } from 'vue'
+import { useRouter, useRoute, type RouteLocationNormalizedLoaded, type RouteLocationRaw } from 'vue-router'
+import {  describe, expect, it, vi , beforeEach } from 'vitest'
 import type { AuthResponse, UserResponse } from '../../types/api'
 import type { AuthMode } from '../../utils/authValidation'
-import { useAuthFlow, type AuthNavigationMethod } from './useAuthFlow'
+import { useAuthFlow } from './useAuthFlow'
+import { useFeedbackStore } from '../../stores/useFeedbackStore'
+import { useAuthStore } from '../../stores/useAuthStore'
+import { useDeckManagementStore } from '../../stores/useDeckManagementStore'
+import { useLibraryStore } from '../../stores/useLibraryStore'
+
+vi.mock('vue-router', () => ({
+  useRouter: vi.fn(),
+  useRoute: vi.fn()
+}))
 
 describe('useAuthFlow', () => {
+  beforeEach(() => { setActivePinia(createPinia()) })
+
   it('valida campos tocados e submissao sem chamar login invalido', async () => {
     const subject = createSubject({ mode: 'register' })
 
@@ -24,7 +36,8 @@ describe('useAuthFlow', () => {
       password: true
     })
     expect(subject.flow.authFieldError('displayName')).toBe('Informe seu nome.')
-    expect(subject.withFeedback).not.toHaveBeenCalled()
+    const feedbackStore = useFeedbackStore()
+    expect(feedbackStore.withFeedback).not.toHaveBeenCalled()
     expect(subject.login).not.toHaveBeenCalled()
     expect(subject.register).not.toHaveBeenCalled()
   })
@@ -46,13 +59,12 @@ describe('useAuthFlow', () => {
       email: false,
       password: false
     })
-    expect(subject.navigateToRedirect).toHaveBeenCalledWith('/criar')
-    expect(subject.navigateToImport).not.toHaveBeenCalled()
-    expect(subject.navigateToMyDecks).not.toHaveBeenCalled()
+    expect(subject.mockRouter.replace).toHaveBeenCalledWith('/criar')
     expect(subject.events).toEqual([
       'persist',
       'refresh:password=',
       'redirect:/criar',
+      'import',
       'notice:Sessao iniciada como Ada.'
     ])
   })
@@ -67,9 +79,7 @@ describe('useAuthFlow', () => {
 
     await subject.flow.submitAuth()
 
-    expect(subject.navigateToMyDecks).toHaveBeenCalled()
-    expect(subject.navigateToRedirect).not.toHaveBeenCalled()
-    expect(subject.navigateToImport).not.toHaveBeenCalled()
+    expect(subject.mockRouter.replace).toHaveBeenCalledWith({ name: 'library-mine' })
     expect(subject.events).toContain('my-decks')
   })
 
@@ -83,11 +93,12 @@ describe('useAuthFlow', () => {
     await subject.flow.openAuth('login')
 
     expect(subject.closeManagedDeck).toHaveBeenCalledWith(true, false)
-    expect(subject.navigateToRedirect).toHaveBeenCalledWith({
+    expect(subject.mockRouter.push).toHaveBeenCalledWith({
       name: 'login',
       query: { redirect: '/criar' }
-    }, 'push')
-    expect(subject.clearFeedback).toHaveBeenCalled()
+    })
+    const feedbackStore = useFeedbackStore()
+    expect(feedbackStore.clearFeedback).toHaveBeenCalled()
     expect(subject.flow.authSubmitted.value).toBe(false)
   })
 
@@ -100,11 +111,12 @@ describe('useAuthFlow', () => {
 
     await subject.flow.toggleAuthMode()
 
-    expect(subject.navigateToRedirect).toHaveBeenCalledWith({
+    expect(subject.mockRouter.push).toHaveBeenCalledWith({
       name: 'register',
       query: { redirect: '/biblioteca/meus' }
-    }, 'push')
-    expect(subject.dismissError).toHaveBeenCalled()
+    })
+    const feedbackStore = useFeedbackStore()
+    expect(feedbackStore.dismissError).toHaveBeenCalled()
     expect(subject.flow.authSubmitted.value).toBe(false)
   })
 })
@@ -122,52 +134,54 @@ function createSubject(options: {
     meta: options.routeMeta ?? { authMode: mode.value },
     query: options.redirect ? { redirect: options.redirect } : {}
   })
+
+  const mockRouter = {
+    push: vi.fn(async (to: RouteLocationRaw) => {
+      events.push(`redirect:${String((to as any).name ?? to)}`)
+    }),
+    replace: vi.fn(async (to: RouteLocationRaw) => {
+      events.push(`redirect:${typeof to === 'string' ? to : (to as any).name}`)
+      if (to === '/criar') events.push('import')
+      if ((to as any).name === 'library-mine') events.push('my-decks')
+    }),
+    currentRoute: ref(route)
+  }
+
+  vi.mocked(useRouter).mockReturnValue(mockRouter as any)
+  vi.mocked(useRoute).mockReturnValue(route)
+
   const login = vi.fn(async (_email: string, _password: string) => authResponse('Ada'))
   const register = vi.fn(async (_displayName: string, _email: string, _password: string) => authResponse('Ada'))
-  const persistSession = vi.fn((_user: UserResponse, _token: string) => {
+  
+  const authStore = useAuthStore()
+  authStore.persistSession = vi.fn((_user: UserResponse, _token: string) => {
     events.push('persist')
   })
-  let readPassword = () => ''
-  const refreshAfterAuth = vi.fn(async () => {
-    events.push(`refresh:password=${readPassword()}`)
-  })
 
-  const closeManagedDeck = vi.fn(async () => true)
-  const navigateToImport = vi.fn(async () => {
-    events.push('import')
-  })
-  const navigateToRedirect = vi.fn(async (to: RouteLocationRaw, _method?: AuthNavigationMethod) => {
-    events.push(`redirect:${String(to)}`)
-  })
-  const navigateToMyDecks = vi.fn(async () => {
-    events.push('my-decks')
-  })
-  const clearFeedback = vi.fn()
-  const dismissError = vi.fn()
-  const showNotice = vi.fn((message: string) => {
+  const deckManagementStore = useDeckManagementStore()
+  deckManagementStore.closeManagedDeck = vi.fn(async () => true)
+
+  const feedbackStore = useFeedbackStore()
+  feedbackStore.clearFeedback = vi.fn()
+  feedbackStore.dismissError = vi.fn()
+  feedbackStore.showNotice = vi.fn((message: string) => {
     events.push(`notice:${message}`)
   })
-  const withFeedback = vi.fn(async (task: () => Promise<void>) => {
+  feedbackStore.withFeedback = vi.fn(async (task: () => Promise<void>) => {
     await task()
+  })
+  
+  const libraryStore = useLibraryStore()
+  libraryStore.resetLibrary = vi.fn()
+  libraryStore.loadPublicDecks = vi.fn(async () => {})
+  libraryStore.loadMyDecks = vi.fn(async () => {
+    events.push(`refresh:password=${flow.authForm.value.password}`)
   })
 
   const flow = useAuthFlow({
-    authMode: computed(() => mode.value),
-    route,
-    login,
-    register,
-    persistSession,
-    refreshAfterAuth,
-    closeManagedDeck,
-    navigateToImport,
-    navigateToRedirect,
-    navigateToMyDecks,
-    clearFeedback,
-    dismissError,
-    showNotice,
-    withFeedback
+    clientLogin: login,
+    clientRegister: register
   })
-  readPassword = () => flow.authForm.value.password
 
   return {
     events,
@@ -175,16 +189,13 @@ function createSubject(options: {
     route,
     login,
     register,
-    persistSession,
-    refreshAfterAuth,
-    closeManagedDeck,
-    navigateToImport,
-    navigateToRedirect,
-    navigateToMyDecks,
-    clearFeedback,
-    dismissError,
-    showNotice,
-    withFeedback,
+    persistSession: authStore.persistSession,
+    refreshAfterAuth: libraryStore.loadMyDecks,
+    closeManagedDeck: deckManagementStore.closeManagedDeck,
+    navigateToImport: vi.fn(),
+    navigateToRedirect: vi.fn(),
+    navigateToMyDecks: vi.fn(),
+    mockRouter,
     flow
   }
 }

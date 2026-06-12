@@ -1,8 +1,11 @@
+import { createPinia, setActivePinia } from 'pinia'
 import { effectScope, nextTick, ref } from 'vue'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import {  afterEach, describe, expect, it, vi , beforeEach } from 'vitest'
 import { useDebouncedWatch } from './useDebouncedWatch'
 
 describe('useDebouncedWatch', () => {
+  beforeEach(() => { setActivePinia(createPinia()) })
+
   afterEach(() => {
     vi.useRealTimers()
   })

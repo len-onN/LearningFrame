@@ -129,6 +129,13 @@ router.beforeEach((to) => {
   }
 })
 
+router.afterEach((to, from) => {
+  import('../stores/useFeedbackStore').then(({ useFeedbackStore }) => {
+    const feedbackStore = useFeedbackStore()
+    feedbackStore.clearFeedbackForRouteChange(from.fullPath, to.fullPath)
+  })
+})
+
 declare module 'vue-router' {
   interface RouteMeta {
     title?: string

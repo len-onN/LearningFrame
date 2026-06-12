@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 import type { UserResponse } from '../types/api'
-import type { FeedbackOptions } from '../composables/useFeedback'
+import { useFeedbackStore } from '../stores/useFeedbackStore'
 import { useDebouncedWatch } from '../composables/useDebouncedWatch'
 import type { LibrarySection } from '../features/library/libraryTypes'
 
@@ -13,11 +13,6 @@ export interface LibrarySearchLifecycleOptions {
   loadMyDecks: (reset?: boolean) => Promise<void>
   shouldLoadPublicDecks?: () => boolean
   shouldLoadMyDecks?: () => boolean
-  withFeedback: (
-    task: () => Promise<void>,
-    optionsOrShowLoading?: FeedbackOptions | boolean,
-    legacyClearOnStart?: boolean
-  ) => Promise<void>
 }
 
 export function useLibrarySearchLifecycle({
@@ -28,15 +23,16 @@ export function useLibrarySearchLifecycle({
   loadPublicDecks,
   loadMyDecks,
   shouldLoadPublicDecks = () => true,
-  shouldLoadMyDecks = () => true,
-  withFeedback
+  shouldLoadMyDecks = () => true
 }: LibrarySearchLifecycleOptions) {
+  const feedbackStore = useFeedbackStore()
+
   useDebouncedWatch(librarySearch, () => {
     if (librarySection.value === 'public' && shouldLoadPublicDecks()) {
-      void withFeedback(async () => loadPublicDecks(true), { showLoading: false })
+      void feedbackStore.withFeedback(async () => loadPublicDecks(true), { showLoading: false })
     }
     if (librarySection.value === 'mine' && user.value && shouldLoadMyDecks()) {
-      void withFeedback(async () => loadMyDecks(true), { showLoading: false })
+      void feedbackStore.withFeedback(async () => loadMyDecks(true), { showLoading: false })
     }
   }, delayMs)
 }

@@ -362,3 +362,53 @@ Decisão:
 Estado atual:
 - Editor funcional implementado.
 - Gravação de áudio web nativa habilitada no ambiente Tiptap.
+
+## 16. Migração do Gerenciamento de Feedback Global para Pinia
+
+Problema:
+- A reatividade global com Vue puro (exportando `ref` do módulo `useFeedback`) no App.vue começou a vazar ou ficar instável quando instanciada ou injetada em diferentes ciclos de vida e em Testes (Vitest).
+- `onScopeDispose` alertava memory leaks dependendo de onde o composable `useDeckManagement` ou o `useFeedback` estivesse sendo instanciado.
+
+Alternativas consideradas:
+- Refatorar a reatividade global do Vue injetando provide/inject da raiz para os filhos.
+- Introduzir a store oficial (Pinia) estritamente para o gerenciamento de estado global e transversais como Feedback, Loading e Autenticação.
+
+Decisão:
+- **Pinia**: Adotado para o estado global de feedback (`useFeedbackStore`).
+- Mantivemos a API exposta na interface (`showError`, `showNotice`, `withFeedback`) quase inalterada para minimizar a dor da migração.
+- Padronizamos o `beforeEach` nos testes do Vitest injetando o `setActivePinia(createPinia())` para isolar ambientes de teste limpos sem poluição global.
+- Movemos as instâncias reativas como `useDeckManagement` para fora dos loops de template lambda (`renderList`) que causavam o alarme de `onScopeDispose` do Vue.
+
+Estado atual:
+- `useFeedback` antigo substituído por `useFeedbackStore` em toda a base de código.
+- Configurado plugin Pinia no Vite.
+- Bugs de reatividade fora de escopo resolvidos com segurança e testes unitários (Vitest) passando no CI local com sucesso.
+
+## 17. Desacoplamento de Estado (Pinia) - Fases 2 e 3 (Auth e Library)
+
+Problema:
+- O `App.vue` ainda detinha muito estado vital, como Autenticação e coleções de baralhos. Como as Fases 2 e 3 da transição visavam tirar essa carga da view, os testes de E2E e Unitários ficavam com difícil configuração por "Provide/Inject" verbosos no `App.vue`.
+
+Decisão:
+- **useAuthStore**: Isolou toda a lógica do token JWT, estado atual do usuário e funções de persistência.
+- **useLibraryStore** e **useDeckManagementStore**: Abstrações responsáveis por buscar páginas de baralhos e gerenciar exclusão e modificação no modo de edição contextual da aplicação.
+- Componentes e Views agora invocam o Pinia (que atua como uma fachada sobre os composables) sem onerar o componente Raiz. O App.vue caiu centenas de linhas a mais.
+
+Estado atual:
+- Componentes refatorados.
+- Testes mockando Pinia corretamente, mantendo 100% de passagem nos Unitários (Vitest) e E2E (Playwright).
+
+## 18. Finalização da Migração Pinia e Limpeza de Código
+
+Problema:
+- Após as refatorações arquiteturais para adoção do Pinia, acumulou-se lixo no código: variáveis de estado sem uso, rotinas de gerenciamento de estado obsoletas (legacy injects/provides), imports de componentes e funções que deixaram de existir, e console.logs de depuração esquecidos.
+
+Decisão:
+- **vue-tsc rigoroso**: Habilitamos temporariamente regras restritas (`noUnusedLocals`, `noUnusedParameters`) no `tsconfig.json` para realizar uma varredura completa da base de código do frontend com o compilador TypeScript.
+- **Limpeza Sistemática**: Todos os falsos positivos, variáveis de retorno não consumidas, metadados sem utilidade, e lixos residuais nos testes unitários e de integração E2E foram limpos e validados por builds determinísticos.
+- **Remoção de Logs**: Retirou-se as saídas no console não intencionais tanto de artefatos de debug (ex. rotas de importação apkg) quanto hooks reativos que deixaram de ser problemáticos com a entrada do Pinia.
+
+Estado atual:
+- A base de código está 100% livre de warnings do TS.
+- Testes continuam 100% passando após a deleção de dezenas de imports não utilizados e variáveis vazias.
+- O build final do Vite é otimizado e seguro, consolidando o encerramento da fase de migração.

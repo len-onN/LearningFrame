@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import {  describe, expect, it , beforeEach } from 'vitest'
 import { createApkgMediaIndex } from './apkgMedia'
 
 describe('indice de midia APKG', () => {
+  beforeEach(() => { setActivePinia(createPinia()) })
+
   it('le midia mapeada no pacote sem persistir o arquivo', async () => {
     const file = new File([
       storedZip({

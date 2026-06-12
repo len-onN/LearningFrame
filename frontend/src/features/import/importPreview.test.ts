@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import {  describe, expect, it , beforeEach } from 'vitest'
 import {
   htmlSummary,
   previewCardOptionLabel,
@@ -7,6 +8,8 @@ import {
 } from './importPreview'
 
 describe('importPreview', () => {
+  beforeEach(() => { setActivePinia(createPinia()) })
+
   it('formata titulo da carta considerando total quando disponivel', () => {
     expect(previewCardTitle(0, 3)).toBe('Carta 1 de 3')
     expect(previewCardTitle(0, 0)).toBe('Carta 1')

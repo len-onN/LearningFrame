@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { api } from '../../services/api'
-import { useAuthSession } from '../../composables/useAuthSession'
+import { useAuthStore } from '../../stores/useAuthStore'
+import { storeToRefs } from 'pinia'
 
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'deleted'): void
 }>()
 
-const { user } = useAuthSession()
+const authStore = useAuthStore()
+const { user } = storeToRefs(authStore)
 
 const confirmationEmail = ref('')
 const loading = ref(false)

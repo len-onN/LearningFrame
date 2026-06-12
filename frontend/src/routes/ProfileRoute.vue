@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { api } from '../services/api'
-import { useAuthSession } from '../composables/useAuthSession'
+import { useAuthStore } from '../stores/useAuthStore'
+import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import AccountDeleteModal from '../features/profile/AccountDeleteModal.vue'
 
-const { user, updateDisplayName, clearSession } = useAuthSession()
+const authStore = useAuthStore()
+const { user } = storeToRefs(authStore)
 const router = useRouter()
 
-const loading = ref(false)
 const savingName = ref(false)
 const savingPass = ref(false)
 const errorName = ref('')
@@ -39,7 +40,7 @@ async function saveDisplayName() {
   noticeName.value = ''
   try {
     await api.updateDisplayName(formName.value.displayName)
-    updateDisplayName(formName.value.displayName)
+    authStore.updateDisplayName(formName.value.displayName)
     noticeName.value = 'Nome de exibição atualizado com sucesso!'
     setTimeout(() => { noticeName.value = '' }, 3000)
   } catch (err: any) {
@@ -72,7 +73,7 @@ function confirmDelete() {
 
 async function handleAccountDeleted() {
   showDeleteModal.value = false
-  clearSession()
+  authStore.clearSession()
   await router.push('/entrar')
 }
 </script>

@@ -1,17 +1,26 @@
-import { describe, expect, it, vi } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import {  describe, expect, it, vi , beforeEach } from 'vitest'
 import type { DeckSummary, DeckVisibility } from '../../types/api'
 import { useCreateDeckFlow, type CreateDeckApi } from './useCreateDeckFlow'
+import { useFeedbackStore } from '../../stores/useFeedbackStore'
+import { useLibraryStore } from '../../stores/useLibraryStore'
+import { useDeckManagementStore } from '../../stores/useDeckManagementStore'
+import { useRouter } from 'vue-router'
+
+vi.mock('vue-router', () => ({
+  useRouter: vi.fn()
+}))
 
 describe('useCreateDeckFlow', () => {
+  beforeEach(() => { setActivePinia(createPinia()) })
+
   it('cria baralho, reseta formulario e abre gerenciamento', async () => {
     const {
       client,
       flow,
-      loadMyDecks,
-      navigateToManagedDeck,
-      setManagedDeck,
-      showNotice,
-      withFeedback
+      mockRouter,
+      libraryStore,
+      deckManagementStore
     } = createSubject()
     const created = deck(42, 'Neuro', {
       description: 'Memoria',
@@ -26,47 +35,51 @@ describe('useCreateDeckFlow', () => {
 
     await flow.createDeck()
 
-    expect(withFeedback).toHaveBeenCalledWith(expect.any(Function))
+    const feedbackStore = useFeedbackStore()
+    expect(feedbackStore.withFeedback).toHaveBeenCalledWith(expect.any(Function))
     expect(client.createDeck).toHaveBeenCalledWith('Neuro', 'Memoria', 'PUBLIC')
     expect(flow.deckForm.value).toEqual({
       title: '',
       description: '',
       visibility: 'PRIVATE'
     })
-    expect(loadMyDecks).toHaveBeenCalledWith(true)
-    expect(setManagedDeck).toHaveBeenCalledWith(created)
-    expect(navigateToManagedDeck).toHaveBeenCalledWith(42)
-    expect(showNotice).toHaveBeenCalledWith('Baralho criado. Adicione as primeiras cartas.')
+    expect(libraryStore.loadMyDecks).toHaveBeenCalledWith(true)
+    expect(deckManagementStore.setManagedDeck).toHaveBeenCalledWith(created)
+    expect(mockRouter.push).toHaveBeenCalledWith({ name: 'library-deck-manage', params: { deckId: 42 } })
+    expect(feedbackStore.showNotice).toHaveBeenCalledWith('Baralho criado. Adicione as primeiras cartas.')
   })
 })
 
 function createSubject() {
   const client = createClient()
-  const loadMyDecks = vi.fn(async () => undefined)
-  const setManagedDeck = vi.fn()
-  const navigateToManagedDeck = vi.fn(async () => undefined)
-  const showNotice = vi.fn()
-  const withFeedback = vi.fn(async (task: () => Promise<void>) => {
+  
+  const mockRouter = {
+    push: vi.fn()
+  }
+  vi.mocked(useRouter).mockReturnValue(mockRouter as any)
+
+  const feedbackStore = useFeedbackStore()
+  feedbackStore.showNotice = vi.fn()
+  feedbackStore.withFeedback = vi.fn(async (task: () => Promise<void>) => {
     await task()
   })
 
+  const libraryStore = useLibraryStore()
+  libraryStore.loadMyDecks = vi.fn(async () => undefined)
+
+  const deckManagementStore = useDeckManagementStore()
+  deckManagementStore.setManagedDeck = vi.fn()
+
   const flow = useCreateDeckFlow({
-    client,
-    loadMyDecks,
-    setManagedDeck,
-    navigateToManagedDeck,
-    showNotice,
-    withFeedback
+    client
   })
 
   return {
     client,
     flow,
-    loadMyDecks,
-    setManagedDeck,
-    navigateToManagedDeck,
-    showNotice,
-    withFeedback
+    mockRouter,
+    libraryStore,
+    deckManagementStore
   }
 }
 

@@ -1,12 +1,13 @@
+import { createPinia, setActivePinia } from 'pinia'
 import { ref } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 import type { DeckSummary, UserResponse } from '../../types/api'
 import { useLibraryActions, type LibraryActionsApi } from './useLibraryActions'
 import { useRouter } from 'vue-router'
-import { useAuthSession } from '../../composables/useAuthSession'
-import { useFeedback } from '../../composables/useFeedback'
+import { useAuthStore } from '../../stores/useAuthStore'
+import { useFeedbackStore } from '../../stores/useFeedbackStore'
 import { useDeckLibrary } from './useDeckLibrary'
-import { useStatsSummary } from '../../app/useStatsSummary'
+import { useStatsStore } from '../../stores/useStatsStore'
 import { useDeckManagement } from './useDeckManagement'
 import { useAuthFlow } from '../auth/useAuthFlow'
 
@@ -14,20 +15,16 @@ vi.mock('vue-router', () => ({
   useRouter: vi.fn()
 }))
 
-vi.mock('../../composables/useAuthSession', () => ({
-  useAuthSession: vi.fn()
-}))
-
-vi.mock('../../composables/useFeedback', () => ({
-  useFeedback: vi.fn()
+vi.mock('../../stores/useAuthStore', () => ({
+  useAuthStore: vi.fn()
 }))
 
 vi.mock('./useDeckLibrary', () => ({
   useDeckLibrary: vi.fn()
 }))
 
-vi.mock('../../app/useStatsSummary', () => ({
-  useStatsSummary: vi.fn()
+vi.mock('../../stores/useStatsStore', () => ({
+  useStatsStore: vi.fn()
 }))
 
 vi.mock('./useDeckManagement', () => ({
@@ -141,6 +138,7 @@ function createSubject(options: {
   selectedIds?: number[]
   confirm?: (message: string) => boolean
 } = {}) {
+  setActivePinia(createPinia())
   const client = createClient()
   const user = ref<UserResponse | null>(options.user ?? null)
   const librarySearch = ref(options.librarySearch ?? '')
@@ -159,6 +157,9 @@ function createSubject(options: {
   const withFeedback = vi.fn(async (task: () => Promise<void>) => {
     await task()
   })
+  const feedbackStore = useFeedbackStore()
+  try { feedbackStore.showNotice = showNotice as any } catch(e) {}
+  try { feedbackStore.withFeedback = withFeedback as any } catch(e) {}
   const confirm = options.confirm ?? vi.fn(() => true)
 
   vi.mocked(useRouter).mockReturnValue({
@@ -167,15 +168,11 @@ function createSubject(options: {
     currentRoute: ref({ name: 'library-public' })
   } as any)
 
-  vi.mocked(useAuthSession).mockReturnValue({
+  vi.mocked(useAuthStore).mockReturnValue({
     user
   } as any)
 
-  vi.mocked(useFeedback).mockReturnValue({
-    showNotice,
-    withFeedback
-  } as any)
-
+  
   vi.mocked(useDeckLibrary).mockReturnValue({
     librarySearch,
     selectedMyDeckIds,
@@ -186,7 +183,7 @@ function createSubject(options: {
     clearMyDeckSelection
   } as any)
 
-  vi.mocked(useStatsSummary).mockReturnValue({
+  vi.mocked(useStatsStore).mockReturnValue({
     refreshStats
   } as any)
 

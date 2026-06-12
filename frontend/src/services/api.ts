@@ -121,7 +121,8 @@ export const api = {
     return request<PageResponse<DeckSummary>>(`/api/decks/public?${params.toString()}`)
   },
   myDecks(page = 0, size = 8, query = '') {
-    const params = new URLSearchParams({ page: String(page), size: String(size) })
+
+    const params = new URLSearchParams({ page: String(page), size: String(size), _t: String(Date.now()) })
     if (query.trim()) {
       params.set('q', query.trim())
     }
