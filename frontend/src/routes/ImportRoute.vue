@@ -1,30 +1,38 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { onBeforeUnmount, onMounted } from 'vue'
 import ImportPage from '../pages/ImportPage.vue'
-import { importRouteKey, useRequiredRouteContext } from './routeContext'
+import { useApkgImport } from '../features/import/useApkgImport'
+import { useAuthStore } from '../stores/useAuthStore'
+import { storeToRefs } from 'pinia'
+import { useFeedbackStore } from '../stores/useFeedbackStore'
 
-const importFlow = useRequiredRouteContext(importRouteKey, 'Import')
 
-const importTitle = computed({
-  get: () => importFlow.importTitle.value,
-  set: (value: string) => {
-    importFlow.importTitle.value = value
+const importFlow = useApkgImport()
+const importTitle = importFlow.importTitle
+const importVisibility = importFlow.importVisibility
+const authStore = useAuthStore()
+const { user } = storeToRefs(authStore)
+const feedbackStore = useFeedbackStore()
+
+
+onBeforeUnmount(() => {
+  importFlow.disposeApkgImport()
+})
+
+onMounted(() => {
+  if (importFlow.importPreview.value) {
+    importFlow.showPreviewCard(importFlow.previewCardIndex.value, importFlow.previewFace.value)
   }
 })
-const importVisibility = computed({
-  get: () => importFlow.importVisibility.value,
-  set: (value) => {
-    importFlow.importVisibility.value = value
-  }
-})
+
 </script>
 
 <template>
   <ImportPage
-    v-model:import-title="importTitle"
-    v-model:import-visibility="importVisibility"
+    v-model:importTitle="importTitle"
+    v-model:importVisibility="importVisibility"
     :selected-file="importFlow.selectedFile.value"
-    :loading="importFlow.loading.value"
+    :loading="feedbackStore.loading"
     :import-preview="importFlow.importPreview.value"
     :current-preview-card="importFlow.currentPreviewCard.value"
     :preview-card-index="importFlow.previewCardIndex.value"
@@ -34,7 +42,7 @@ const importVisibility = computed({
     :preview-card-options="importFlow.previewCardOptions.value"
     :preview-card-title="importFlow.previewCardTitle(importFlow.previewCardIndex.value)"
     :current-preview-html="importFlow.currentPreviewHtml.value"
-    :user="importFlow.user.value"
+    :user="user"
     @file-change="importFlow.handleApkgChange"
     @update:preview-picker-open="importFlow.previewPickerOpen.value = $event"
     @update:preview-card-search="importFlow.previewCardSearch.value = $event"

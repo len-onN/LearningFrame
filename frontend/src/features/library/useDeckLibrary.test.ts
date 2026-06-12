@@ -1,12 +1,26 @@
-import { ref } from 'vue'
-import { describe, expect, it, vi } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import { effectScope, ref } from 'vue'
+import {  afterEach, describe, expect, it, vi , beforeEach } from 'vitest'
 import type { DeckSummary, PageResponse, UserResponse } from '../../types/api'
 import { deckPageCountLabel, mergeDeckPages, normalizeSearch, useDeckLibrary } from './useDeckLibrary'
+import { useAuthStore } from '../../stores/useAuthStore'
+
+vi.mock('../../stores/useAuthStore', () => ({
+  useAuthStore: vi.fn()
+}))
 
 const publicDeck = deck(1, 'Publico')
 const myDeck = deck(2, 'Meu')
 
 describe('useDeckLibrary', () => {
+  beforeEach(() => { setActivePinia(createPinia()) })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
+  })
+
   it('mescla paginas sem duplicar decks pelo id', () => {
     expect(mergeDeckPages([
       deck(1, 'A'),
@@ -36,9 +50,9 @@ describe('useDeckLibrary', () => {
       publicDecks: vi.fn(async () => page([publicDeck], 0, 1, true)),
       myDecks: vi.fn(async () => page([], 0, 0, true))
     }
+    vi.mocked(useAuthStore).mockReturnValue({ user: ref(null) } as any)
     const library = useDeckLibrary({
       librarySection: ref('public'),
-      user: ref(null),
       pageSize: 8,
       client
     })
@@ -57,9 +71,9 @@ describe('useDeckLibrary', () => {
       publicDecks: vi.fn(async () => page([], 0, 0, true)),
       myDecks: vi.fn(async () => page([myDeck], 0, 1, true))
     }
+    vi.mocked(useAuthStore).mockReturnValue({ user: ref(null) } as any)
     const library = useDeckLibrary({
       librarySection: ref('mine'),
-      user: ref(null),
       client
     })
 
@@ -76,7 +90,8 @@ describe('useDeckLibrary', () => {
       publicDecks: vi.fn(async () => page([publicDeck], 0, 3, false)),
       myDecks: vi.fn(async () => page([myDeck], 0, 2, false))
     }
-    const library = useDeckLibrary({ librarySection, user, client })
+    vi.mocked(useAuthStore).mockReturnValue({ user } as any)
+    const library = useDeckLibrary({ librarySection, client })
 
     await library.loadPublicDecks(true)
     expect(library.activeLibraryCountLabel.value).toBe('1 de 3 baralhos')
@@ -98,9 +113,9 @@ describe('useDeckLibrary', () => {
       publicDecks: vi.fn(async () => page([], 0, 0, true)),
       myDecks: vi.fn(async () => page([myDeck], 0, 1, true))
     }
+    vi.mocked(useAuthStore).mockReturnValue({ user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }) } as any)
     const library = useDeckLibrary({
       librarySection: ref('mine'),
-      user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }),
       client
     })
 
@@ -123,9 +138,9 @@ describe('useDeckLibrary', () => {
       publicDecks: vi.fn(async () => page([], 0, 0, true)),
       myDecks: vi.fn(async () => page(decks, 0, 2, true))
     }
+    vi.mocked(useAuthStore).mockReturnValue({ user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }) } as any)
     const library = useDeckLibrary({
       librarySection: ref('mine'),
-      user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }),
       client
     })
 
@@ -150,9 +165,9 @@ describe('useDeckLibrary', () => {
         .mockResolvedValueOnce(firstPage)
         .mockResolvedValueOnce(secondPage)
     }
+    vi.mocked(useAuthStore).mockReturnValue({ user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }) } as any)
     const library = useDeckLibrary({
       librarySection: ref('mine'),
-      user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }),
       client
     })
 
@@ -161,6 +176,52 @@ describe('useDeckLibrary', () => {
     await library.loadMyDecks(true)
 
     expect([...library.selectedMyDeckIds.value]).toEqual([3])
+  })
+
+  it('destaca deck no proximo frame e limpa apos a duracao visual', async () => {
+    vi.useFakeTimers()
+    const browser = installHighlightBrowserStubs()
+    vi.mocked(useAuthStore).mockReturnValue({ user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }) } as any)
+    const library = useDeckLibrary({
+      librarySection: ref('mine'),
+      client: emptyClient()
+    })
+
+    await library.highlightDeck(2)
+
+    expect(browser.scrollIntoView).toHaveBeenCalled()
+    expect(library.highlightedDeckId.value).toBeNull()
+
+    await vi.advanceTimersByTimeAsync(16)
+    expect(library.highlightedDeckId.value).toBe(2)
+
+    await vi.advanceTimersByTimeAsync(9999)
+    expect(library.highlightedDeckId.value).toBe(2)
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(library.highlightedDeckId.value).toBeNull()
+  })
+
+  it('cancela frame pendente ao descartar o escopo do highlight', async () => {
+    vi.useFakeTimers()
+    const browser = installHighlightBrowserStubs()
+    const scope = effectScope()
+    vi.mocked(useAuthStore).mockReturnValue({ user: ref({ id: 1, displayName: 'Ada', email: 'ada@example.com' }) } as any)
+    const library = scope.run(() => useDeckLibrary({
+      librarySection: ref('mine'),
+      client: emptyClient()
+    }))
+
+    if (!library) {
+      throw new Error('Escopo de teste nao iniciado.')
+    }
+
+    await library.highlightDeck(2)
+    scope.stop()
+    await vi.advanceTimersByTimeAsync(16)
+
+    expect(browser.cancelAnimationFrame).toHaveBeenCalled()
+    expect(library.highlightedDeckId.value).toBeNull()
   })
 })
 
@@ -188,5 +249,50 @@ function page<T>(content: T[], pageNumber: number, totalElements: number, last =
     totalPages: last ? pageNumber + 1 : pageNumber + 2,
     first: pageNumber === 0,
     last
+  }
+}
+
+function emptyClient() {
+  return {
+    publicDecks: vi.fn(async () => page<DeckSummary>([], 0, 0, true)),
+    myDecks: vi.fn(async () => page<DeckSummary>([], 0, 0, true))
+  }
+}
+
+function installHighlightBrowserStubs() {
+  const scrollIntoView = vi.fn()
+  const rafTimers = new Map<number, ReturnType<typeof setTimeout>>()
+  let nextFrame = 1
+  const requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
+    const frameId = nextFrame++
+    const timer = setTimeout(() => {
+      rafTimers.delete(frameId)
+      callback(0)
+    }, 16)
+    rafTimers.set(frameId, timer)
+    return frameId
+  })
+  const cancelAnimationFrame = vi.fn((frameId: number) => {
+    const timer = rafTimers.get(frameId)
+    if (timer !== undefined) {
+      clearTimeout(timer)
+      rafTimers.delete(frameId)
+    }
+  })
+
+  vi.stubGlobal('document', {
+    querySelector: vi.fn(() => ({ scrollIntoView }))
+  })
+  vi.stubGlobal('window', {
+    setTimeout,
+    clearTimeout,
+    requestAnimationFrame,
+    cancelAnimationFrame
+  })
+
+  return {
+    scrollIntoView,
+    requestAnimationFrame,
+    cancelAnimationFrame
   }
 }

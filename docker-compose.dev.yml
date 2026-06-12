@@ -1,20 +1,19 @@
 services:
   frontend:
-    volumes:
-      - ./frontend/dist:/usr/share/nginx/html:ro
-    depends_on:
-      - backend
-      - frontend-builder
-
-  frontend-builder:
-    image: node:22-alpine
-    working_dir: /workspace
-    command: sh -c "npm ci && npm run build -- --watch"
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
     environment:
       VITE_API_BASE_URL: http://127.0.0.1:8081
     volumes:
       - ./frontend:/workspace
       - frontend-node-modules:/workspace/node_modules
+    depends_on:
+      - backend
+
+  frontend-builder:
+    image: node:22-alpine
+    profiles: ["disabled"]
 
 volumes:
   frontend-node-modules:

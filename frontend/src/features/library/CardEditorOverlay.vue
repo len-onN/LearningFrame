@@ -1,50 +1,57 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
-import { Image as ImageIcon, Save, Volume2, X } from '@lucide/vue'
-import type {
-  CardEditorFace,
-  CardEditorMediaKind,
-  CardEditorMediaUploader
-} from './cardEditorTypes'
+import { computed, ref, watch } from 'vue'
+import { Save, X } from '@lucide/vue'
+import RichTextEditor from './RichTextEditor.vue'
+import type { CardEditorFace, CardEditorMediaKind } from './cardEditorTypes'
+import { useDeckManagementStore } from '../../stores/useDeckManagementStore'
+import { storeToRefs } from 'pinia'
 
-const props = defineProps<{
-  deckTitle: string
-  title: string
-  frontPreviewHtml: string
-  backPreviewHtml: string
-  uploadMedia: CardEditorMediaUploader
-}>()
+const store = useDeckManagementStore()
 
-const emit = defineEmits<{
-  save: []
-  close: []
-  'upload-success': [kind: CardEditorMediaKind]
-  'upload-error': [message: string]
-}>()
+const {
+  managedDeck,
+  cardEditorForm,
+  cardEditorTitle: title,
+} = storeToRefs(store)
 
-const frontHtml = defineModel<string>('frontHtml', { required: true })
-const backHtml = defineModel<string>('backHtml', { required: true })
-const tags = defineModel<string>('tags', { required: true })
+const deckId = computed(() => managedDeck.value?.id ?? 0)
+const deckTitle = computed(() => managedDeck.value?.title ?? '')
 
 const activeEditorFace = ref<CardEditorFace>('front')
-const frontEditorRef = ref<HTMLTextAreaElement | null>(null)
-const backEditorRef = ref<HTMLTextAreaElement | null>(null)
+const frontEditorRef = ref<InstanceType<typeof RichTextEditor> | null>(null)
+const backEditorRef = ref<InstanceType<typeof RichTextEditor> | null>(null)
 const mediaInputRef = ref<HTMLInputElement | null>(null)
 const mediaUploadKind = ref<CardEditorMediaKind>('image')
 const uploadingMedia = ref(false)
 
-watch(() => props.title, () => {
+watch(title, () => {
   activeEditorFace.value = 'front'
-  void nextTick(() => frontEditorRef.value?.focus())
 }, { immediate: true })
 
-function triggerMediaUpload(kind: CardEditorMediaKind, face: CardEditorFace) {
+function triggerMediaUpload(kind: CardEditorMediaKind, face: CardEditorFace, file?: File) {
   if (uploadingMedia.value) {
     return
   }
   mediaUploadKind.value = kind
   activeEditorFace.value = face
-  mediaInputRef.value?.click()
+  
+  if (file) {
+    processMediaFile(file)
+  } else {
+    mediaInputRef.value?.click()
+  }
+}
+
+async function processMediaFile(file: File) {
+  uploadingMedia.value = true
+  try {
+    const marker = await store.uploadCardEditorMedia(file, mediaUploadKind.value)
+    insertIntoEditor(activeEditorFace.value, marker)
+  } catch (error) {
+    store.handleCardEditorUploadError(error instanceof Error ? error.message : 'Falha ao inserir midia.')
+  } finally {
+    uploadingMedia.value = false
+  }
 }
 
 async function handleMediaChange(event: Event) {
@@ -56,37 +63,20 @@ async function handleMediaChange(event: Event) {
     return
   }
 
-  uploadingMedia.value = true
-  try {
-    const marker = await props.uploadMedia(file, mediaUploadKind.value)
-    insertIntoEditor(activeEditorFace.value, marker)
-    emit('upload-success', mediaUploadKind.value)
-  } catch (error) {
-    emit('upload-error', error instanceof Error ? error.message : 'Falha ao inserir midia.')
-  } finally {
-    uploadingMedia.value = false
-  }
+  await processMediaFile(file)
 }
 
 function insertIntoEditor(face: CardEditorFace, text: string) {
-  const textarea = face === 'front' ? frontEditorRef.value : backEditorRef.value
-  const current = face === 'front' ? frontHtml.value : backHtml.value
-  const start = textarea?.selectionStart ?? current.length
-  const end = textarea?.selectionEnd ?? current.length
-  const nextValue = `${current.slice(0, start)}${text}${current.slice(end)}`
+  const target = face === 'front' ? frontEditorRef.value : backEditorRef.value
+  target?.insertHtml(text)
+}
 
-  if (face === 'front') {
-    frontHtml.value = nextValue
-  } else {
-    backHtml.value = nextValue
-  }
+function handleSave() {
+  void store.saveCardEditor()
+}
 
-  void nextTick(() => {
-    const target = face === 'front' ? frontEditorRef.value : backEditorRef.value
-    target?.focus()
-    const cursor = start + text.length
-    target?.setSelectionRange(cursor, cursor)
-  })
+function handleClose() {
+  store.closeCardEditor()
 }
 </script>
 
@@ -99,84 +89,54 @@ function insertIntoEditor(face: CardEditorFace, text: string) {
           <h2>{{ title }}</h2>
         </div>
         <div class="row-actions">
-          <button class="primary compact" type="button" @click="$emit('save')">
+          <button class="primary compact" type="button" @click="handleSave">
             <Save :size="16" aria-hidden="true" />
             Salvar carta
           </button>
-          <button class="ghost icon-button" type="button" title="Fechar editor" aria-label="Fechar editor" @click="$emit('close')">
+          <button class="ghost icon-button" type="button" title="Fechar editor" aria-label="Fechar editor" @click="handleClose">
             <X :size="16" aria-hidden="true" />
           </button>
         </div>
       </header>
 
       <div class="card-editor-body">
-        <form class="card-editor-form" @submit.prevent="$emit('save')">
+        <form class="card-editor-form" @submit.prevent="handleSave">
           <section class="editor-face-block">
             <div class="section-title compact-title">
               <h3>Frente</h3>
-              <div class="row-actions">
-                <button class="ghost icon-button" type="button" title="Inserir imagem na frente" aria-label="Inserir imagem na frente" :disabled="uploadingMedia" @click="triggerMediaUpload('image', 'front')">
-                  <ImageIcon :size="16" aria-hidden="true" />
-                </button>
-                <button class="ghost icon-button" type="button" title="Inserir audio na frente" aria-label="Inserir audio na frente" :disabled="uploadingMedia" @click="triggerMediaUpload('audio', 'front')">
-                  <Volume2 :size="16" aria-hidden="true" />
-                </button>
-              </div>
             </div>
-            <textarea
+            <RichTextEditor
               ref="frontEditorRef"
-              v-model="frontHtml"
-              rows="10"
-              maxlength="12000"
-              required
+              v-model="cardEditorForm.frontHtml"
+              :deck-id="deckId"
+              :uploading-media="uploadingMedia"
               aria-label="Frente da carta"
-              @focus="activeEditorFace = 'front'"
-            ></textarea>
+              @upload-media="(k, f) => triggerMediaUpload(k, 'front', f)"
+              @focusin="activeEditorFace = 'front'"
+            />
           </section>
 
           <section class="editor-face-block">
             <div class="section-title compact-title">
               <h3>Verso</h3>
-              <div class="row-actions">
-                <button class="ghost icon-button" type="button" title="Inserir imagem no verso" aria-label="Inserir imagem no verso" :disabled="uploadingMedia" @click="triggerMediaUpload('image', 'back')">
-                  <ImageIcon :size="16" aria-hidden="true" />
-                </button>
-                <button class="ghost icon-button" type="button" title="Inserir audio no verso" aria-label="Inserir audio no verso" :disabled="uploadingMedia" @click="triggerMediaUpload('audio', 'back')">
-                  <Volume2 :size="16" aria-hidden="true" />
-                </button>
-              </div>
             </div>
-            <textarea
+            <RichTextEditor
               ref="backEditorRef"
-              v-model="backHtml"
-              rows="10"
-              maxlength="12000"
-              required
+              v-model="cardEditorForm.backHtml"
+              :deck-id="deckId"
+              :uploading-media="uploadingMedia"
               aria-label="Verso da carta"
-              @focus="activeEditorFace = 'back'"
-            ></textarea>
+              @upload-media="(k, f) => triggerMediaUpload(k, 'back', f)"
+              @focusin="activeEditorFace = 'back'"
+            />
           </section>
 
           <label class="form-field">
             <span class="field-label">Tags</span>
-            <input v-model="tags" type="text" maxlength="400" placeholder="separadas por virgula" aria-label="Tags da carta" />
+            <input v-model="cardEditorForm.tags" type="text" maxlength="400" placeholder="separadas por virgula" aria-label="Tags da carta" />
           </label>
         </form>
 
-        <section class="card-editor-preview">
-          <article class="preview-pane">
-            <div class="card-meta">
-              <span>Frente</span>
-            </div>
-            <div class="preview-study-face" v-html="frontPreviewHtml"></div>
-          </article>
-          <article class="preview-pane">
-            <div class="card-meta">
-              <span>Verso</span>
-            </div>
-            <div class="preview-study-face" v-html="backPreviewHtml"></div>
-          </article>
-        </section>
       </div>
 
       <input

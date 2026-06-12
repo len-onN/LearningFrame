@@ -1,26 +1,40 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import AuthPage from '../pages/AuthPage.vue'
-import { authRouteKey, useRequiredRouteContext } from './routeContext'
+import { useAuthFlow } from '../features/auth/useAuthFlow'
 
-const auth = useRequiredRouteContext(authRouteKey, 'Auth')
+const {
+  authForm,
+  authMode,
+  authFieldError,
+  submitAuth,
+  goHome,
+  toggleAuthMode,
+  touchAuthField
+} = useAuthFlow()
 
 const displayName = computed({
-  get: () => auth.authForm.value.displayName,
+  get: () => authForm.value.displayName,
   set: (value: string) => {
-    auth.authForm.value.displayName = value
+    authForm.value.displayName = value
   }
 })
 const email = computed({
-  get: () => auth.authForm.value.email,
+  get: () => authForm.value.email,
   set: (value: string) => {
-    auth.authForm.value.email = value
+    authForm.value.email = value
   }
 })
 const password = computed({
-  get: () => auth.authForm.value.password,
+  get: () => authForm.value.password,
   set: (value: string) => {
-    auth.authForm.value.password = value
+    authForm.value.password = value
+  }
+})
+const confirmPassword = computed({
+  get: () => authForm.value.confirmPassword,
+  set: (value: string) => {
+    authForm.value.confirmPassword = value
   }
 })
 </script>
@@ -30,11 +44,12 @@ const password = computed({
     v-model:display-name="displayName"
     v-model:email="email"
     v-model:password="password"
-    :mode="auth.authMode.value"
-    :field-error="auth.authFieldError"
-    @submit="auth.submitAuth"
-    @close="auth.goHome"
-    @toggle-mode="auth.toggleAuthMode"
-    @touch-field="auth.touchAuthField"
+    v-model:confirm-password="confirmPassword"
+    :mode="authMode"
+    :field-error="authFieldError"
+    @submit="submitAuth"
+    @close="goHome"
+    @toggle-mode="toggleAuthMode"
+    @touch-field="touchAuthField"
   />
 </template>

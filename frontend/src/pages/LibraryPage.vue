@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowUp, RotateCcw, Search, Trash2, User } from '@lucide/vue'
+import { ArrowUp, RotateCcw, Search, Trash2, User, Shuffle } from '@lucide/vue'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import type { CardResponse, DeckSummary, UserResponse } from '../types/api'
 import DeckListPanel from '../features/library/DeckListPanel.vue'
@@ -23,6 +23,8 @@ defineProps<{
   myDecks: DeckSummary[]
   publicDecksHasMore: boolean
   myDecksHasMore: boolean
+  loadingMorePublic: boolean
+  loadingMoreMine: boolean
   highlightedDeckId: number | null
   deckSelectionMode: boolean
   selectedMyDeckIds: Set<number>
@@ -33,6 +35,7 @@ defineProps<{
   managedDeckDirty: boolean
   managedCardsView: ManagedCardsViewState
   managedCardsSearch: string
+  loadingMoreCards: boolean
   deckFormatters: DeckListFormatters
   cardTextSummary: CardTextFormatter
   cardCountLabel: (count: number) => string
@@ -53,6 +56,7 @@ defineEmits<{
   'clear-deck-selection': []
   'delete-selected-decks': []
   'toggle-deck-selection': [deckId: number]
+  'start-selected-study': []
   login: []
   'close-managed-deck': []
   'save-managed-deck': []
@@ -169,6 +173,16 @@ function scrollToLibraryTop() {
             </button>
             <button
               v-if="deckSelectionMode"
+              class="primary compact"
+              type="button"
+              :disabled="selectedMyDecksCount === 0"
+              @click="$emit('start-selected-study')"
+            >
+              <Shuffle :size="16" aria-hidden="true" />
+              Estudar selecionados
+            </button>
+            <button
+              v-if="deckSelectionMode"
               class="ghost compact danger-action"
               type="button"
               :disabled="selectedMyDecksCount === 0"
@@ -191,6 +205,7 @@ function scrollToLibraryTop() {
           :decks="publicDecks"
           empty-message="Nenhum baralho público encontrado."
           :has-more="publicDecksHasMore"
+          :loading-more="loadingMorePublic"
           show-save-action
           :formatters="deckFormatters"
           @start="$emit('start-deck', $event)"
@@ -203,6 +218,7 @@ function scrollToLibraryTop() {
           :decks="myDecks"
           empty-message="Nenhum baralho seu encontrado."
           :has-more="myDecksHasMore"
+          :loading-more="loadingMoreMine"
           :highlighted-deck-id="highlightedDeckId"
           show-manage-action
           selectable
@@ -234,6 +250,7 @@ function scrollToLibraryTop() {
         :dirty="managedDeckDirty"
         :cards-view="managedCardsView"
         :cards-search="managedCardsSearch"
+        :loading-more="loadingMoreCards"
         :card-text-summary="cardTextSummary"
         :card-count-label="cardCountLabel"
         @back="$emit('close-managed-deck')"

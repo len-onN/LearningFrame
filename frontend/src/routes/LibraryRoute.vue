@@ -1,101 +1,176 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
-import { onBeforeRouteLeave, useRoute } from 'vue-router'
+import { computed } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import LibraryPage from '../pages/LibraryPage.vue'
-import { libraryRouteKey, useRequiredRouteContext } from './routeContext'
+import { useDeckLibrary } from '../features/library/useDeckLibrary'
+import { useDeckManagement } from '../features/library/useDeckManagement'
 
-const library = useRequiredRouteContext(libraryRouteKey, 'Library')
+import { useLibraryActions } from '../features/library/useLibraryActions'
+import { useAuthFlow } from '../features/auth/useAuthFlow'
+import { useAuthStore } from '../stores/useAuthStore'
+import { storeToRefs } from 'pinia'
+
+import { cardCountLabel, deckDueLabel } from '../features/library/deckFormatters'
+import { cardTextSummary as summarizeCardText } from '../features/library/cardText'
+import { htmlSummary } from '../features/import/importPreview'
+import type { DeckSummary, CardResponse } from '../types/api'
+
+const router = useRouter()
 const route = useRoute()
+const authStore = useAuthStore()
+const { user } = storeToRefs(authStore)
 
-const search = computed({
+
+const librarySection = computed<'public' | 'mine'>(() => {
+  if (route.name === 'library-mine' || route.name === 'library-deck-manage') {
+    return 'mine'
+  }
+  return 'public'
+})
+
+const libraryView = computed<'decks' | 'manage-deck'>(() => {
+  if (route.name === 'library-deck-manage') {
+    return 'manage-deck'
+  }
+  return 'decks'
+})
+
+const library = useDeckLibrary({ librarySection })
+
+const librarySearch = computed({
   get: () => library.librarySearch.value,
-  set: (value: string) => {
-    library.librarySearch.value = value
-  }
+  set: (val) => { library.librarySearch.value = val }
 })
-const managedDeckForm = computed({
-  get: () => library.managedDeckForm.value,
-  set: library.updateManagedDeckForm
-})
-const managedCardsSearch = computed({
-  get: () => library.managedCardsSearch.value,
-  set: (value: string) => {
-    library.managedCardsSearch.value = value
-  }
-})
+const activeLibraryCountLabel = computed(() => library.activeLibraryCountLabel.value)
+const filteredPublicDecks = computed(() => library.publicDecks.value)
+const filteredMyDecks = computed(() => library.myDecks.value)
+const publicDecksHasMore = computed(() => library.publicDecksHasMore.value)
+const myDecksHasMore = computed(() => library.myDecksHasMore.value)
+const highlightedDeckId = computed(() => library.highlightedDeckId.value)
+const deckSelectionMode = computed(() => library.deckSelectionMode.value)
+const selectedMyDeckIds = computed(() => library.selectedMyDeckIds.value)
+const selectedMyDecksCount = computed(() => library.selectedMyDecksCount.value)
+const allVisibleMyDecksSelected = computed(() => library.allVisibleMyDecksSelected.value)
 
-onMounted(() => {
-  void library.syncLibraryRoute()
-})
+const toggleDeckSelectionMode = library.toggleDeckSelectionMode
+const toggleVisibleMyDeckSelection = library.toggleVisibleMyDeckSelection
+const clearMyDeckSelection = library.clearMyDeckSelection
+const toggleMyDeckSelection = library.toggleMyDeckSelection
 
-watch(() => [route.name, route.params.deckId], () => {
-  if (isLibraryRoute()) {
-    void library.syncLibraryRoute()
-  }
-})
+const {
+  managedDeck,
+  managedDeckForm,
+  managedDeckDirty,
+  managedCardsView,
+  managedCardsSearch,
+  loadingMoreManagedCards,
+  updateManagedDeckForm,
+  closeManagedDeck,
+  saveManagedDeck,
+  deleteManagedDeck,
+  openCreateCardEditor,
+  toggleVisibleManagedCardsSelection,
+  clearManagedCardSelection,
+  deleteSelectedManagedCards,
+  selectManagedCard,
+  toggleManagedCardSelection,
+  loadMoreManagedCards,
+  openEditCardEditor,
+  deleteManagedCard
+} = useDeckManagement()
 
-onBeforeRouteLeave(() => {
-  library.cleanupLibraryRoute()
-})
+const {
+  loadingMorePublicDecks,
+  loadingMoreMyDecks,
+  refreshAll,
+  savePublicDeck,
+  loadMorePublicDecks,
+  loadMoreMyDecks,
+  openManagedDeck,
+  deleteSelectedMyDecks
+} = useLibraryActions()
 
-function isLibraryRoute() {
-  return route.name === 'library-public'
-    || route.name === 'library-mine'
-    || route.name === 'library-deck-manage'
+const authFlow = useAuthFlow()
+
+const deckFormatters = {
+  cardCount: cardCountLabel,
+  due: (deck: DeckSummary) => deckDueLabel(deck, Boolean(user.value))
+}
+
+const cardTextSummary = (card: CardResponse) => summarizeCardText(card, managedCardsView.value.cards, htmlSummary)
+
+function navigateTo(to: any) {
+  return router.push(to)
+}
+
+function startDeck(deck: DeckSummary) {
+  return router.push({ name: 'study-deck', params: { deckId: deck.id } })
+}
+
+function startInterleavedFromSelection(deckIds: number[]) {
+  return router.push({ name: 'study-interleaved', query: { decks: deckIds.join(',') } })
+}
+
+function openAuth(mode: any) {
+  return authFlow.openAuth(mode)
 }
 </script>
 
 <template>
   <LibraryPage
-    v-model:search="search"
-    :section="library.librarySection.value"
-    :view="library.libraryView.value"
-    :user="library.user.value"
-    :active-count-label="library.activeLibraryCountLabel.value"
-    :public-decks="library.filteredPublicDecks.value"
-    :my-decks="library.filteredMyDecks.value"
-    :public-decks-has-more="library.publicDecksHasMore.value"
-    :my-decks-has-more="library.myDecksHasMore.value"
-    :highlighted-deck-id="library.highlightedDeckId.value"
-    :deck-selection-mode="library.deckSelectionMode.value"
-    :selected-my-deck-ids="library.selectedMyDeckIds.value"
-    :selected-my-decks-count="library.selectedMyDecksCount.value"
-    :all-visible-my-decks-selected="library.allVisibleMyDecksSelected.value"
-    :managed-deck="library.managedDeck.value"
+    v-model:search="librarySearch"
+    :section="librarySection"
+    :view="libraryView"
+    :user="user"
+    :active-count-label="activeLibraryCountLabel"
+    :public-decks="filteredPublicDecks"
+    :my-decks="filteredMyDecks"
+    :public-decks-has-more="publicDecksHasMore"
+    :my-decks-has-more="myDecksHasMore"
+    :loading-more-public="loadingMorePublicDecks"
+    :loading-more-mine="loadingMoreMyDecks"
+    :highlighted-deck-id="highlightedDeckId"
+    :deck-selection-mode="deckSelectionMode"
+    :selected-my-deck-ids="selectedMyDeckIds"
+    :selected-my-decks-count="selectedMyDecksCount"
+    :all-visible-my-decks-selected="allVisibleMyDecksSelected"
+    :managed-deck="managedDeck"
     :managed-deck-form="managedDeckForm"
-    :managed-deck-dirty="library.managedDeckDirty.value"
-    :managed-cards-view="library.managedCardsView.value"
+    :managed-deck-dirty="managedDeckDirty"
+    :managed-cards-view="managedCardsView"
     :managed-cards-search="managedCardsSearch"
-    :deck-formatters="library.deckFormatters"
-    :card-text-summary="library.cardTextSummary"
-    :card-count-label="library.cardCountLabel"
-    @go-public="library.navigateTo({ name: 'library-public' })"
-    @go-mine="library.navigateTo({ name: 'library-mine' })"
-    @refresh="library.refreshAll"
-    @start-deck="library.startDeck"
-    @save-public-deck="library.savePublicDeck"
-    @load-more-public="library.loadMorePublicDecks"
-    @load-more-mine="library.loadMoreMyDecks"
-    @open-managed-deck="library.openManagedDeck"
-    @toggle-deck-selection-mode="library.toggleDeckSelectionMode"
-    @toggle-visible-deck-selection="library.toggleVisibleMyDeckSelection"
-    @clear-deck-selection="library.clearSelectedMyDecks"
-    @delete-selected-decks="library.deleteSelectedMyDecks"
-    @toggle-deck-selection="library.toggleMyDeckSelection"
-    @login="library.openAuth('login')"
-    @close-managed-deck="library.closeManagedDeck"
-    @save-managed-deck="library.saveManagedDeck"
-    @delete-managed-deck="library.deleteManagedDeck"
-    @update:managed-deck-form="library.updateManagedDeckForm"
     @update:managed-cards-search="managedCardsSearch = $event"
-    @create-card="library.openCreateCardEditor"
-    @toggle-visible-card-selection="library.toggleVisibleManagedCardsSelection"
-    @clear-card-selection="library.clearManagedCardSelection"
-    @delete-selected-cards="library.deleteSelectedManagedCards"
-    @select-card="library.selectManagedCard"
-    @toggle-card-selection="library.toggleManagedCardSelection"
-    @load-more-cards="library.loadMoreManagedCards"
-    @edit-card="library.openEditCardEditor"
-    @delete-card="library.deleteManagedCard"
+    :loading-more-cards="loadingMoreManagedCards"
+    :deck-formatters="deckFormatters"
+    :card-text-summary="cardTextSummary"
+    :card-count-label="cardCountLabel"
+    @go-public="navigateTo({ name: 'library-public' })"
+    @go-mine="navigateTo({ name: 'library-mine' })"
+    @refresh="refreshAll"
+    @start-deck="startDeck"
+    @save-public-deck="savePublicDeck"
+    @load-more-public="loadMorePublicDecks"
+    @load-more-mine="loadMoreMyDecks"
+    @open-managed-deck="openManagedDeck"
+    @toggle-deck-selection-mode="toggleDeckSelectionMode"
+    @toggle-visible-deck-selection="toggleVisibleMyDeckSelection"
+    @clear-deck-selection="clearMyDeckSelection"
+    @delete-selected-decks="deleteSelectedMyDecks"
+    @toggle-deck-selection="toggleMyDeckSelection"
+    @start-selected-study="startInterleavedFromSelection(Array.from(selectedMyDeckIds))"
+    @login="openAuth('login')"
+    @close-managed-deck="closeManagedDeck"
+    @save-managed-deck="saveManagedDeck"
+    @delete-managed-deck="deleteManagedDeck"
+    @update:managed-deck-form="updateManagedDeckForm"
+    @create-card="openCreateCardEditor"
+    @toggle-visible-card-selection="toggleVisibleManagedCardsSelection"
+    @clear-card-selection="clearManagedCardSelection"
+    @delete-selected-cards="deleteSelectedManagedCards"
+    @select-card="selectManagedCard"
+    @toggle-card-selection="toggleManagedCardSelection"
+    @load-more-cards="loadMoreManagedCards"
+    @edit-card="openEditCardEditor"
+    @delete-card="deleteManagedCard"
   />
 </template>

@@ -1,11 +1,12 @@
 export type AuthMode = 'login' | 'register'
-export type AuthField = 'displayName' | 'email' | 'password'
+export type AuthField = 'displayName' | 'email' | 'password' | 'confirmPassword'
 export type AuthErrors = Partial<Record<AuthField, string>>
 
 export interface AuthFormValues {
   displayName: string
   email: string
   password: string
+  confirmPassword: string
 }
 
 export function validateAuthForm(values: AuthFormValues, mode: AuthMode): AuthErrors {
@@ -38,6 +39,14 @@ export function validateAuthForm(values: AuthFormValues, mode: AuthMode): AuthEr
     const passwordError = passwordPolicyError(password)
     if (passwordError) {
       nextErrors.password = passwordError
+    }
+  }
+
+  if (mode === 'register') {
+    if (!values.confirmPassword) {
+      nextErrors.confirmPassword = 'Confirme sua senha.'
+    } else if (values.confirmPassword !== password) {
+      nextErrors.confirmPassword = 'As senhas não coincidem.'
     }
   }
 

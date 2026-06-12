@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { User } from '@lucide/vue'
+import { ref, computed } from 'vue'
+import { User, Eye, EyeOff, Check, X } from '@lucide/vue'
 import type { AuthField, AuthMode } from '../utils/authValidation'
 
 defineProps<{
@@ -17,6 +18,21 @@ defineEmits<{
 const displayName = defineModel<string>('displayName', { required: true })
 const email = defineModel<string>('email', { required: true })
 const password = defineModel<string>('password', { required: true })
+const confirmPassword = defineModel<string>('confirmPassword', { default: '' })
+
+const showPassword = ref(false)
+const showConfirmPassword = ref(false)
+
+const passwordRules = computed(() => [
+  { label: 'Mínimo de 8 caracteres', isValid: password.value.length >= 8 },
+  { label: 'Uma letra maiúscula', isValid: /[A-Z]/.test(password.value) },
+  { label: 'Um número', isValid: /\d/.test(password.value) },
+  { label: 'Um símbolo', isValid: /[^A-Za-z0-9\s]/.test(password.value) }
+])
+
+const passwordsMatch = computed(() => {
+  return password.value !== '' && password.value === confirmPassword.value
+})
 </script>
 
 <template>
@@ -74,20 +90,60 @@ const password = defineModel<string>('password', { required: true })
 
       <div class="form-field">
         <label class="field-label" for="auth-password">Senha</label>
-        <input
-          id="auth-password"
-          v-model="password"
-          class="field-control"
-          :class="{ invalid: Boolean(fieldError('password')) }"
-          type="password"
-          :autocomplete="mode === 'login' ? 'current-password' : 'new-password'"
-          placeholder="Sua senha"
-          :aria-invalid="Boolean(fieldError('password'))"
-          :aria-describedby="fieldError('password') ? 'auth-password-error' : undefined"
-          @blur="$emit('touch-field', 'password')"
-        />
-        <p v-if="fieldError('password')" id="auth-password-error" class="field-error">
+        <div class="password-input-wrapper">
+          <input
+            id="auth-password"
+            v-model="password"
+            class="field-control"
+            :class="{ invalid: Boolean(fieldError('password')) }"
+            :type="showPassword ? 'text' : 'password'"
+            :autocomplete="mode === 'login' ? 'current-password' : 'new-password'"
+            placeholder="Sua senha"
+            :aria-invalid="Boolean(fieldError('password'))"
+            :aria-describedby="fieldError('password') ? 'auth-password-error' : undefined"
+            @blur="$emit('touch-field', 'password')"
+          />
+          <button type="button" class="icon-button toggle-password" @click="showPassword = !showPassword" aria-label="Alternar visibilidade da senha">
+            <component :is="showPassword ? EyeOff : Eye" class="icon" />
+          </button>
+        </div>
+        
+        <ul v-if="mode === 'register'" class="password-rules">
+          <li v-for="rule in passwordRules" :key="rule.label" :class="{ 'rule-valid': rule.isValid, 'rule-invalid': !rule.isValid }">
+            <component :is="rule.isValid ? Check : X" class="rule-icon" />
+            {{ rule.label }}
+          </li>
+        </ul>
+        <p v-else-if="fieldError('password')" id="auth-password-error" class="field-error">
           {{ fieldError('password') }}
+        </p>
+      </div>
+
+      <div v-if="mode === 'register'" class="form-field">
+        <label class="field-label" for="auth-confirm-password">Confirmar Senha</label>
+        <div class="password-input-wrapper">
+          <input
+            id="auth-confirm-password"
+            v-model="confirmPassword"
+            class="field-control"
+            :class="{ invalid: Boolean(fieldError('confirmPassword')) }"
+            :type="showConfirmPassword ? 'text' : 'password'"
+            autocomplete="new-password"
+            placeholder="Confirme sua senha"
+            :aria-invalid="Boolean(fieldError('confirmPassword'))"
+            :aria-describedby="fieldError('confirmPassword') ? 'auth-confirm-password-error' : undefined"
+            @blur="$emit('touch-field', 'confirmPassword')"
+          />
+          <button type="button" class="icon-button toggle-password" @click="showConfirmPassword = !showConfirmPassword" aria-label="Alternar visibilidade da senha">
+            <component :is="showConfirmPassword ? EyeOff : Eye" class="icon" />
+          </button>
+        </div>
+        <div v-if="confirmPassword" class="password-match-status" :class="passwordsMatch ? 'status-match' : 'status-mismatch'">
+          <component :is="passwordsMatch ? Check : X" class="rule-icon" />
+          {{ passwordsMatch ? 'As senhas coincidem' : 'As senhas não coincidem' }}
+        </div>
+        <p v-else-if="fieldError('confirmPassword')" id="auth-confirm-password-error" class="field-error">
+          {{ fieldError('confirmPassword') }}
         </p>
       </div>
 
@@ -104,3 +160,76 @@ const password = defineModel<string>('password', { required: true })
     </form>
   </section>
 </template>
+
+<style scoped>
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper .field-control {
+  width: 100%;
+  padding-right: 2.5rem;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  color: var(--color-text-dimmed);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  transition: color 0.2s;
+}
+
+.toggle-password:hover {
+  color: var(--color-text);
+}
+
+.toggle-password .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.password-rules {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.password-rules li,
+.password-match-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rule-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.rule-valid,
+.status-match {
+  color: var(--color-success);
+}
+
+.rule-invalid,
+.status-mismatch {
+  color: var(--color-danger);
+}
+
+.password-match-status {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
+</style>

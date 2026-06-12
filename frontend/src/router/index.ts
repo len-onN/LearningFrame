@@ -5,6 +5,8 @@ import CreateDeckRoute from '../routes/CreateDeckRoute.vue'
 import ImportRoute from '../routes/ImportRoute.vue'
 import LibraryRoute from '../routes/LibraryRoute.vue'
 import ProgressRoute from '../routes/ProgressRoute.vue'
+import SettingsRoute from '../routes/SettingsRoute.vue'
+import ProfileRoute from '../routes/ProfileRoute.vue'
 import StudyRoute from '../routes/StudyRoute.vue'
 
 export type AppRouteName =
@@ -17,13 +19,20 @@ export type AppRouteName =
   | 'import'
   | 'create'
   | 'progress'
+  | 'settings'
+  | 'profile'
   | 'login'
   | 'register'
 
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    redirect: { name: 'library-public' }
+    redirect: () => {
+      if (getAuthToken()) {
+        return { name: 'library-mine' }
+      }
+      return { name: 'login' }
+    }
   },
   {
     path: '/biblioteca/publicos',
@@ -80,6 +89,18 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Progresso', tab: 'progress', requiresAuth: true }
   },
   {
+    path: '/configuracoes',
+    name: 'settings',
+    component: SettingsRoute,
+    meta: { title: 'Configurações', tab: 'settings', requiresAuth: true }
+  },
+  {
+    path: '/perfil',
+    name: 'profile',
+    component: ProfileRoute,
+    meta: { title: 'Meu Perfil', tab: 'profile', requiresAuth: true }
+  },
+  {
     path: '/entrar',
     name: 'login',
     component: AuthRoute,
@@ -93,7 +114,12 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: { name: 'library-public' }
+    redirect: () => {
+      if (getAuthToken()) {
+        return { name: 'library-mine' }
+      }
+      return { name: 'login' }
+    }
   }
 ]
 
@@ -113,10 +139,17 @@ router.beforeEach((to) => {
   }
 })
 
+router.afterEach((to, from) => {
+  import('../stores/useFeedbackStore').then(({ useFeedbackStore }) => {
+    const feedbackStore = useFeedbackStore()
+    feedbackStore.clearFeedbackForRouteChange(from.fullPath, to.fullPath)
+  })
+})
+
 declare module 'vue-router' {
   interface RouteMeta {
     title?: string
-    tab?: 'library' | 'study' | 'import' | 'create' | 'progress' | 'auth'
+    tab?: 'library' | 'study' | 'import' | 'create' | 'progress' | 'settings' | 'profile' | 'auth'
     librarySection?: 'public' | 'mine'
     libraryView?: 'decks' | 'manage-deck'
     authMode?: 'login' | 'register'

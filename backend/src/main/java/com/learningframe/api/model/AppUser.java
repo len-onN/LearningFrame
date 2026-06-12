@@ -30,6 +30,12 @@ public class AppUser {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(name = "daily_new_cards_limit", nullable = false)
+    private Integer dailyNewCardsLimit = 20;
+
+    @Column(name = "daily_review_cards_limit", nullable = false)
+    private Integer dailyReviewCardsLimit = 100;
+
     protected AppUser() {
     }
 
@@ -69,5 +75,21 @@ public class AppUser {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public Integer getDailyNewCardsLimit() {
+        return dailyNewCardsLimit;
+    }
+
+    public void setDailyNewCardsLimit(Integer dailyNewCardsLimit) {
+        this.dailyNewCardsLimit = dailyNewCardsLimit;
+    }
+
+    public Integer getDailyReviewCardsLimit() {
+        return dailyReviewCardsLimit;
+    }
+
+    public void setDailyReviewCardsLimit(Integer dailyReviewCardsLimit) {
+        this.dailyReviewCardsLimit = dailyReviewCardsLimit;
     }
 }

@@ -13,13 +13,21 @@ import type {
   ReviewRating,
   ReviewResult,
   StatsSummary,
-  StudyMode
+  StudyMode,
+  UserSettings
 } from '../types/api'
 
 const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()
 export const API_BASE_URL = configuredApiBaseUrl || 'http://127.0.0.1:8081'
 
 let authToken = readStoredToken()
+
+export interface DueRequestOptions {
+  mode: StudyMode
+  deckId?: number
+  deckIds?: number[]
+  limit?: number
+}
 
 export function setAuthToken(token: string) {
   authToken = token
@@ -78,6 +86,33 @@ export const api = {
       body: JSON.stringify({ email, password })
     })
   },
+  getUserSettings() {
+    return request<UserSettings>('/api/users/me/settings')
+  },
+  updateUserSettings(settings: UserSettings) {
+    return request<UserSettings>('/api/users/me/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings)
+    })
+  },
+  updateDisplayName(displayName: string) {
+    return request<void>('/api/profile/display-name', {
+      method: 'PUT',
+      body: JSON.stringify({ displayName })
+    })
+  },
+  updatePassword(oldPassword: string, newPassword: string) {
+    return request<void>('/api/profile/password', {
+      method: 'PUT',
+      body: JSON.stringify({ oldPassword, newPassword })
+    })
+  },
+  deleteAccount() {
+    return request<void>('/api/profile', {
+      method: 'DELETE'
+    })
+  },
+
   publicDecks(page = 0, size = 8, query = '') {
     const params = new URLSearchParams({ page: String(page), size: String(size) })
     if (query.trim()) {
@@ -86,7 +121,8 @@ export const api = {
     return request<PageResponse<DeckSummary>>(`/api/decks/public?${params.toString()}`)
   },
   myDecks(page = 0, size = 8, query = '') {
-    const params = new URLSearchParams({ page: String(page), size: String(size) })
+
+    const params = new URLSearchParams({ page: String(page), size: String(size), _t: String(Date.now()) })
     if (query.trim()) {
       params.set('q', query.trim())
     }
@@ -164,10 +200,13 @@ export const api = {
       body: formData
     })
   },
-  due(mode: StudyMode, deckId?: number) {
-    const params = new URLSearchParams({ mode, limit: '24' })
-    if (deckId) {
+  due({ mode, deckId, deckIds = [], limit = 24 }: DueRequestOptions) {
+    const params = new URLSearchParams({ mode, limit: String(limit) })
+    if (deckId !== undefined) {
       params.set('deckId', String(deckId))
+    }
+    for (const selectedDeckId of deckIds) {
+      params.append('deckIds', String(selectedDeckId))
     }
     return request<DueResponse>(`/api/study/due?${params.toString()}`)
   },
