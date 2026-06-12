@@ -1,3 +1,4 @@
+import { createPinia, setActivePinia } from 'pinia'
 import { ref, type Ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
@@ -16,13 +17,13 @@ import {
   useStudySession,
   type StudySessionApi
 } from './useStudySession'
-import { useAuthSession } from '../../composables/useAuthSession'
-import { useFeedback } from '../../composables/useFeedback'
+import { useAuthStore } from '../../stores/useAuthStore'
+import { useFeedbackStore } from '../../stores/useFeedbackStore'
 import { useDeckLibrary } from '../library/useDeckLibrary'
 import { useStatsSummary } from '../../app/useStatsSummary'
 
-vi.mock('../../composables/useAuthSession', () => ({
-  useAuthSession: vi.fn(() => ({ user: ref(null) }))
+vi.mock('../../stores/useAuthStore', () => ({
+  useAuthStore: vi.fn(() => ({ user: ref(null) }))
 }))
 
 vi.mock('../../composables/useFeedback', () => ({
@@ -44,6 +45,7 @@ vi.mock('../../app/useStatsSummary', () => ({
 
 describe('useStudySession', () => {
   beforeEach(() => {
+    setActivePinia(createPinia())
     installLocalStorage()
     localStorage.clear()
     vi.useFakeTimers()
@@ -389,10 +391,12 @@ function createSubject(overrides: Partial<{
   const withFeedback = vi.fn(async (task: () => Promise<void>) => {
     await task()
   })
+  const feedbackStore = useFeedbackStore()
+  try { feedbackStore.showNotice = showNotice as any } catch(e) {}
+  try { feedbackStore.withFeedback = withFeedback as any } catch(e) {}
 
-  vi.mocked(useAuthSession).mockReturnValue({ user } as any)
-  vi.mocked(useFeedback).mockReturnValue({ showNotice, withFeedback } as any)
-  vi.mocked(useDeckLibrary).mockReturnValue({ publicDecks, myDecks, loadPublicDecks, loadMyDecks } as any)
+  vi.mocked(useAuthStore).mockReturnValue({ user } as any)
+    vi.mocked(useDeckLibrary).mockReturnValue({ publicDecks, myDecks, loadPublicDecks, loadMyDecks } as any)
   vi.mocked(useStatsSummary).mockReturnValue({ refreshStats } as any)
 
   const session = useStudySession({

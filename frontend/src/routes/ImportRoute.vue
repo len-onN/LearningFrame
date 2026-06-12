@@ -2,12 +2,16 @@
 import { computed, onBeforeUnmount } from 'vue'
 import ImportPage from '../pages/ImportPage.vue'
 import { useApkgImport } from '../features/import/useApkgImport'
-import { useAuthSession } from '../composables/useAuthSession'
-import { useFeedback } from '../composables/useFeedback'
+import { useAuthStore } from '../stores/useAuthStore'
+import { storeToRefs } from 'pinia'
+import { useFeedbackStore } from '../stores/useFeedbackStore'
+
 
 const importFlow = useApkgImport()
-const { user } = useAuthSession()
-const { loading } = useFeedback()
+const authStore = useAuthStore()
+const { user } = storeToRefs(authStore)
+const feedbackStore = useFeedbackStore()
+
 
 onBeforeUnmount(() => {
   importFlow.disposeApkgImport()
@@ -32,7 +36,7 @@ const importVisibility = computed({
     v-model:import-title="importTitle"
     v-model:import-visibility="importVisibility"
     :selected-file="importFlow.selectedFile.value"
-    :loading="loading"
+    :loading="feedbackStore.loading"
     :import-preview="importFlow.importPreview.value"
     :current-preview-card="importFlow.currentPreviewCard.value"
     :preview-card-index="importFlow.previewCardIndex.value"

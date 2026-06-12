@@ -1,16 +1,20 @@
+import { createPinia, setActivePinia } from 'pinia'
 import { effectScope, nextTick, ref } from 'vue'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import {  afterEach, describe, expect, it, vi , beforeEach } from 'vitest'
 import type { UserResponse } from '../types/api'
 import { useLibrarySearchLifecycle } from './useLibrarySearchLifecycle'
+import { useFeedbackStore } from '../stores/useFeedbackStore'
 
 describe('useLibrarySearchLifecycle', () => {
+  beforeEach(() => { setActivePinia(createPinia()) })
+
   afterEach(() => {
     vi.useRealTimers()
   })
 
   it('debounceia busca publica preservando loading invisivel', async () => {
     vi.useFakeTimers()
-    const { loadPublicDecks, loadMyDecks, withFeedback } = createSubject()
+    const { loadPublicDecks, loadMyDecks } = createSubject()
     const librarySearch = ref('')
     const scope = effectScope()
 
@@ -21,8 +25,7 @@ describe('useLibrarySearchLifecycle', () => {
         user: ref(null),
         delayMs: 300,
         loadPublicDecks,
-        loadMyDecks,
-        withFeedback
+        loadMyDecks
       })
     })
 
@@ -32,13 +35,14 @@ describe('useLibrarySearchLifecycle', () => {
 
     expect(loadPublicDecks).toHaveBeenCalledWith(true)
     expect(loadMyDecks).not.toHaveBeenCalled()
-    expect(withFeedback).toHaveBeenCalledWith(expect.any(Function), { showLoading: false })
+    const feedbackStore = useFeedbackStore()
+    expect(feedbackStore.withFeedback).toHaveBeenCalledWith(expect.any(Function), { showLoading: false })
     scope.stop()
   })
 
   it('limpa debounce pendente ao descartar o escopo', async () => {
     vi.useFakeTimers()
-    const { loadPublicDecks, loadMyDecks, withFeedback } = createSubject()
+    const { loadPublicDecks, loadMyDecks } = createSubject()
     const librarySearch = ref('')
     const scope = effectScope()
 
@@ -49,8 +53,7 @@ describe('useLibrarySearchLifecycle', () => {
         user: ref(null),
         delayMs: 300,
         loadPublicDecks,
-        loadMyDecks,
-        withFeedback
+        loadMyDecks
       })
     })
 
@@ -64,7 +67,7 @@ describe('useLibrarySearchLifecycle', () => {
 
   it('debounceia busca de meus baralhos apenas com usuario autenticado', async () => {
     vi.useFakeTimers()
-    const { loadPublicDecks, loadMyDecks, withFeedback } = createSubject()
+    const { loadPublicDecks, loadMyDecks } = createSubject()
     const user = ref<UserResponse | null>({
       id: 1,
       displayName: 'Ada',
@@ -80,8 +83,7 @@ describe('useLibrarySearchLifecycle', () => {
         user,
         delayMs: 300,
         loadPublicDecks,
-        loadMyDecks,
-        withFeedback
+        loadMyDecks
       })
     })
 
@@ -96,7 +98,7 @@ describe('useLibrarySearchLifecycle', () => {
 
   it('ignora debounce quando a query atual ja foi carregada por outro sync', async () => {
     vi.useFakeTimers()
-    const { loadPublicDecks, loadMyDecks, withFeedback } = createSubject()
+    const { loadPublicDecks, loadMyDecks } = createSubject()
     const librarySearch = ref('')
     const scope = effectScope()
 
@@ -108,8 +110,7 @@ describe('useLibrarySearchLifecycle', () => {
         delayMs: 300,
         loadPublicDecks,
         loadMyDecks,
-        shouldLoadPublicDecks: () => false,
-        withFeedback
+        shouldLoadPublicDecks: () => false
       })
     })
 
@@ -117,7 +118,8 @@ describe('useLibrarySearchLifecycle', () => {
     await nextTick()
     await vi.advanceTimersByTimeAsync(300)
 
-    expect(withFeedback).not.toHaveBeenCalled()
+    const feedbackStore = useFeedbackStore()
+    expect(feedbackStore.withFeedback).not.toHaveBeenCalled()
     expect(loadPublicDecks).not.toHaveBeenCalled()
     scope.stop()
   })
@@ -126,13 +128,13 @@ describe('useLibrarySearchLifecycle', () => {
 function createSubject() {
   const loadPublicDecks = vi.fn(async () => undefined)
   const loadMyDecks = vi.fn(async () => undefined)
-  const withFeedback = vi.fn(async (task: () => Promise<void>) => {
+  const feedbackStore = useFeedbackStore()
+  feedbackStore.withFeedback = vi.fn(async (task: () => Promise<void>) => {
     await task()
   })
 
   return {
     loadPublicDecks,
-    loadMyDecks,
-    withFeedback
+    loadMyDecks
   }
 }

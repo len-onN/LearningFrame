@@ -4,10 +4,12 @@ import { useRouter, useRoute } from 'vue-router'
 import LibraryPage from '../pages/LibraryPage.vue'
 import { useDeckLibrary } from '../features/library/useDeckLibrary'
 import { useDeckManagement } from '../features/library/useDeckManagement'
+import { useFeedbackStore } from '../stores/useFeedbackStore'
 import { useLibraryActions } from '../features/library/useLibraryActions'
 import { useAuthFlow } from '../features/auth/useAuthFlow'
-import { useAuthSession } from '../composables/useAuthSession'
-import { useFeedback } from '../composables/useFeedback'
+import { useAuthStore } from '../stores/useAuthStore'
+import { storeToRefs } from 'pinia'
+
 import { cardCountLabel, deckDueLabel } from '../features/library/deckFormatters'
 import { cardTextSummary as summarizeCardText } from '../features/library/cardText'
 import { htmlSummary } from '../features/import/importPreview'
@@ -15,8 +17,10 @@ import type { DeckSummary, CardResponse } from '../types/api'
 
 const router = useRouter()
 const route = useRoute()
-const { user } = useAuthSession()
-const { showNotice, withFeedback, clearFeedback, dismissError } = useFeedback()
+const authStore = useAuthStore()
+const { user } = storeToRefs(authStore)
+const feedbackStore = useFeedbackStore()
+
 
 const librarySection = computed<'public' | 'mine'>(() => {
   if (route.name === 'library-mine' || route.name === 'library-deck-manage') {
@@ -90,18 +94,16 @@ const {
 const authFlow = useAuthFlow({
   authMode: computed(() => 'login' as const),
   route,
-  login: () => Promise.resolve(),
-  register: () => Promise.resolve(),
+  login: () => Promise.resolve({} as any),
+  register: () => Promise.resolve({} as any),
   persistSession: () => {},
   refreshAfterAuth: refreshAll,
   closeManagedDeck: closeManagedDeck,
   navigateToImport: async () => {},
   navigateToRedirect: async () => {},
   navigateToMyDecks: async () => {},
-  clearFeedback,
-  dismissError,
-  showNotice,
-  withFeedback
+  
+  
 })
 
 const deckFormatters = {
@@ -109,7 +111,7 @@ const deckFormatters = {
   due: (deck: DeckSummary) => deckDueLabel(deck, Boolean(user.value))
 }
 
-const cardTextSummary = (card: CardResponse) => summarizeCardText(card, useDeckManagement().managedCards.value, htmlSummary)
+const cardTextSummary = (card: CardResponse) => summarizeCardText(card, managedCardsView.value.cards, htmlSummary)
 
 function navigateTo(to: any) {
   return router.push(to)

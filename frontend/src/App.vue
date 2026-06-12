@@ -1,21 +1,14 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, provide, watch } from 'vue'
+import { computed, onMounted, provide, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
 import AppShell from './layouts/AppShell.vue'
 import { api } from './services/api'
-import type {
-  CardResponse,
-  DeckSummary
-} from './types/api'
 import CardEditorOverlay from './features/library/CardEditorOverlay.vue'
 import { useDeckLibrary } from './features/library/useDeckLibrary'
 import { useLibraryActions } from './features/library/useLibraryActions'
-import { cardCountLabel, deckDueLabel } from './features/library/deckFormatters'
-import { cardTextSummary as summarizeCardText } from './features/library/cardText'
 import { useDeckManagement } from './features/library/useDeckManagement'
 import { useAuthFlow } from './features/auth/useAuthFlow'
 import { useCreateDeckFlow } from './features/create/useCreateDeckFlow'
-import { htmlSummary } from './features/import/importPreview'
 import { useStudySession } from './features/study/useStudySession'
 import {
   authRouteKey,
@@ -28,48 +21,31 @@ import { useLibraryRouteSync } from './app/useLibraryRouteSync'
 import { useLibrarySearchLifecycle } from './app/useLibrarySearchLifecycle'
 import { useRouteLifecycle } from './app/useRouteLifecycle'
 import { useStatsSummary } from './app/useStatsSummary'
-import { useAuthSession } from './composables/useAuthSession'
-import { useFeedback } from './composables/useFeedback'
-import { useTheme } from './composables/useTheme'
+import { useAuthStore } from './stores/useAuthStore'
+import { useThemeStore } from './stores/useThemeStore'
+import { useFeedbackStore } from './stores/useFeedbackStore'
+import { storeToRefs } from 'pinia'
 
 const DECK_PAGE_SIZE = 8
-const CARD_PAGE_SIZE = 20
 const SEARCH_DEBOUNCE_MS = 300
-const PUBLIC_STUDY_DECK_CACHE_LIMIT = 6
 
 const route = useRoute()
 const router = useRouter()
-const { user, persistSession, clearSession } = useAuthSession()
-const {
-  themePreference,
-  nextThemeLabel,
-  toggleThemePreference,
-  applyThemePreference
-} = useTheme()
-const {
-  notice,
-  error,
-  loading,
-  showNotice,
-  showError,
-  clearFeedback,
-  clearFeedbackForRouteChange,
-  withFeedback,
-  dismissNotice,
-  dismissError
-} = useFeedback()
+const authStore = useAuthStore()
+const { user } = storeToRefs(authStore)
+const themeStore = useThemeStore()
+const { themePreference, nextThemeLabel } = storeToRefs(themeStore)
+
+const feedbackStore = useFeedbackStore()
 const {
   tab,
   librarySection,
-  libraryView,
   authMode,
   sidebarCollapsed,
   sidebarToggleLabel,
   visibleTabs,
   currentTitle,
   toggleSidebar,
-  navigateTo,
-  navigateToMyDecks,
   navigateToManagedDeck,
   routeDeckId
 } = useAppNavigation({
@@ -80,7 +56,6 @@ const {
 })
 const {
   librarySearch,
-  publicDecks,
   myDecks,
   publicDeckPage,
   myDeckPage,
@@ -140,8 +115,7 @@ const {
   exitDeckSelectionMode,
   replaceWithMyDecks: async () => {
     await router.replace({ name: 'library-mine' })
-  },
-  withFeedback
+  }
 })
 
 const {
@@ -152,9 +126,7 @@ const createDeckFlow = useCreateDeckFlow({
   client: api,
   loadMyDecks,
   setManagedDeck,
-  navigateToManagedDeck,
-  showNotice,
-  withFeedback
+  navigateToManagedDeck
 })
 
 const authFlow = useAuthFlow({
@@ -162,7 +134,7 @@ const authFlow = useAuthFlow({
   route,
   login: (email, password) => api.login(email, password),
   register: (displayName, email, password) => api.register(displayName, email, password),
-  persistSession,
+  persistSession: authStore.persistSession,
   refreshAfterAuth: refreshAll,
   closeManagedDeck,
   navigateToImport: async () => {
@@ -177,22 +149,13 @@ const authFlow = useAuthFlow({
   },
   navigateToMyDecks: async () => {
     await router.replace({ name: 'library-mine' })
-  },
-  clearFeedback,
-  dismissError,
-  showNotice,
-  withFeedback
+  }
 })
 
 const userDisplayName = computed(() => user.value?.displayName ?? 'Visitante')
-const deckFormatters = {
-  cardCount: cardCountLabel,
-  due: (deck: DeckSummary) => deckDueLabel(deck, Boolean(user.value))
-}
-const cardTextSummary = (card: CardResponse) => summarizeCardText(card, managedCards.value, htmlSummary)
 const loadingMessage = computed(() => 'Carregando...')
 onMounted(() => {
-  applyThemePreference()
+  themeStore.applyThemePreference()
 })
 
 useLibrarySearchLifecycle({
@@ -203,8 +166,7 @@ useLibrarySearchLifecycle({
   loadPublicDecks,
   loadMyDecks,
   shouldLoadPublicDecks,
-  shouldLoadMyDecks,
-  withFeedback
+  shouldLoadMyDecks
 })
 
 watch(tab, (nextTab) => {
@@ -250,33 +212,24 @@ async function logout() {
   closeManagedDeck(true, false)
   exitDeckSelectionMode()
   studySession.clearPublicStudyDeckCache()
-  clearSession()
+  authStore.clearSession()
   clearStats()
   myDecks.value = []
   myDeckPage.value = null
   myDeckQuery.value = ''
   await router.replace({ name: 'library-public' })
-  showNotice('Modo anonimo ativado.')
+  feedbackStore.showNotice('Modo anonimo ativado.')
 }
 
 async function goHome() {
   closeManagedDeck(true, false)
   await router.push({ name: 'library-public' })
-  dismissError()
+  feedbackStore.dismissError()
   authFlow.resetAuthValidation()
 }
 
 async function openAuth(mode: AuthMode = 'login') {
   await authFlow.openAuth(mode)
-}
-
-async function startDeck(deck: DeckSummary) {
-  studySession.sessionTitle.value = deck.title
-  if (route.name === 'study-deck' && routeDeckId() === deck.id) {
-    await studySession.loadStudyDeck(deck.id)
-    return
-  }
-  await router.push({ name: 'study-deck', params: { deckId: deck.id } })
 }
 
 async function startInterleavedPractice() {
@@ -287,18 +240,13 @@ async function startInterleavedPractice() {
   await router.push({ name: 'study-interleaved' })
 }
 
-async function startInterleavedFromSelection(deckIds: number[]) {
-  await router.push({ name: 'study-interleaved', query: { decks: deckIds.join(',') } })
-}
-
 useRouteLifecycle({
   route,
   syncLibraryRoute,
   cleanupLibraryRoute,
   syncStudyRoute,
   cleanupStudyRoute,
-  syncProgressRoute,
-  clearFeedbackForRouteChange
+  syncProgressRoute
 })
 
 const authRouteContext = {
@@ -307,9 +255,6 @@ const authRouteContext = {
 }
 
 provide(authRouteKey, authRouteContext)
-
-
-
 
 provide(createDeckRouteKey, {
   ...createDeckFlow,
@@ -334,18 +279,12 @@ provide(progressRouteKey, {
     :sidebar-toggle-label="sidebarToggleLabel"
     :user="user"
     :user-display-name="userDisplayName"
-    :loading="loading"
-    :loading-message="loadingMessage"
-    :notice="notice"
-    :error="error"
     @go-home="goHome"
     @toggle-sidebar="toggleSidebar"
-    @toggle-theme="toggleThemePreference"
+    @toggle-theme="themeStore.toggleThemePreference"
     @start-interleaved="startInterleavedPractice"
     @login="openAuth('login')"
     @logout="logout"
-    @dismiss-notice="dismissNotice"
-    @dismiss-error="dismissError"
   >
 
       <RouterView />

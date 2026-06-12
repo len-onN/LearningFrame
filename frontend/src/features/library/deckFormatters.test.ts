@@ -1,8 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import {  describe, expect, it , beforeEach } from 'vitest'
 import type { DeckSummary } from '../../types/api'
 import { cardCountLabel, deckDueLabel } from './deckFormatters'
 
 describe('deckFormatters', () => {
+  beforeEach(() => { setActivePinia(createPinia()) })
+
   it('formata quantidade de cartas no singular e plural', () => {
     expect(cardCountLabel(1)).toBe('1 carta')
     expect(cardCountLabel(2)).toBe('2 cartas')

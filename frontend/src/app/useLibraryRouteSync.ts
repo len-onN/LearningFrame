@@ -1,7 +1,7 @@
 import type { Ref } from 'vue'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
-import type { FeedbackOptions } from '../composables/useFeedback'
 import type { DeckSummary, PageResponse, UserResponse } from '../types/api'
+import { useFeedbackStore } from '../stores/useFeedbackStore'
 
 export interface LibraryRouteSyncOptions {
   route: RouteLocationNormalizedLoaded
@@ -20,11 +20,6 @@ export interface LibraryRouteSyncOptions {
   closeManagedDeck: (force?: boolean, navigateToList?: boolean) => Promise<boolean>
   exitDeckSelectionMode: () => void
   replaceWithMyDecks: () => Promise<void>
-  withFeedback: (
-    task: () => Promise<void>,
-    optionsOrShowLoading?: FeedbackOptions | boolean,
-    legacyClearOnStart?: boolean
-  ) => Promise<void>
 }
 
 export function useLibraryRouteSync({
@@ -43,9 +38,10 @@ export function useLibraryRouteSync({
   loadManagedDeckRoute,
   closeManagedDeck,
   exitDeckSelectionMode,
-  replaceWithMyDecks,
-  withFeedback
+  replaceWithMyDecks
 }: LibraryRouteSyncOptions) {
+  const feedbackStore = useFeedbackStore()
+
   async function syncLibraryRoute() {
     if (route.name !== 'library-deck-manage' && managedDeck.value) {
       void closeManagedDeck(true, false)
@@ -55,7 +51,7 @@ export function useLibraryRouteSync({
     }
 
     if (route.name === 'library-public') {
-      await withFeedback(async () => {
+      await feedbackStore.withFeedback(async () => {
         if (shouldLoadPublicDecks()) {
           await loadPublicDecks(true)
         }
@@ -64,7 +60,7 @@ export function useLibraryRouteSync({
     }
 
     if (route.name === 'library-mine') {
-      await withFeedback(async () => {
+      await feedbackStore.withFeedback(async () => {
         if (user.value && shouldLoadMyDecks()) {
           await loadMyDecks(true)
         }

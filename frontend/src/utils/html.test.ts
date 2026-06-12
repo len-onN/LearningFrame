@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import {  describe, expect, it , beforeEach } from 'vitest'
 import {
   convertAnkiSoundReferences,
   extractRelativeMediaSources,
@@ -9,6 +10,8 @@ import {
 } from './html'
 
 describe('html seguro de estudo', () => {
+  beforeEach(() => { setActivePinia(createPinia()) })
+
   it('converte referencias de som do Anki para audio HTML', () => {
     expect(convertAnkiSoundReferences('Ouça [sound:audio de teste.mp3] agora')).toContain(
       '<audio controls src="audio de teste.mp3"></audio>'

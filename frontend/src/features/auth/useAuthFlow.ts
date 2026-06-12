@@ -2,7 +2,7 @@ import { computed, ref, type ComputedRef } from 'vue'
 import type { RouteLocationNormalizedLoaded, RouteLocationRaw } from 'vue-router'
 import { api } from '../../services/api'
 import type { AuthResponse, UserResponse } from '../../types/api'
-import type { FeedbackOptions } from '../../composables/useFeedback'
+import { useFeedbackStore } from '../../stores/useFeedbackStore'
 import {
   validateAuthForm,
   type AuthErrors,
@@ -24,14 +24,6 @@ export interface AuthFlowOptions {
   navigateToImport: () => Promise<void>
   navigateToRedirect: (to: RouteLocationRaw, method?: AuthNavigationMethod) => Promise<void>
   navigateToMyDecks: () => Promise<void>
-  clearFeedback: () => void
-  dismissError: () => void
-  showNotice: (message: string) => void
-  withFeedback: (
-    task: () => Promise<void>,
-    optionsOrShowLoading?: FeedbackOptions | boolean,
-    legacyClearOnStart?: boolean
-  ) => Promise<void>
 }
 
 const emptyAuthForm = (): AuthFormValues => ({
@@ -56,12 +48,9 @@ export function useAuthFlow({
   closeManagedDeck,
   navigateToImport,
   navigateToRedirect,
-  navigateToMyDecks,
-  clearFeedback,
-  dismissError,
-  showNotice,
-  withFeedback
+  navigateToMyDecks
 }: AuthFlowOptions) {
+  const feedbackStore = useFeedbackStore()
   const authForm = ref<AuthFormValues>(emptyAuthForm())
   const authTouched = ref<Record<AuthField, boolean>>(emptyAuthTouched())
   const authSubmitted = ref(false)
@@ -73,7 +62,7 @@ export function useAuthFlow({
       return
     }
 
-    await withFeedback(async () => {
+    await feedbackStore.withFeedback(async () => {
       const response = authMode.value === 'login'
         ? await login(authForm.value.email, authForm.value.password)
         : await register(authForm.value.displayName, authForm.value.email, authForm.value.password)
@@ -87,7 +76,7 @@ export function useAuthFlow({
       } else {
         await navigateToMyDecks()
       }
-      showNotice(`Sessao iniciada como ${response.user.displayName}.`)
+      feedbackStore.showNotice(`Sessao iniciada como ${response.user.displayName}.`)
     })
   }
 
@@ -128,7 +117,7 @@ export function useAuthFlow({
       name: mode === 'login' ? 'login' : 'register',
       query: typeof redirect === 'string' && redirect ? { redirect } : {}
     }, 'push')
-    clearFeedback()
+    feedbackStore.clearFeedback()
     resetAuthValidation()
   }
 
@@ -137,7 +126,7 @@ export function useAuthFlow({
       name: authMode.value === 'login' ? 'register' : 'login',
       query: typeof route.query.redirect === 'string' ? { redirect: route.query.redirect } : {}
     }, 'push')
-    dismissError()
+    feedbackStore.dismissError()
     resetAuthValidation()
   }
 

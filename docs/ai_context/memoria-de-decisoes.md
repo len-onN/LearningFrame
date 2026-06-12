@@ -362,3 +362,24 @@ Decisão:
 Estado atual:
 - Editor funcional implementado.
 - Gravação de áudio web nativa habilitada no ambiente Tiptap.
+
+## 16. Migração do Gerenciamento de Feedback Global para Pinia
+
+Problema:
+- A reatividade global com Vue puro (exportando `ref` do módulo `useFeedback`) no App.vue começou a vazar ou ficar instável quando instanciada ou injetada em diferentes ciclos de vida e em Testes (Vitest).
+- `onScopeDispose` alertava memory leaks dependendo de onde o composable `useDeckManagement` ou o `useFeedback` estivesse sendo instanciado.
+
+Alternativas consideradas:
+- Refatorar a reatividade global do Vue injetando provide/inject da raiz para os filhos.
+- Introduzir a store oficial (Pinia) estritamente para o gerenciamento de estado global e transversais como Feedback, Loading e Autenticação.
+
+Decisão:
+- **Pinia**: Adotado para o estado global de feedback (`useFeedbackStore`).
+- Mantivemos a API exposta na interface (`showError`, `showNotice`, `withFeedback`) quase inalterada para minimizar a dor da migração.
+- Padronizamos o `beforeEach` nos testes do Vitest injetando o `setActivePinia(createPinia())` para isolar ambientes de teste limpos sem poluição global.
+- Movemos as instâncias reativas como `useDeckManagement` para fora dos loops de template lambda (`renderList`) que causavam o alarme de `onScopeDispose` do Vue.
+
+Estado atual:
+- `useFeedback` antigo substituído por `useFeedbackStore` em toda a base de código.
+- Configurado plugin Pinia no Vite.
+- Bugs de reatividade fora de escopo resolvidos com segurança e testes unitários (Vitest) passando no CI local com sucesso.

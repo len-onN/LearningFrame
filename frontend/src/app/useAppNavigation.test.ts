@@ -1,10 +1,13 @@
+import { createPinia, setActivePinia } from 'pinia'
 import { reactive, ref } from 'vue'
 import type { RouteLocationNormalizedLoaded, Router } from 'vue-router'
-import { describe, expect, it, vi } from 'vitest'
+import {  describe, expect, it, vi , beforeEach } from 'vitest'
 import type { UserResponse } from '../types/api'
 import { useAppNavigation } from './useAppNavigation'
 
 describe('useAppNavigation', () => {
+  beforeEach(() => { setActivePinia(createPinia()) })
+
   it('deriva abas visiveis a partir da sessao', () => {
     const user = ref<UserResponse | null>(null)
     const navigation = useAppNavigation({

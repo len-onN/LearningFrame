@@ -10,7 +10,6 @@ export interface RouteLifecycleOptions {
   syncStudyRoute: () => Promise<void>
   cleanupStudyRoute: () => void
   syncProgressRoute: () => Promise<void>
-  clearFeedbackForRouteChange: (previousFullPath?: string, currentFullPath?: string) => void
 }
 
 export function useRouteLifecycle({
@@ -19,12 +18,8 @@ export function useRouteLifecycle({
   cleanupLibraryRoute,
   syncStudyRoute,
   cleanupStudyRoute,
-  syncProgressRoute,
-  clearFeedbackForRouteChange
+  syncProgressRoute
 }: RouteLifecycleOptions) {
-  watch(() => route.fullPath, (nextFullPath, previousFullPath) => {
-    clearFeedbackForRouteChange(previousFullPath, nextFullPath)
-  }, { immediate: true })
 
   watch(() => [route.name, route.params.deckId] as const, ([nextName], previous) => {
     const previousName = previous?.[0]

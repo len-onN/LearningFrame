@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import {  describe, expect, it , beforeEach } from 'vitest'
 import { nextReview } from './srs'
 
 describe('agendamento da proxima revisao', () => {
+  beforeEach(() => { setActivePinia(createPinia()) })
+
   it('agenda uma boa resposta nova para amanha', () => {
     const now = new Date('2026-05-30T10:00:00.000Z')
     const result = nextReview(undefined, 'GOOD', now)

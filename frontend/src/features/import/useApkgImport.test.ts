@@ -1,3 +1,4 @@
+import { createPinia, setActivePinia } from 'pinia'
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
@@ -8,23 +9,20 @@ import type {
 } from '../../types/api'
 import type { ApkgMediaIndex } from '../../utils/apkgMedia'
 import { useApkgImport, type ApkgImportApi } from './useApkgImport'
-import { useFeedback } from '../../composables/useFeedback'
-import { useAuthSession } from '../../composables/useAuthSession'
+import { useFeedbackStore } from '../../stores/useFeedbackStore'
+import { useAuthStore } from '../../stores/useAuthStore'
 
 vi.mock('vue-router', () => ({
   useRoute: vi.fn(),
   useRouter: vi.fn()
 }))
 
-vi.mock('../../composables/useFeedback', () => ({
-  useFeedback: vi.fn()
-}))
-
-vi.mock('../../composables/useAuthSession', () => ({
-  useAuthSession: vi.fn()
+vi.mock('../../stores/useAuthStore', () => ({
+  useAuthStore: vi.fn()
 }))
 
 describe('useApkgImport', () => {
+  beforeEach(() => { setActivePinia(createPinia()) })
   it('carrega preview APKG, prepara midia da primeira carta e monta opcoes de busca', async () => {
     const { client, createMediaIndex, createObjectUrl, decodeImage, flow, showNotice } = createSubject()
     const file = fakeFile()
@@ -131,6 +129,7 @@ describe('useApkgImport', () => {
 })
 
 function createSubject() {
+  setActivePinia(createPinia())
   const route = { name: 'import' }
   const router = { push: vi.fn() }
   const user = ref<UserResponse | null>(null)
@@ -139,11 +138,14 @@ function createSubject() {
   const withFeedback = vi.fn(async (task: () => Promise<void>) => {
     await task()
   })
+  const feedbackStore = useFeedbackStore()
+  try { feedbackStore.showError = showError as any } catch(e) {}
+  try { feedbackStore.showNotice = showNotice as any } catch(e) {}
+  try { feedbackStore.withFeedback = withFeedback as any } catch(e) {}
 
   vi.mocked(useRoute).mockReturnValue(route as any)
   vi.mocked(useRouter).mockReturnValue(router as any)
-  vi.mocked(useFeedback).mockReturnValue({ showNotice, showError, withFeedback } as any)
-  vi.mocked(useAuthSession).mockReturnValue({ user } as any)
+  vi.mocked(useAuthStore).mockReturnValue({ user } as any)
 
   const client = createClient()
   const mediaIndex = createMediaIndex()

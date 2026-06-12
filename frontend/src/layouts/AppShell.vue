@@ -14,6 +14,8 @@ import {
   X
 } from '@lucide/vue'
 import type { UserResponse } from '../types/api'
+import { useFeedbackStore } from '../stores/useFeedbackStore'
+import { storeToRefs } from 'pinia'
 
 interface ShellNavItem {
   id: string
@@ -32,11 +34,11 @@ defineProps<{
   sidebarToggleLabel: string
   user: UserResponse | null
   userDisplayName: string
-  loading: boolean
-  loadingMessage: string
-  notice: string
-  error: string
 }>()
+
+const feedbackStore = useFeedbackStore()
+const { notice, error, loading } = storeToRefs(feedbackStore)
+const loadingMessage = 'Carregando...'
 
 defineEmits<{
   'go-home': []
@@ -45,8 +47,6 @@ defineEmits<{
   'start-interleaved': []
   login: []
   logout: []
-  'dismiss-notice': []
-  'dismiss-error': []
 }>()
 </script>
 
@@ -135,13 +135,13 @@ defineEmits<{
       </div>
       <div v-if="notice" class="status success dismissible">
         <span>{{ notice }}</span>
-        <button class="status-close" type="button" title="Fechar notificacao" aria-label="Fechar notificacao" @click="$emit('dismiss-notice')">
+        <button class="status-close" type="button" title="Fechar notificacao" aria-label="Fechar notificacao" @click="feedbackStore.dismissNotice()">
           <X :size="15" aria-hidden="true" />
         </button>
       </div>
       <div v-if="error" class="status error dismissible">
         <span>{{ error }}</span>
-        <button class="status-close" type="button" title="Fechar notificacao" aria-label="Fechar notificacao" @click="$emit('dismiss-error')">
+        <button class="status-close" type="button" title="Fechar notificacao" aria-label="Fechar notificacao" @click="feedbackStore.dismissError()">
           <X :size="15" aria-hidden="true" />
         </button>
       </div>

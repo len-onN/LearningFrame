@@ -1,5 +1,5 @@
 import { computed, ref, type Ref } from 'vue'
-import type { FeedbackOptions } from '../../composables/useFeedback'
+import { useFeedbackStore } from '../../stores/useFeedbackStore'
 import { api, type DueRequestOptions } from '../../services/api'
 import type {
   DeckDetail,
@@ -34,8 +34,9 @@ import type {
   StudyEmptyReason
 } from './studySessionTypes'
 
-import { useAuthSession } from '../../composables/useAuthSession'
-import { useFeedback } from '../../composables/useFeedback'
+import { useAuthStore } from '../../stores/useAuthStore'
+import { storeToRefs } from 'pinia'
+
 import { useDeckLibrary } from '../library/useDeckLibrary'
 import { useStatsSummary } from '../../app/useStatsSummary'
 
@@ -71,8 +72,9 @@ export function useStudySession({
   client?: StudySessionApi
   publicDeckCacheLimit?: number
 } = {}) {
-  const { user } = useAuthSession()
-  const { showNotice, withFeedback } = useFeedback()
+  const authStore = useAuthStore()
+  const { user } = storeToRefs(authStore)
+  const feedbackStore = useFeedbackStore()
   const { publicDecks, myDecks, loadPublicDecks, loadMyDecks } = useDeckLibrary({ librarySection: ref('mine') })
   const { refreshStats } = useStatsSummary()
   const currentCard = computed(() => studyQueue.value[0])
@@ -187,7 +189,7 @@ export function useStudySession({
   async function loadStudyDeck(deckId: number) {
     answerVisible.value = false
 
-    await withFeedback(async () => {
+    await feedbackStore.withFeedback(async () => {
       const metadata = await client.deckMetadata(deckId).catch(() => null)
       sessionTitle.value = metadata?.title ?? 'Baralho'
       let cards: StudyCard[]
@@ -210,9 +212,9 @@ export function useStudySession({
       setStudySessionCards(cards, emptyReason)
       if (cards.length === 0) {
         if (emptyReason === 'limit-reached') {
-          showNotice('Voce atingiu o limite diario de estudos.')
+          feedbackStore.showNotice('Voce atingiu o limite diario de estudos.')
         } else {
-          showNotice('Nenhum card vencido agora para esta sessao.')
+          feedbackStore.showNotice('Nenhum card vencido agora para esta sessao.')
         }
       }
     })
@@ -228,7 +230,7 @@ export function useStudySession({
     lastStudyFeedback.value = null
     studyEmptyReason.value = 'idle'
 
-    await withFeedback(async () => {
+    await feedbackStore.withFeedback(async () => {
       if (user.value) {
         if (myDecks.value.length === 0) {
           await loadMyDecks(true)
@@ -246,7 +248,7 @@ export function useStudySession({
         .slice(0, INTERLEAVED_MAX_SELECTED_DECKS)
 
       const currentDeckId = currentStudyRequest.value && 'deckId' in currentStudyRequest.value 
-        ? currentStudyRequest.value.deckId 
+        ? (currentStudyRequest.value.deckId ?? null)
         : null
 
       interleavedSelection.value = {
@@ -261,14 +263,14 @@ export function useStudySession({
   async function startInterleavedPracticeSession() {
     const selectedIds = interleavedSelection.value.selectedIds
     if (selectedIds.length === 0) {
-      showNotice('Selecione pelo menos um baralho para iniciar.')
+      feedbackStore.showNotice('Selecione pelo menos um baralho para iniciar.')
       return
     }
 
     sessionTitle.value = 'Pratica intercalada'
     answerVisible.value = false
 
-    await withFeedback(async () => {
+    await feedbackStore.withFeedback(async () => {
       let cards: StudyCard[]
       let emptyReason: StudyEmptyReason = 'no-due'
 
@@ -300,9 +302,9 @@ export function useStudySession({
       setStudySessionCards(cards, emptyReason)
       if (cards.length === 0) {
         if (emptyReason === 'limit-reached') {
-          showNotice('Voce atingiu o limite diario de estudos.')
+          feedbackStore.showNotice('Voce atingiu o limite diario de estudos.')
         } else {
-          showNotice('Pratica intercalada sem cards vencidos agora.')
+          feedbackStore.showNotice('Pratica intercalada sem cards vencidos agora.')
         }
       }
     })
@@ -328,7 +330,7 @@ export function useStudySession({
       return
     }
 
-    await withFeedback(async () => {
+    await feedbackStore.withFeedback(async () => {
       let feedback: StudyReviewFeedback | null = null
       if (card.local) {
         const result = nextReview(localStates.value[card.clientId], rating)

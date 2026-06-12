@@ -2,7 +2,8 @@ import { computed, nextTick, ref, type Ref, onScopeDispose } from 'vue'
 import { api } from '../../services/api'
 import type { DeckSummary, PageResponse, UserResponse } from '../../types/api'
 import type { LibrarySection } from './libraryTypes'
-import { useAuthSession } from '../../composables/useAuthSession'
+import { useAuthStore } from '../../stores/useAuthStore'
+import { storeToRefs } from 'pinia'
 
 export interface DeckLibraryApi {
   publicDecks(page?: number, size?: number, query?: string): Promise<PageResponse<DeckSummary>>
@@ -29,7 +30,8 @@ export function useDeckLibrary({
   pageSize?: number
   client?: DeckLibraryApi
 }) {
-  const { user } = useAuthSession()
+  const authStore = useAuthStore()
+  const { user } = storeToRefs(authStore)
   let highlightDeckTimer: number | undefined
   let highlightDeckFrame: number | undefined
   let disposed = false

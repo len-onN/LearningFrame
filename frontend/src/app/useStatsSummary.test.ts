@@ -1,8 +1,9 @@
+import { createPinia, setActivePinia } from 'pinia'
 import { ref } from 'vue'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { useRoute } from 'vue-router'
-import { useFeedback } from '../composables/useFeedback'
-import { useAuthSession } from '../composables/useAuthSession'
+import { useFeedbackStore } from '../stores/useFeedbackStore'
+import { useAuthStore } from '../stores/useAuthStore'
 import type { StatsSummary, UserResponse } from '../types/api'
 import { useStatsSummary, type StatsSummaryApi } from './useStatsSummary'
 
@@ -10,37 +11,38 @@ vi.mock('vue-router', () => ({
   useRoute: vi.fn()
 }))
 
-vi.mock('../composables/useFeedback', () => ({
-  useFeedback: vi.fn()
-}))
 
-vi.mock('../composables/useAuthSession', () => ({
-  useAuthSession: vi.fn()
+
+vi.mock('../stores/useAuthStore', () => ({
+  useAuthStore: vi.fn()
 }))
 
 describe('useStatsSummary', () => {
   beforeEach(() => {
+    setActivePinia(createPinia())
     vi.clearAllMocks()
   })
 
   it('nao carrega stats sem usuario autenticado', async () => {
-    const { client, withFeedback, statsSummary } = createSubject({ routeName: 'progress' })
+    const { client, statsSummary } = createSubject({ routeName: 'progress' })
 
     await statsSummary.refreshStats()
     await statsSummary.syncProgressRoute()
 
     expect(client.stats).not.toHaveBeenCalled()
-    expect(withFeedback).not.toHaveBeenCalled()
+    const feedbackStore = useFeedbackStore()
+    expect(feedbackStore.withFeedback).not.toHaveBeenCalled()
     expect(statsSummary.stats.value).toBeNull()
   })
 
   it('sincroniza a rota de progresso com feedback discreto', async () => {
-    const { client, withFeedback, user, statsSummary } = createSubject({ routeName: 'progress' })
+    const { client, user, statsSummary } = createSubject({ routeName: 'progress' })
     user.value = userResponse()
 
     await statsSummary.syncProgressRoute()
 
-    expect(withFeedback).toHaveBeenCalledWith(expect.any(Function), {
+    const feedbackStore = useFeedbackStore()
+    expect(feedbackStore.withFeedback).toHaveBeenCalledWith(expect.any(Function), {
       showLoading: false,
       clearOnStart: false
     })
@@ -62,20 +64,21 @@ describe('useStatsSummary', () => {
 function createSubject(options: { routeName: string }) {
   const route = { name: options.routeName }
   const user = ref<UserResponse | null>(null)
-  const withFeedback = vi.fn(async (task: () => Promise<void>) => {
+  const feedbackStore = useFeedbackStore()
+  feedbackStore.withFeedback = vi.fn(async (task: () => Promise<void>) => {
     await task()
   })
 
   vi.mocked(useRoute).mockReturnValue(route as any)
-  vi.mocked(useFeedback).mockReturnValue({ withFeedback } as any)
-  vi.mocked(useAuthSession).mockReturnValue({ user } as any)
+
+  vi.mocked(useAuthStore).mockReturnValue({ user } as any)
 
   const client = createClient()
   const statsSummary = useStatsSummary({ client })
 
   return {
     client,
-    withFeedback,
+
     user,
     statsSummary
   }

@@ -1,9 +1,12 @@
+import { createPinia, setActivePinia } from 'pinia'
 import { nextTick, reactive } from 'vue'
 import type { RouteLocationNormalizedLoaded } from 'vue-router'
-import { describe, expect, it, vi } from 'vitest'
+import {  describe, expect, it, vi , beforeEach } from 'vitest'
 import { useRouteLifecycle } from './useRouteLifecycle'
 
 describe('useRouteLifecycle', () => {
+  beforeEach(() => { setActivePinia(createPinia()) })
+
   it('sincroniza a rota ativa no primeiro ciclo', () => {
     const callbacks = createCallbacks()
 
@@ -54,21 +57,7 @@ describe('useRouteLifecycle', () => {
     expect(callbacks.syncStudyRoute).toHaveBeenCalledTimes(2)
   })
 
-  it('mantem limpeza de feedback e importacao baseada no fullPath anterior', async () => {
-    const callbacks = createCallbacks()
-    const currentRoute = route('import', '/importar')
 
-    useRouteLifecycle({
-      route: currentRoute,
-      ...callbacks
-    })
-
-    currentRoute.name = 'login'
-    currentRoute.fullPath = '/entrar'
-    await nextTick()
-
-    expect(callbacks.clearFeedbackForRouteChange).toHaveBeenLastCalledWith('/importar', '/entrar')
-  })
 })
 
 function createCallbacks() {
@@ -77,8 +66,7 @@ function createCallbacks() {
     cleanupLibraryRoute: vi.fn(),
     syncStudyRoute: vi.fn(async () => undefined),
     cleanupStudyRoute: vi.fn(),
-    syncProgressRoute: vi.fn(async () => undefined),
-    clearFeedbackForRouteChange: vi.fn()
+    syncProgressRoute: vi.fn(async () => undefined)
   }
 }
 

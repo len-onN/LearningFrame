@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import {  describe, expect, it , beforeEach } from 'vitest'
 import type { ReviewResult } from '../../types/api'
 import {
   emptyStudyRatingCounts,
@@ -9,6 +10,8 @@ import {
 } from './studyFeedback'
 
 describe('studyFeedback', () => {
+  beforeEach(() => { setActivePinia(createPinia()) })
+
   it('cria contadores zerados para todos os ratings', () => {
     expect(emptyStudyRatingCounts()).toEqual({
       AGAIN: 0,

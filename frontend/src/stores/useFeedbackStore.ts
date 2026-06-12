@@ -1,3 +1,4 @@
+import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export type FeedbackLifetime = 'route' | 'next-route' | 'sticky'
@@ -7,12 +8,12 @@ export interface FeedbackOptions {
   clearOnStart?: boolean
 }
 
-const notice = ref('')
-const error = ref('')
-const loading = ref(false)
-const feedbackLifetime = ref<FeedbackLifetime>('route')
+export const useFeedbackStore = defineStore('feedback', () => {
+  const notice = ref('')
+  const error = ref('')
+  const loading = ref(false)
+  const feedbackLifetime = ref<FeedbackLifetime>('route')
 
-export function useFeedback() {
   function showNotice(message: string, lifetime: FeedbackLifetime = 'route') {
     notice.value = message
     error.value = ''
@@ -104,4 +105,4 @@ export function useFeedback() {
     dismissNotice,
     dismissError
   }
-}
+})

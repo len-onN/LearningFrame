@@ -1,17 +1,18 @@
-import { describe, expect, it, vi } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
+import {  describe, expect, it, vi , beforeEach } from 'vitest'
 import type { DeckSummary, DeckVisibility } from '../../types/api'
 import { useCreateDeckFlow, type CreateDeckApi } from './useCreateDeckFlow'
-
+import { useFeedbackStore } from '../../stores/useFeedbackStore'
 describe('useCreateDeckFlow', () => {
+  beforeEach(() => { setActivePinia(createPinia()) })
+
   it('cria baralho, reseta formulario e abre gerenciamento', async () => {
     const {
       client,
       flow,
       loadMyDecks,
       navigateToManagedDeck,
-      setManagedDeck,
-      showNotice,
-      withFeedback
+      setManagedDeck
     } = createSubject()
     const created = deck(42, 'Neuro', {
       description: 'Memoria',
@@ -26,7 +27,8 @@ describe('useCreateDeckFlow', () => {
 
     await flow.createDeck()
 
-    expect(withFeedback).toHaveBeenCalledWith(expect.any(Function))
+    const feedbackStore = useFeedbackStore()
+    expect(feedbackStore.withFeedback).toHaveBeenCalledWith(expect.any(Function))
     expect(client.createDeck).toHaveBeenCalledWith('Neuro', 'Memoria', 'PUBLIC')
     expect(flow.deckForm.value).toEqual({
       title: '',
@@ -36,7 +38,7 @@ describe('useCreateDeckFlow', () => {
     expect(loadMyDecks).toHaveBeenCalledWith(true)
     expect(setManagedDeck).toHaveBeenCalledWith(created)
     expect(navigateToManagedDeck).toHaveBeenCalledWith(42)
-    expect(showNotice).toHaveBeenCalledWith('Baralho criado. Adicione as primeiras cartas.')
+    expect(feedbackStore.showNotice).toHaveBeenCalledWith('Baralho criado. Adicione as primeiras cartas.')
   })
 })
 
@@ -45,8 +47,8 @@ function createSubject() {
   const loadMyDecks = vi.fn(async () => undefined)
   const setManagedDeck = vi.fn()
   const navigateToManagedDeck = vi.fn(async () => undefined)
-  const showNotice = vi.fn()
-  const withFeedback = vi.fn(async (task: () => Promise<void>) => {
+  const feedbackStore = useFeedbackStore(); feedbackStore.showNotice = vi.fn()
+  feedbackStore.withFeedback = vi.fn(async (task: () => Promise<void>) => {
     await task()
   })
 
@@ -54,9 +56,7 @@ function createSubject() {
     client,
     loadMyDecks,
     setManagedDeck,
-    navigateToManagedDeck,
-    showNotice,
-    withFeedback
+    navigateToManagedDeck
   })
 
   return {
@@ -64,9 +64,7 @@ function createSubject() {
     flow,
     loadMyDecks,
     setManagedDeck,
-    navigateToManagedDeck,
-    showNotice,
-    withFeedback
+    navigateToManagedDeck
   }
 }
 

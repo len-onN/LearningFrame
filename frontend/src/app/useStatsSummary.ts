@@ -3,8 +3,9 @@ import { useRoute } from 'vue-router'
 import { api } from '../services/api'
 import type { StatsSummary, UserResponse } from '../types/api'
 
-import { useAuthSession } from '../composables/useAuthSession'
-import { useFeedback } from '../composables/useFeedback'
+import { useAuthStore } from '../stores/useAuthStore'
+import { storeToRefs } from 'pinia'
+import { useFeedbackStore } from '../stores/useFeedbackStore'
 
 export interface StatsSummaryApi {
   stats(): Promise<StatsSummary>
@@ -16,8 +17,9 @@ export function useStatsSummary({
   client = api
 }: { client?: StatsSummaryApi } = {}) {
   const route = useRoute()
-  const { user } = useAuthSession()
-  const { withFeedback } = useFeedback()
+  const authStore = useAuthStore()
+  const { user } = storeToRefs(authStore)
+  const feedbackStore = useFeedbackStore()
 
   async function refreshStats() {
     if (!user.value) {
@@ -33,7 +35,7 @@ export function useStatsSummary({
 
   async function syncProgressRoute() {
     if (route.name === 'progress' && user.value) {
-      await withFeedback(async () => {
+      await feedbackStore.withFeedback(async () => {
         await refreshStats()
       }, { showLoading: false, clearOnStart: false })
     }

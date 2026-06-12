@@ -1889,4 +1889,17 @@ Implementações:
 - **Gravação de Áudio Nativca**: Implementado o composable `useAudioRecorder` utilizando a **Web Audio API** (`MediaRecorder`). Adicionado um botão de Microfone na barra de ferramentas do editor. Ao clicar, o sistema grava o áudio do usuário (com limite de 60s), empacota o arquivo gerado (como `.webm` ou `.mp4`) e dispara a mesma rotina de upload de arquivos do servidor. O arquivo sobe, o backend retorna a tag `[sound:...]`, e a extensão renderiza o player de áudio na mesma hora.
 - **UI Tweak**: O painel de gerenciamento de baralhos ganhou um contorno verde sólido (2px da cor `--color-success-border`) para melhor definição e contraste.
 
-A seguir: Iniciar refatoração arquitetural para descentralização do `App.vue`.
+## 70. Desacoplamento de Estado Global (Migração para Pinia)
+
+Data: 2026-06-11
+Branch de trabalho: `refactor/app-vue-architecture`
+
+A arquitetura inicial utilizava composables com refs soltos no arquivo para gerenciar estado global (como `useFeedback`). Com a evolução das rotas e testes, observou-se instabilidades de ciclo de vida (Vue emitindo warnings de `onScopeDispose` vazando) e sujeira em ambientes de Teste (Vitest).
+
+Decisões de Refatoração:
+- Adotamos o **Pinia** estritamente para estados transversais complexos como Feedback (e futuramente Autenticação/Notificações).
+- A refatoração transformou o antigo `useFeedback` (stateful) na store oficial `useFeedbackStore`.
+- Para poupar quebras de código, a interface da store (`showError`, `withFeedback`) continuou idêntica à antiga, mitigando a dor da migração.
+- Desenvolvemos scripts em Python (`fix_errors.py`, `fix_syntax.py`) para realizar a substituição em lote dos imports em dezenas de componentes.
+- Estabelecemos uma nova regra estrita nos testes do Vitest: todos os `beforeEach` que dependam do Pinia devem iniciar com `setActivePinia(createPinia())` para criar um ambiente isolado (Sandboxed) por teste.
+- O aviso de Memory Leak originado do `onScopeDispose` em `LibraryRoute.vue` foi corrigido retirando composables da fase de mapeamento lambda (`renderList`).

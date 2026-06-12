@@ -2,7 +2,6 @@ import { computed, ref } from 'vue'
 import { api } from '../../services/api'
 import type { CardResponse, DeckSummary, DeckVisibility, MediaUploadResponse, PageResponse } from '../../types/api'
 import { safePreviewHtml, safeStudyHtml } from '../../utils/html'
-import type { FeedbackOptions } from '../../composables/useFeedback'
 import { useDebouncedWatch } from '../../composables/useDebouncedWatch'
 import type { CardEditorMediaKind, CardEditorMode } from './cardEditorTypes'
 import type { ManagedCardsViewState, ManagedDeckFormState } from './libraryTypes'
@@ -21,8 +20,8 @@ export interface DeckManagementApi {
   uploadMedia(deckId: number, file: File): Promise<MediaUploadResponse>
 }
 
-import { useAuthSession } from '../../composables/useAuthSession'
-import { useFeedback } from '../../composables/useFeedback'
+
+import { useFeedbackStore } from '../../stores/useFeedbackStore'
 import { useDeckLibrary } from './useDeckLibrary'
 import { useStatsSummary } from '../../app/useStatsSummary'
 import { useRouter } from 'vue-router'
@@ -65,7 +64,7 @@ export function useDeckManagement({
   confirm?: (message: string) => boolean
 } = {}) {
   const router = useRouter()
-  const { showNotice, showError, withFeedback } = useFeedback()
+  const feedbackStore = useFeedbackStore()
   const { loadMyDecks } = useDeckLibrary({ librarySection: ref('mine') })
   const { refreshStats } = useStatsSummary()
 
@@ -127,7 +126,7 @@ export function useDeckManagement({
 
   useDebouncedWatch(managedCardsSearch, () => {
     if (managedDeck.value) {
-      void withFeedback(async () => loadManagedCards(true), { showLoading: false })
+      void feedbackStore.withFeedback(async () => loadManagedCards(true), { showLoading: false })
     }
   }, searchDebounceMs)
 
@@ -145,7 +144,7 @@ export function useDeckManagement({
   }
 
   async function loadManagedDeckRoute(deckId: number) {
-    await withFeedback(async () => {
+    await feedbackStore.withFeedback(async () => {
       const deck = await client.deckMetadata(deckId)
       setManagedDeck(deck)
       await loadManagedCards(true)
@@ -192,7 +191,7 @@ export function useDeckManagement({
   async function loadMoreManagedCards() {
     loadingMoreManagedCards.value = true
     try {
-      await withFeedback(async () => {
+      await feedbackStore.withFeedback(async () => {
         await loadManagedCards()
       }, { showLoading: false })
     } finally {
@@ -206,11 +205,11 @@ export function useDeckManagement({
       return
     }
     if (!managedDeckForm.value.title.trim()) {
-      showError('Informe o titulo do baralho.')
+      feedbackStore.showError('Informe o titulo do baralho.')
       return
     }
 
-    await withFeedback(async () => {
+    await feedbackStore.withFeedback(async () => {
       const updated = await client.updateDeck(
         deck.id,
         managedDeckForm.value.title,
@@ -219,7 +218,7 @@ export function useDeckManagement({
       )
       setManagedDeck(updated)
       await loadMyDecks(true)
-      showNotice('Baralho atualizado.')
+      feedbackStore.showNotice('Baralho atualizado.')
     })
   }
 
@@ -229,13 +228,13 @@ export function useDeckManagement({
       return
     }
 
-    await withFeedback(async () => {
+    await feedbackStore.withFeedback(async () => {
       await client.deleteDeck(deck.id)
       await closeManagedDeck(true)
       await loadMyDecks(true)
       await refreshStats()
       selectedManagedCardIds.value = new Set()
-      showNotice('Baralho excluido.')
+      feedbackStore.showNotice('Baralho excluido.')
     })
   }
 
@@ -281,19 +280,19 @@ export function useDeckManagement({
       return
     }
     if (!cardEditorForm.value.frontHtml.trim() || !cardEditorForm.value.backHtml.trim()) {
-      showError('Preencha frente e verso da carta.')
+      feedbackStore.showError('Preencha frente e verso da carta.')
       return
     }
 
-    await withFeedback(async () => {
+    await feedbackStore.withFeedback(async () => {
       const tags = splitTags(cardEditorForm.value.tags)
       let savedCard: CardResponse
       if (cardEditorMode.value === 'edit' && cardEditorCardId.value) {
         savedCard = await client.updateCard(deck.id, cardEditorCardId.value, cardEditorForm.value.frontHtml, cardEditorForm.value.backHtml, tags)
-        showNotice('Carta atualizada.')
+        feedbackStore.showNotice('Carta atualizada.')
       } else {
         savedCard = await client.createCard(deck.id, cardEditorForm.value.frontHtml, cardEditorForm.value.backHtml, tags)
-        showNotice('Carta adicionada.')
+        feedbackStore.showNotice('Carta adicionada.')
       }
       closeCardEditor(true)
       selectedManagedCardId.value = savedCard.id
@@ -309,14 +308,14 @@ export function useDeckManagement({
     if (!deck || !confirm('Excluir esta carta?')) {
       return
     }
-    await withFeedback(async () => {
+    await feedbackStore.withFeedback(async () => {
       await client.deleteCard(deck.id, card.id)
       await Promise.all([
         loadManagedCards(true),
         loadMyDecks(true)
       ])
       selectedManagedCardIds.value = new Set([...selectedManagedCardIds.value].filter((id) => id !== card.id))
-      showNotice('Carta excluida.')
+      feedbackStore.showNotice('Carta excluida.')
     })
   }
 
@@ -330,7 +329,7 @@ export function useDeckManagement({
       return
     }
 
-    await withFeedback(async () => {
+    await feedbackStore.withFeedback(async () => {
       await client.deleteCards(deck.id, cardIds)
       selectedManagedCardIds.value = new Set()
       selectedManagedCardId.value = null
@@ -338,7 +337,7 @@ export function useDeckManagement({
         loadManagedCards(true),
         loadMyDecks(true)
       ])
-      showNotice('Cartas selecionadas excluidas.')
+      feedbackStore.showNotice('Cartas selecionadas excluidas.')
     })
   }
 
@@ -380,7 +379,7 @@ export function useDeckManagement({
     }
 
     const uploaded = await client.uploadMedia(deck.id, file)
-    showNotice(kind === 'image'
+    feedbackStore.showNotice(kind === 'image'
       ? 'Imagem inserida na carta.'
       : 'Audio inserido na carta.')
 
@@ -390,7 +389,7 @@ export function useDeckManagement({
   }
 
   function handleCardEditorUploadError(message: string) {
-    showError(message)
+    feedbackStore.showError(message)
   }
 
   return {

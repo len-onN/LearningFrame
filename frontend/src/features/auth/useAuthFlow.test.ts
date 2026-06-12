@@ -1,11 +1,15 @@
+import { createPinia, setActivePinia } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 import type { RouteLocationNormalizedLoaded, RouteLocationRaw } from 'vue-router'
-import { describe, expect, it, vi } from 'vitest'
+import {  describe, expect, it, vi , beforeEach } from 'vitest'
 import type { AuthResponse, UserResponse } from '../../types/api'
 import type { AuthMode } from '../../utils/authValidation'
 import { useAuthFlow, type AuthNavigationMethod } from './useAuthFlow'
+import { useFeedbackStore } from '../../stores/useFeedbackStore'
 
 describe('useAuthFlow', () => {
+  beforeEach(() => { setActivePinia(createPinia()) })
+
   it('valida campos tocados e submissao sem chamar login invalido', async () => {
     const subject = createSubject({ mode: 'register' })
 
@@ -24,7 +28,8 @@ describe('useAuthFlow', () => {
       password: true
     })
     expect(subject.flow.authFieldError('displayName')).toBe('Informe seu nome.')
-    expect(subject.withFeedback).not.toHaveBeenCalled()
+    const feedbackStore = useFeedbackStore()
+    expect(feedbackStore.withFeedback).not.toHaveBeenCalled()
     expect(subject.login).not.toHaveBeenCalled()
     expect(subject.register).not.toHaveBeenCalled()
   })
@@ -87,7 +92,8 @@ describe('useAuthFlow', () => {
       name: 'login',
       query: { redirect: '/criar' }
     }, 'push')
-    expect(subject.clearFeedback).toHaveBeenCalled()
+    const feedbackStore = useFeedbackStore()
+    expect(feedbackStore.clearFeedback).toHaveBeenCalled()
     expect(subject.flow.authSubmitted.value).toBe(false)
   })
 
@@ -104,7 +110,8 @@ describe('useAuthFlow', () => {
       name: 'register',
       query: { redirect: '/biblioteca/meus' }
     }, 'push')
-    expect(subject.dismissError).toHaveBeenCalled()
+    const feedbackStore = useFeedbackStore()
+    expect(feedbackStore.dismissError).toHaveBeenCalled()
     expect(subject.flow.authSubmitted.value).toBe(false)
   })
 })
@@ -142,12 +149,13 @@ function createSubject(options: {
   const navigateToMyDecks = vi.fn(async () => {
     events.push('my-decks')
   })
-  const clearFeedback = vi.fn()
-  const dismissError = vi.fn()
-  const showNotice = vi.fn((message: string) => {
+  const feedbackStore = useFeedbackStore()
+  feedbackStore.clearFeedback = vi.fn()
+  feedbackStore.dismissError = vi.fn()
+  feedbackStore.showNotice = vi.fn((message: string) => {
     events.push(`notice:${message}`)
   })
-  const withFeedback = vi.fn(async (task: () => Promise<void>) => {
+  feedbackStore.withFeedback = vi.fn(async (task: () => Promise<void>) => {
     await task()
   })
 
@@ -161,11 +169,7 @@ function createSubject(options: {
     closeManagedDeck,
     navigateToImport,
     navigateToRedirect,
-    navigateToMyDecks,
-    clearFeedback,
-    dismissError,
-    showNotice,
-    withFeedback
+    navigateToMyDecks
   })
   readPassword = () => flow.authForm.value.password
 
@@ -181,10 +185,6 @@ function createSubject(options: {
     navigateToImport,
     navigateToRedirect,
     navigateToMyDecks,
-    clearFeedback,
-    dismissError,
-    showNotice,
-    withFeedback,
     flow
   }
 }
