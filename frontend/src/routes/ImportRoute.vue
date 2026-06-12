@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount } from 'vue'
+import { computed, onBeforeUnmount, onMounted } from 'vue'
 import ImportPage from '../pages/ImportPage.vue'
 import { useApkgImport } from '../features/import/useApkgImport'
 import { useAuthStore } from '../stores/useAuthStore'
@@ -8,6 +8,8 @@ import { useFeedbackStore } from '../stores/useFeedbackStore'
 
 
 const importFlow = useApkgImport()
+const importTitle = importFlow.importTitle
+const importVisibility = importFlow.importVisibility
 const authStore = useAuthStore()
 const { user } = storeToRefs(authStore)
 const feedbackStore = useFeedbackStore()
@@ -17,24 +19,18 @@ onBeforeUnmount(() => {
   importFlow.disposeApkgImport()
 })
 
-const importTitle = computed({
-  get: () => importFlow.importTitle.value,
-  set: (value: string) => {
-    importFlow.importTitle.value = value
+onMounted(() => {
+  if (importFlow.importPreview.value) {
+    importFlow.showPreviewCard(importFlow.previewCardIndex.value, importFlow.previewFace.value)
   }
 })
-const importVisibility = computed({
-  get: () => importFlow.importVisibility.value,
-  set: (value) => {
-    importFlow.importVisibility.value = value
-  }
-})
+
 </script>
 
 <template>
   <ImportPage
-    v-model:import-title="importTitle"
-    v-model:import-visibility="importVisibility"
+    v-model:importTitle="importTitle"
+    v-model:importVisibility="importVisibility"
     :selected-file="importFlow.selectedFile.value"
     :loading="feedbackStore.loading"
     :import-preview="importFlow.importPreview.value"

@@ -16,6 +16,7 @@ const props = defineProps<{
   modelValue: string
   uploadingMedia?: boolean
   deckId?: number
+  ariaLabel?: string
 }>()
 
 const ANKI_SOUND_PATTERN = /\[sound:([^\]]+)]/gi
@@ -64,6 +65,11 @@ const editor = useEditor({
     AnkiSoundExtension
   ],
   content: parseIncoming(props.modelValue),
+  editorProps: {
+    attributes: {
+      ...(props.ariaLabel ? { 'aria-label': props.ariaLabel } : {})
+    }
+  },
   onUpdate: ({ editor }) => {
     emit('update:modelValue', parseOutgoing(editor.getHTML()))
   }

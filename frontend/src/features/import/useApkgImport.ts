@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useFeedbackStore } from '../../stores/useFeedbackStore'
 import { useAuthStore } from '../../stores/useAuthStore'
+import { useLibraryStore } from '../../stores/useLibraryStore'
 import { storeToRefs } from 'pinia'
 import { api } from '../../services/api'
 import type {
@@ -34,6 +35,41 @@ export interface ApkgImportOptions {
   decodeImage?: (url: string) => Promise<unknown>
 }
 
+const selectedFile = ref<File | null>(null)
+const importVisibility = ref<DeckVisibility>('PRIVATE')
+const importTitle = ref('')
+const importPreview = ref<ApkgPreviewResponse | null>(null)
+const importResult = ref<ApkgImportResponse | null>(null)
+const returnToImportAfterAuth = ref(false)
+const previewCardIndex = ref(0)
+const previewFace = ref<PreviewFace>('front')
+const previewPickerOpen = ref(false)
+const previewCardSearch = ref('')
+const previewMediaIndex = ref<ApkgMediaIndex | null>(null)
+const previewMediaUrls = ref<Record<string, string>>({})
+const importSaving = ref(false)
+
+let previewMediaRequest = 0
+let importPreviewRequest = 0
+
+export function __resetImportStateForTesting() {
+  selectedFile.value = null
+  importVisibility.value = 'PRIVATE'
+  importTitle.value = ''
+  importPreview.value = null
+  importResult.value = null
+  returnToImportAfterAuth.value = false
+  previewCardIndex.value = 0
+  previewFace.value = 'front'
+  previewPickerOpen.value = false
+  previewCardSearch.value = ''
+  previewMediaIndex.value = null
+  previewMediaUrls.value = {}
+  importSaving.value = false
+  previewMediaRequest = 0
+  importPreviewRequest = 0
+}
+
 export function useApkgImport({
   client = api,
   createMediaIndex = readApkgMediaIndex,
@@ -46,23 +82,7 @@ export function useApkgImport({
   const authStore = useAuthStore()
   const { user } = storeToRefs(authStore)
   const feedbackStore = useFeedbackStore()
-
-  const selectedFile = ref<File | null>(null)
-  const importVisibility = ref<DeckVisibility>('PRIVATE')
-  const importTitle = ref('')
-  const importPreview = ref<ApkgPreviewResponse | null>(null)
-  const importResult = ref<ApkgImportResponse | null>(null)
-  const returnToImportAfterAuth = ref(false)
-  const previewCardIndex = ref(0)
-  const previewFace = ref<PreviewFace>('front')
-  const previewPickerOpen = ref(false)
-  const previewCardSearch = ref('')
-  const previewMediaIndex = ref<ApkgMediaIndex | null>(null)
-  const previewMediaUrls = ref<Record<string, string>>({})
-  const importSaving = ref(false)
-
-  let previewMediaRequest = 0
-  let importPreviewRequest = 0
+  const libraryStore = useLibraryStore()
 
   const currentPreviewCard = computed(() => importPreview.value?.cards[previewCardIndex.value] ?? null)
   const currentPreviewHtml = computed(() => {
@@ -143,6 +163,7 @@ export function useApkgImport({
     }
 
     importSaving.value = true
+    importSaving.value = true
     try {
       await feedbackStore.withFeedback(async () => {
         const result = await client.importApkg(selectedFile.value as File, importTitle.value, importVisibility.value)
@@ -153,6 +174,8 @@ export function useApkgImport({
         feedbackStore.showNotice(result.mediaImported > 0
           ? `Baralho APKG salvo com ${result.cardsImported} cartas e ${result.mediaImported} midias.`
           : 'Baralho APKG salvo em Meus baralhos.')
+          
+        await libraryStore.loadMyDecks(api, 8, true)
           
         await router.push({ name: 'library-mine', query: { highlight: result.deckId } })
       })

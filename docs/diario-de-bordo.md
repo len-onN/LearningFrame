@@ -1903,3 +1903,16 @@ Decis√µes de Refatora√ß√£o:
 - Desenvolvemos scripts em Python (`fix_errors.py`, `fix_syntax.py`) para realizar a substitui√ß√£o em lote dos imports em dezenas de componentes.
 - Estabelecemos uma nova regra estrita nos testes do Vitest: todos os `beforeEach` que dependam do Pinia devem iniciar com `setActivePinia(createPinia())` para criar um ambiente isolado (Sandboxed) por teste.
 - O aviso de Memory Leak originado do `onScopeDispose` em `LibraryRoute.vue` foi corrigido retirando composables da fase de mapeamento lambda (`renderList`).
+
+ # #   7 1 .   T r a n s i Á „ o   p a r a   P i n i a   ( F a s e s   2   e   3 ) 
+ 
+ D a t a :   2 0 2 6 - 0 6 - 1 2 
+ B r a n c h   d e   t r a b a l h o :    e a t u r e / p i n i a - a u t h - e - l i b r a r y ` n 
+ A   r e f a t o r a Á „ o   c o m   P i n i a   a v a n Á o u   p a r a   c o b r i r   a   A u t e n t i c a Á „ o   e   a   B i b l i o t e c a   d e   B a r a l h o s ,   a l i v i a n d o   o   A p p . v u e   q u e   a g o r a   d e l e g o u   c o m p l e t a m e n t e   a   l Û g i c a   d e   d a d o s   p a r a   a s   S t o r e s . 
+ 
+ I m p l e m e n t a Á ı e s : 
+ -   * * A u t h S t o r e * * :   C r i a d o   o   u s e A u t h S t o r e   q u e   g e r e n c i a   o   u s u · r i o   a t i v o   e   o   t o k e n   J W T .   A   c o m u n i c a Á „ o   d e   a u t e n t i c a Á „ o   f o i   i s o l a d a . 
+ -   * * L i b r a r y S t o r e   &   D e c k M a n a g e m e n t S t o r e * * :   C r i a d o s   p a r a   l i d a r   c o m   a   b u s c a   d e   b a r a l h o s   p ˙ b l i c o s ,   b a r a l h o s   p r i v a d o s   e   a s   a Á ı e s   d e   e d i Á „ o / e x c l u s „ o   c o n t e x t u a l . 
+ -   * * T e s t e s   A j u s t a d o s * * :   A d i c i o n a d o s   m o c k s   d e   u s e L i b r a r y S t o r e   e   u s e A u t h S t o r e   n o s   t e s t e s   q u e   s u b i a m   o   V i t e s t   s e m   c o n t e x t o   V u e   l i m p o . 
+ -   T o d o s   o s   t e s t e s   V i t e s t   ( 1 0 7 / 1 0 7 )   e   E 2 E   P l a y w r i g h t   ( 1 4 / 1 4 )   p a s s a r a m   a p Û s   a   r e f a t o r a Á „ o .  
+ 

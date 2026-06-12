@@ -246,6 +246,10 @@ function interleavedDueLabel(dueCount: number | null) {
         <span>{{ currentCard.newCard ? 'Novo' : `${currentCard.intervalDays} dias` }} · volta {{ currentDueLabel }}</span>
       </div>
 
+      <div v-if="lastFeedback" class="study-feedback" role="status">
+        <strong>{{ lastFeedback.ratingLabel }} registrado</strong>
+        <span>{{ lastFeedback.nextDueLabel }} · {{ lastFeedback.intervalLabel }}</span>
+      </div>
 
       <div class="prompt" v-html="frontHtml"></div>
 

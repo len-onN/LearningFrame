@@ -383,3 +383,17 @@ Estado atual:
 - `useFeedback` antigo substituído por `useFeedbackStore` em toda a base de código.
 - Configurado plugin Pinia no Vite.
 - Bugs de reatividade fora de escopo resolvidos com segurança e testes unitários (Vitest) passando no CI local com sucesso.
+
+## 17. Desacoplamento de Estado (Pinia) - Fases 2 e 3 (Auth e Library)
+
+Problema:
+- O `App.vue` ainda detinha muito estado vital, como Autenticação e coleções de baralhos. Como as Fases 2 e 3 da transição visavam tirar essa carga da view, os testes de E2E e Unitários ficavam com difícil configuração por "Provide/Inject" verbosos no `App.vue`.
+
+Decisão:
+- **useAuthStore**: Isolou toda a lógica do token JWT, estado atual do usuário e funções de persistência.
+- **useLibraryStore** e **useDeckManagementStore**: Abstrações responsáveis por buscar páginas de baralhos e gerenciar exclusão e modificação no modo de edição contextual da aplicação.
+- Componentes e Views agora invocam o Pinia (que atua como uma fachada sobre os composables) sem onerar o componente Raiz. O App.vue caiu centenas de linhas a mais.
+
+Estado atual:
+- Componentes refatorados.
+- Testes mockando Pinia corretamente, mantendo 100% de passagem nos Unitários (Vitest) e E2E (Playwright).

@@ -8,9 +8,10 @@ import type {
   UserResponse
 } from '../../types/api'
 import type { ApkgMediaIndex } from '../../utils/apkgMedia'
-import { useApkgImport, type ApkgImportApi } from './useApkgImport'
+import { useApkgImport, type ApkgImportApi, __resetImportStateForTesting } from './useApkgImport'
 import { useFeedbackStore } from '../../stores/useFeedbackStore'
 import { useAuthStore } from '../../stores/useAuthStore'
+import { useLibraryStore } from '../../stores/useLibraryStore'
 
 vi.mock('vue-router', () => ({
   useRoute: vi.fn(),
@@ -19,6 +20,10 @@ vi.mock('vue-router', () => ({
 
 vi.mock('../../stores/useAuthStore', () => ({
   useAuthStore: vi.fn()
+}))
+
+vi.mock('../../stores/useLibraryStore', () => ({
+  useLibraryStore: vi.fn()
 }))
 
 describe('useApkgImport', () => {
@@ -129,6 +134,7 @@ describe('useApkgImport', () => {
 })
 
 function createSubject() {
+  __resetImportStateForTesting()
   setActivePinia(createPinia())
   const route = { name: 'import' }
   const router = { push: vi.fn() }
@@ -146,6 +152,7 @@ function createSubject() {
   vi.mocked(useRoute).mockReturnValue(route as any)
   vi.mocked(useRouter).mockReturnValue(router as any)
   vi.mocked(useAuthStore).mockReturnValue({ user } as any)
+  vi.mocked(useLibraryStore).mockReturnValue({ loadMyDecks: vi.fn(async () => {}) } as any)
 
   const client = createClient()
   const mediaIndex = createMediaIndex()
