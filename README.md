@@ -12,16 +12,17 @@ gratuita de suporte ao aprendizado ofertada por uma instituição de ensino. A
 integração institucional real fica fora do MVP e é tratada no roadmap
 pós-MVP.
 
-## Status do MVP
+## Status da Versão
 
-Estado atual:
+Estado atual (v0.2.0):
 
-- MVP funcional e validado para entrega acadêmica;
-- QA manual final com 18 de 18 fluxos passando;
-- suite frontend com 33 testes passando;
-- suite E2E com 14 testes Playwright em Chromium e banco dedicado;
-- testes backend Maven com 27 testes passando;
-- sugestao de marco final: `v0.1.0-mvp`.
+- Aplicação funcional e validada com novas capacidades avançadas;
+- Editor de Cartas Avançado (WYSIWYG com TipTap);
+- Gravação nativa de áudio pelo microfone;
+- Gerenciamento completo de Perfil de Usuário com alteração segura de senhas;
+- Gestão global de estado migrada para **Pinia**;
+- Fluxo de login reformulado com redirecionamento na raiz;
+- QA manual finalizado e suites de testes mantidas.
 
 ## Stack
 
@@ -153,14 +154,12 @@ Fora do MVP imediato:
 
 ## Documentação de Projeto
 
-Guias finais do MVP:
+Guias da Aplicação:
 
-- [Princípios e padrões do MVP](docs/principios-e-padroes-mvp.md)
-- [Guia de uso do MVP](docs/guia-de-uso-mvp.md)
-- [Guia de integração com Anki/APKG](docs/guia-anki-apkg-mvp.md)
-- [Guia de execução local](docs/guia-execucao-local-mvp.md)
-- [Estado final do MVP](docs/estado-final-mvp.md)
-- [Relatório de QA manual final](docs/relatorio-qa-manual-final-mvp.md)
+- [Princípios e padrões](docs/principios-e-padroes.md)
+- [Guia de uso](docs/guia-de-uso.md)
+- [Guia de integração com Anki/APKG](docs/guia-anki-apkg.md)
+- [Guia de execução local](docs/guia-execucao-local.md)
 - [Roadmap de profissionalização pós-MVP](docs/roadmap-profissionalizacao-pos-mvp.md)
 - [Diário de bordo](docs/diario-de-bordo.md)
 
@@ -169,7 +168,4 @@ Contexto histórico e de desenvolvimento assistido:
 - [README do contexto de IA](docs/ai_context/README.md)
 - [Linha do tempo](docs/ai_context/linha-do-tempo.md)
 - [Memória de decisões](docs/ai_context/memoria-de-decisoes.md)
-- [Planos](docs/ai_context/planos/)
-- [Prompts](docs/ai_context/prompts/)
 - [Arquitetura e decisões históricas](docs/ai_context/arquitetura-e-decisoes/)
-- [Snapshots](docs/ai_context/snapshots/)
