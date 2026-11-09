@@ -41,16 +41,16 @@ function updateForm(patch: Partial<ManagedDeckFormState>) {
     <div class="manage-deck-header">
       <button class="ghost compact" type="button" @click="$emit('back')">
         <ArrowLeft :size="16" aria-hidden="true" />
-        Voltar
+        Back
       </button>
       <div class="row-actions">
         <button class="primary compact" type="button" :disabled="!dirty" @click="$emit('save-deck')">
           <Save :size="16" aria-hidden="true" />
-          Salvar
+          Save
         </button>
         <button class="ghost compact danger-action" type="button" @click="$emit('delete-deck')">
           <Trash2 :size="16" aria-hidden="true" />
-          Excluir baralho
+          Delete deck
         </button>
       </div>
     </div>
@@ -58,10 +58,10 @@ function updateForm(patch: Partial<ManagedDeckFormState>) {
     <section class="manage-deck-layout">
       <form class="panel manage-meta-panel" @submit.prevent="$emit('save-deck')">
         <div class="section-title">
-          <h2>Dados do baralho</h2>
+          <h2>Deck details</h2>
         </div>
         <label class="form-field">
-          <span class="field-label">Titulo</span>
+          <span class="field-label">Title</span>
           <input
             :value="form.title"
             type="text"
@@ -71,7 +71,7 @@ function updateForm(patch: Partial<ManagedDeckFormState>) {
           />
         </label>
         <label class="form-field">
-          <span class="field-label">Descricao</span>
+          <span class="field-label">Description</span>
           <textarea
             :value="form.description"
             rows="5"
@@ -80,13 +80,13 @@ function updateForm(patch: Partial<ManagedDeckFormState>) {
           ></textarea>
         </label>
         <label class="form-field">
-          <span class="field-label">Visibilidade</span>
+          <span class="field-label">Visibility</span>
           <select
             :value="form.visibility"
             @change="updateForm({ visibility: ($event.target as HTMLSelectElement).value as DeckVisibility })"
           >
-            <option value="PRIVATE">Privado</option>
-            <option value="PUBLIC">Publico</option>
+            <option value="PRIVATE">Private</option>
+            <option value="PUBLIC">Public</option>
           </select>
         </label>
       </form>
@@ -94,12 +94,12 @@ function updateForm(patch: Partial<ManagedDeckFormState>) {
       <section class="panel manage-cards-panel">
         <div class="section-title">
           <div>
-            <h2>Cartas</h2>
+            <h2>Cards</h2>
             <p class="muted">{{ cardsView.countLabel || cardCountLabel(deck.cardCount) }}</p>
           </div>
           <button class="primary compact" type="button" @click="$emit('create-card')">
             <Plus :size="16" aria-hidden="true" />
-            Nova carta
+            New card
           </button>
         </div>
 
@@ -109,7 +109,7 @@ function updateForm(patch: Partial<ManagedDeckFormState>) {
             <input
               :value="cardsSearch"
               type="search"
-              placeholder="Buscar em frente, verso ou tags"
+              placeholder="Search front, back, or tags"
               @input="$emit('update:cards-search', ($event.target as HTMLInputElement).value)"
             />
           </label>
@@ -120,7 +120,7 @@ function updateForm(patch: Partial<ManagedDeckFormState>) {
               :disabled="cardsView.cards.length === 0"
               @click="$emit('toggle-page-selection')"
             >
-              {{ cardsView.allVisibleSelected ? 'Desmarcar pagina' : 'Selecionar pagina' }}
+              {{ cardsView.allVisibleSelected ? 'Deselect page' : 'Select page' }}
             </button>
             <button
               class="ghost compact"
@@ -128,7 +128,7 @@ function updateForm(patch: Partial<ManagedDeckFormState>) {
               :disabled="cardsView.selectedCount === 0"
               @click="$emit('clear-selection')"
             >
-              Limpar
+              Clear
             </button>
             <button
               class="ghost compact danger-action"
@@ -137,7 +137,7 @@ function updateForm(patch: Partial<ManagedDeckFormState>) {
               @click="$emit('delete-selected')"
             >
               <Trash2 :size="16" aria-hidden="true" />
-              Excluir {{ cardsView.selectedCount || '' }}
+              Delete {{ cardsView.selectedCount || '' }}
             </button>
           </div>
         </div>
@@ -150,7 +150,7 @@ function updateForm(patch: Partial<ManagedDeckFormState>) {
               class="managed-card-row"
               :class="{ active: cardsView.selectedCardId === card.id }"
             >
-              <label class="card-selection" :aria-label="`Selecionar ${cardTextSummary(card)}`">
+              <label class="card-selection" :aria-label="`Select ${cardTextSummary(card)}`">
                 <input
                   type="checkbox"
                   :checked="cardsView.selectedCardIds.has(card.id)"
@@ -159,11 +159,11 @@ function updateForm(patch: Partial<ManagedDeckFormState>) {
               </label>
               <button class="managed-card-summary" type="button" @click="$emit('select-card', card)">
                 <span>{{ cardTextSummary(card) }}</span>
-                <small>{{ card.tags.length ? card.tags.join(', ') : 'sem tags' }}</small>
+                <small>{{ card.tags.length ? card.tags.join(', ') : 'no tags' }}</small>
               </button>
             </article>
             <p v-if="cardsView.cards.length === 0" class="muted empty-copy">
-              {{ cardsSearch ? 'Nenhuma carta encontrada para esta busca.' : 'Nenhuma carta ainda.' }}
+              {{ cardsSearch ? 'No cards found for this search.' : 'No cards yet.' }}
             </p>
             <a
               v-if="cardsView.hasMore"
@@ -173,7 +173,7 @@ function updateForm(patch: Partial<ManagedDeckFormState>) {
               @click.prevent="!loadingMore && $emit('load-more-cards')"
             >
               <Loader2 v-if="loadingMore" :size="16" aria-hidden="true" class="icon-spin" />
-              {{ loadingMore ? 'Carregando...' : 'Carregar mais cartas...' }}
+              {{ loadingMore ? 'Loading...' : 'Load more cards...' }}
             </a>
           </div>
 
@@ -182,15 +182,15 @@ function updateForm(patch: Partial<ManagedDeckFormState>) {
               <div>
                 <h3>{{ cardTextSummary(cardsView.selectedCard) }}</h3>
                 <p class="muted">
-                  {{ cardsView.selectedCard.tags.length ? cardsView.selectedCard.tags.join(', ') : 'sem tags' }}
+                  {{ cardsView.selectedCard.tags.length ? cardsView.selectedCard.tags.join(', ') : 'no tags' }}
                 </p>
               </div>
               <div class="row-actions">
                 <button
                   class="ghost icon-button"
                   type="button"
-                  title="Editar carta"
-                  aria-label="Editar carta"
+                  title="Edit card"
+                  aria-label="Edit card"
                   @click="$emit('edit-card', cardsView.selectedCard)"
                 >
                   <Pencil :size="16" aria-hidden="true" />
@@ -198,8 +198,8 @@ function updateForm(patch: Partial<ManagedDeckFormState>) {
                 <button
                   class="ghost icon-button danger-action"
                   type="button"
-                  title="Excluir carta"
-                  aria-label="Excluir carta"
+                  title="Delete card"
+                  aria-label="Delete card"
                   @click="$emit('delete-card', cardsView.selectedCard)"
                 >
                   <Trash2 :size="16" aria-hidden="true" />
@@ -208,22 +208,22 @@ function updateForm(patch: Partial<ManagedDeckFormState>) {
             </div>
             <div class="managed-preview-faces">
               <div>
-                <span class="field-label">Frente</span>
+                <span class="field-label">Front</span>
                 <div class="preview-study-face" v-html="cardsView.frontPreview"></div>
               </div>
               <div>
-                <span class="field-label">Verso</span>
+                <span class="field-label">Back</span>
                 <div class="preview-study-face" v-html="cardsView.backPreview"></div>
               </div>
             </div>
           </article>
 
           <div v-else class="empty-state compact-empty">
-            <h2>{{ cardsSearch ? 'Busca sem resultados' : 'Nenhuma carta ainda' }}</h2>
-            <p>{{ cardsSearch ? 'Ajuste o termo de busca ou limpe o filtro.' : 'Crie a primeira carta para estudar este baralho.' }}</p>
+            <h2>{{ cardsSearch ? 'No results found' : 'No cards yet' }}</h2>
+            <p>{{ cardsSearch ? 'Adjust your search term or clear the filter.' : 'Create the first card to study this deck.' }}</p>
             <button v-if="!cardsSearch" class="primary compact" type="button" @click="$emit('create-card')">
               <Plus :size="16" aria-hidden="true" />
-              Nova carta
+              New card
             </button>
           </div>
         </section>

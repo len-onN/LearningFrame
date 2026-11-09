@@ -65,7 +65,7 @@ describe('useLibraryActions', () => {
     await subject.actions.savePublicDeck(deck(3, 'Publico'))
 
     expect(subject.openAuth).toHaveBeenCalledWith('login')
-    expect(subject.showNotice).toHaveBeenCalledWith('Entre para salvar este baralho em Meus baralhos.')
+    expect(subject.showNotice).toHaveBeenCalledWith('Sign in to save this deck to My decks.')
     expect(subject.client.copyPublicDeck).not.toHaveBeenCalled()
   })
 
@@ -84,7 +84,7 @@ describe('useLibraryActions', () => {
     expect(subject.refreshStats).toHaveBeenCalled()
     expect(subject.navigateToMyDecks).toHaveBeenCalled()
     expect(subject.highlightDeck).toHaveBeenCalledWith(9)
-    expect(subject.showNotice).toHaveBeenCalledWith('Baralho salvo em Meus baralhos como copia privada.')
+    expect(subject.showNotice).toHaveBeenCalledWith('Deck saved to My decks as a private copy.')
   })
 
   it('confirma exclusao em lote antes de excluir meus baralhos', async () => {
@@ -96,12 +96,12 @@ describe('useLibraryActions', () => {
 
     await subject.actions.deleteSelectedMyDecks()
 
-    expect(subject.confirm).toHaveBeenCalledWith('Excluir 2 baralhos selecionados e todas as suas cartas?')
+    expect(subject.confirm).toHaveBeenCalledWith('Delete 2 selected decks and all of their cards?')
     expect(subject.client.deleteDecks).toHaveBeenCalledWith([2, 3])
     expect(subject.exitDeckSelectionMode).toHaveBeenCalled()
     expect(subject.loadMyDecks).toHaveBeenCalledWith(true)
     expect(subject.refreshStats).toHaveBeenCalled()
-    expect(subject.showNotice).toHaveBeenCalledWith('Baralhos selecionados excluidos.')
+    expect(subject.showNotice).toHaveBeenCalledWith('Selected decks deleted.')
   })
 
   it('nao exclui meus baralhos quando a confirmacao e cancelada', async () => {

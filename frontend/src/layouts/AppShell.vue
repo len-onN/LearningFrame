@@ -37,7 +37,7 @@ defineProps<{
 
 const feedbackStore = useFeedbackStore()
 const { notice, error, loading } = storeToRefs(feedbackStore)
-const loadingMessage = 'Carregando...'
+const loadingMessage = 'Loading...'
 
 defineEmits<{
   'go-home': []
@@ -52,7 +52,7 @@ defineEmits<{
 <template>
   <div class="app-shell" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
     <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
-      <button class="brand-button" type="button" title="Pagina inicial" @click="$emit('go-home')">
+      <button class="brand-button" type="button" title="Home" @click="$emit('go-home')">
         <Brain :size="24" aria-hidden="true" />
         <strong>LearningFrame</strong>
       </button>
@@ -68,7 +68,7 @@ defineEmits<{
         <ChevronsLeft v-else :size="16" aria-hidden="true" />
       </button>
 
-      <nav class="nav-list" aria-label="Navegacao principal">
+      <nav class="nav-list" aria-label="Main navigation">
         <RouterLink
           v-for="item in navItems"
           :key="item.id"
@@ -90,20 +90,20 @@ defineEmits<{
 
 
 
-      <section class="sidebar-footer" aria-label="Conta">
+      <section class="sidebar-footer" aria-label="Account">
         <div v-if="user" class="sidebar-user">
           <div class="user-summary" :title="userDisplayName">
             <User :size="16" aria-hidden="true" />
             <span>{{ userDisplayName }}</span>
           </div>
-          <button class="ghost icon-button" type="button" title="Sair" aria-label="Sair" @click="$emit('logout')">
+          <button class="ghost icon-button" type="button" title="Log out" aria-label="Log out" @click="$emit('logout')">
             <LogOut :size="16" aria-hidden="true" />
           </button>
         </div>
 
         <button v-else class="primary compact sidebar-login" type="button" @click="$emit('login')">
           <User :size="16" aria-hidden="true" />
-          <span>Entrar</span>
+          <span>Log in</span>
         </button>
       </section>
     </aside>
@@ -122,7 +122,7 @@ defineEmits<{
               <Sun v-if="themePreference === 'light'" :size="14" aria-hidden="true" />
               <Moon v-else :size="14" aria-hidden="true" />
             </button>
-            <span>Recordação ativa · Repetição espaçada · Prática intercalada</span>
+            <span>Active recall · Spaced repetition · Interleaved practice</span>
           </p>
           <h1>{{ currentTitle }}</h1>
         </div>
@@ -134,13 +134,13 @@ defineEmits<{
       </div>
       <div v-if="notice" class="status success dismissible">
         <span>{{ notice }}</span>
-        <button class="status-close" type="button" title="Fechar notificacao" aria-label="Fechar notificacao" @click="feedbackStore.dismissNotice()">
+        <button class="status-close" type="button" title="Dismiss notification" aria-label="Dismiss notification" @click="feedbackStore.dismissNotice()">
           <X :size="15" aria-hidden="true" />
         </button>
       </div>
       <div v-if="error" class="status error dismissible">
         <span>{{ error }}</span>
-        <button class="status-close" type="button" title="Fechar notificacao" aria-label="Fechar notificacao" @click="feedbackStore.dismissError()">
+        <button class="status-close" type="button" title="Dismiss notification" aria-label="Dismiss notification" @click="feedbackStore.dismissError()">
           <X :size="15" aria-hidden="true" />
         </button>
       </div>

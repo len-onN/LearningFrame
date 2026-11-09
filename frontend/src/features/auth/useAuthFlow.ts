@@ -77,7 +77,7 @@ export function useAuthFlow({
       } else {
         await router.replace({ name: 'library-mine' })
       }
-      feedbackStore.showNotice(`Sessao iniciada como ${response.user.displayName}.`)
+      feedbackStore.showNotice(`Signed in as ${response.user.displayName}.`)
     })
   }
 

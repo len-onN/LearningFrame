@@ -65,7 +65,7 @@ describe('useAuthFlow', () => {
       'refresh:password=',
       'redirect:/criar',
       'import',
-      'notice:Sessao iniciada como Ada.'
+      'notice:Signed in as Ada.'
     ])
   })
 

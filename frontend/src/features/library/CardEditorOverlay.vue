@@ -48,7 +48,7 @@ async function processMediaFile(file: File) {
     const marker = await store.uploadCardEditorMedia(file, mediaUploadKind.value)
     insertIntoEditor(activeEditorFace.value, marker)
   } catch (error) {
-    store.handleCardEditorUploadError(error instanceof Error ? error.message : 'Falha ao inserir midia.')
+    store.handleCardEditorUploadError(error instanceof Error ? error.message : 'Failed to insert media.')
   } finally {
     uploadingMedia.value = false
   }
@@ -81,7 +81,7 @@ function handleClose() {
 </script>
 
 <template>
-  <section class="card-editor-overlay" aria-label="Editor de carta">
+  <section class="card-editor-overlay" aria-label="Card editor">
     <div class="card-editor-shell">
       <header class="card-editor-header">
         <div>
@@ -91,9 +91,9 @@ function handleClose() {
         <div class="row-actions">
           <button class="primary compact" type="button" @click="handleSave">
             <Save :size="16" aria-hidden="true" />
-            Salvar carta
+            Save card
           </button>
-          <button class="ghost icon-button" type="button" title="Fechar editor" aria-label="Fechar editor" @click="handleClose">
+          <button class="ghost icon-button" type="button" title="Close editor" aria-label="Close editor" @click="handleClose">
             <X :size="16" aria-hidden="true" />
           </button>
         </div>
@@ -103,14 +103,14 @@ function handleClose() {
         <form class="card-editor-form" @submit.prevent="handleSave">
           <section class="editor-face-block">
             <div class="section-title compact-title">
-              <h3>Frente</h3>
+              <h3>Front</h3>
             </div>
             <RichTextEditor
               ref="frontEditorRef"
               v-model="cardEditorForm.frontHtml"
               :deck-id="deckId"
               :uploading-media="uploadingMedia"
-              aria-label="Frente da carta"
+              aria-label="Card front"
               @upload-media="(k, f) => triggerMediaUpload(k, 'front', f)"
               @focusin="activeEditorFace = 'front'"
             />
@@ -118,14 +118,14 @@ function handleClose() {
 
           <section class="editor-face-block">
             <div class="section-title compact-title">
-              <h3>Verso</h3>
+              <h3>Back</h3>
             </div>
             <RichTextEditor
               ref="backEditorRef"
               v-model="cardEditorForm.backHtml"
               :deck-id="deckId"
               :uploading-media="uploadingMedia"
-              aria-label="Verso da carta"
+              aria-label="Card back"
               @upload-media="(k, f) => triggerMediaUpload(k, 'back', f)"
               @focusin="activeEditorFace = 'back'"
             />
@@ -133,7 +133,7 @@ function handleClose() {
 
           <label class="form-field">
             <span class="field-label">Tags</span>
-            <input v-model="cardEditorForm.tags" type="text" maxlength="400" placeholder="separadas por virgula" aria-label="Tags da carta" />
+            <input v-model="cardEditorForm.tags" type="text" maxlength="400" placeholder="comma-separated" aria-label="Card tags" />
           </label>
         </form>
 

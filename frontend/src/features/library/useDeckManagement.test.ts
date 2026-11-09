@@ -122,7 +122,7 @@ describe('useDeckManagement', () => {
 
     expect(client.updateDeck).toHaveBeenCalledWith(7, 'Atualizado', 'Descricao', 'PUBLIC')
     expect(loadMyDecks).toHaveBeenCalled()
-    expect(showNotice).toHaveBeenCalledWith('Baralho atualizado.')
+    expect(showNotice).toHaveBeenCalledWith('Deck updated.')
     expect(management.managedDeckDirty.value).toBe(false)
   })
 
@@ -138,7 +138,7 @@ describe('useDeckManagement', () => {
     await management.saveManagedDeck()
 
     expect(client.updateDeck).not.toHaveBeenCalled()
-    expect(showError).toHaveBeenCalledWith('Informe o titulo do baralho.')
+    expect(showError).toHaveBeenCalledWith('Please enter a deck title.')
   })
 
   it('cria carta pelo editor, separa tags e recarrega cartas e decks', async () => {
@@ -162,7 +162,7 @@ describe('useDeckManagement', () => {
     expect(loadMyDecks).toHaveBeenCalled()
     expect(management.cardEditorOpen.value).toBe(false)
     expect(management.selectedManagedCardId.value).toBe(10)
-    expect(showNotice).toHaveBeenCalledWith('Carta adicionada.')
+    expect(showNotice).toHaveBeenCalledWith('Card added.')
   })
 
   it('exclui cartas selecionadas preservando paginacao e limpando selecao', async () => {
@@ -184,7 +184,7 @@ describe('useDeckManagement', () => {
     expect(loadMyDecks).toHaveBeenCalled()
     expect(management.selectedManagedCardIds.value.size).toBe(0)
     expect(management.selectedManagedCardId.value).toBeNull()
-    expect(showNotice).toHaveBeenCalledWith('Cartas selecionadas excluidas.')
+    expect(showNotice).toHaveBeenCalledWith('Selected cards deleted.')
   })
 
   it('debounceia busca de cartas gerenciadas preservando loading invisivel', async () => {
@@ -218,7 +218,7 @@ describe('useDeckManagement', () => {
 
     await expect(management.uploadCardEditorMedia({} as File, 'image')).resolves.toBe('<img src="imagem.png" alt="">')
     expect(client.uploadMedia).toHaveBeenCalledWith(7, {})
-    expect(showNotice).toHaveBeenCalledWith('Imagem inserida na carta.')
+    expect(showNotice).toHaveBeenCalledWith('Image inserted into card.')
   })
 })
 

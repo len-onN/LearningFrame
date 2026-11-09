@@ -15,11 +15,11 @@ export interface DeckLibraryApi {
 export const mergeDeckPages = storeMergePages
 export const normalizeSearch = normalizeSearchStr
 
-export function deckPageCountLabel<T>(loaded: number, page: PageResponse<T> | null, label = 'baralhos') {
+export function deckPageCountLabel<T>(loaded: number, page: PageResponse<T> | null, label = 'decks') {
   if (!page) {
     return ''
   }
-  return `${loaded} de ${page.totalElements} ${label}`
+  return `${loaded} of ${page.totalElements} ${label}`
 }
 
 export function useDeckLibrary({

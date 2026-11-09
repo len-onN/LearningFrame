@@ -92,7 +92,7 @@ const {
   }
 })
 
-const userDisplayName = computed(() => user.value?.displayName ?? 'Visitante')
+const userDisplayName = computed(() => user.value?.displayName ?? 'Guest')
 
 onMounted(() => {
   themeStore.applyThemePreference()
@@ -143,7 +143,7 @@ async function logout() {
   myDeckPage.value = null
   myDeckQuery.value = ''
   await router.replace({ name: 'library-public' })
-  feedbackStore.showNotice('Modo anonimo ativado.')
+  feedbackStore.showNotice('Anonymous mode activated.')
 }
 
 async function goHome() {

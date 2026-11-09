@@ -47,7 +47,7 @@ export function useCreateDeckFlow({
       await libraryStore.loadMyDecks(undefined, undefined, true)
       deckManagementStore.setManagedDeck(created)
       await router.push({ name: 'library-deck-manage', params: { deckId: created.id } })
-      feedbackStore.showNotice('Baralho criado. Adicione as primeiras cartas.')
+      feedbackStore.showNotice('Deck created. Add the first cards.')
     })
   }
 

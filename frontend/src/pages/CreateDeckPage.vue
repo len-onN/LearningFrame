@@ -19,19 +19,19 @@ const visibility = defineModel<DeckVisibility>('visibility', { required: true })
   <section class="create-deck-section">
     <form class="panel create-deck-panel" @submit.prevent="$emit('submit')">
       <div class="section-title">
-        <h2>Novo baralho</h2>
+        <h2>New deck</h2>
       </div>
-      <input v-model="title" required type="text" placeholder="Titulo" aria-label="Titulo do baralho" :disabled="!user" />
-      <textarea v-model="description" rows="4" placeholder="Descricao" aria-label="Descricao do baralho" :disabled="!user"></textarea>
-      <select v-model="visibility" aria-label="Visibilidade do baralho" :disabled="!user">
-        <option value="PRIVATE">Privado</option>
-        <option value="PUBLIC">Publico</option>
+      <input v-model="title" required type="text" placeholder="Title" aria-label="Deck title" :disabled="!user" />
+      <textarea v-model="description" rows="4" placeholder="Description" aria-label="Deck description" :disabled="!user"></textarea>
+      <select v-model="visibility" aria-label="Deck visibility" :disabled="!user">
+        <option value="PRIVATE">Private</option>
+        <option value="PUBLIC">Public</option>
       </select>
       <button class="primary full" type="submit" :disabled="!user">
         <Plus :size="16" aria-hidden="true" />
-        Criar baralho
+        Create deck
       </button>
-      <p v-if="!user" class="muted">Criacao persistente exige login.</p>
+      <p v-if="!user" class="muted">Persistent creation requires login.</p>
     </form>
   </section>
 </template>

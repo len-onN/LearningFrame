@@ -22,13 +22,13 @@ describe('studyFeedback', () => {
   })
 
   it('formata labels de ratings e intervalos', () => {
-    expect(ratingLabel('AGAIN')).toBe('De novo')
-    expect(ratingLabel('HARD')).toBe('Dif\u00edcil')
-    expect(ratingLabel('GOOD')).toBe('Bom')
-    expect(ratingLabel('EASY')).toBe('F\u00e1cil')
-    expect(intervalLabel(0)).toBe('intervalo menor que 1 dia')
-    expect(intervalLabel(1)).toBe('intervalo de 1 dia')
-    expect(intervalLabel(3)).toBe('intervalo de 3 dias')
+    expect(ratingLabel('AGAIN')).toBe('Again')
+    expect(ratingLabel('HARD')).toBe('Hard')
+    expect(ratingLabel('GOOD')).toBe('Good')
+    expect(ratingLabel('EASY')).toBe('Easy')
+    expect(intervalLabel(0)).toBe('interval less than 1 day')
+    expect(intervalLabel(1)).toBe('interval of 1 day')
+    expect(intervalLabel(3)).toBe('interval of 3 days')
   })
 
   it('monta feedback a partir de resultado local ou do backend', () => {
@@ -43,13 +43,13 @@ describe('studyFeedback', () => {
 
     expect(studyFeedbackFromReviewResult(result)).toMatchObject({
       rating: 'GOOD',
-      ratingLabel: 'Bom',
-      intervalLabel: 'intervalo de 1 dia'
+      ratingLabel: 'Good',
+      intervalLabel: 'interval of 1 day'
     })
     expect(studyFeedbackFromResult('EASY', result.nextDueAt, 3)).toMatchObject({
       rating: 'EASY',
-      ratingLabel: 'F\u00e1cil',
-      intervalLabel: 'intervalo de 3 dias'
+      ratingLabel: 'Easy',
+      intervalLabel: 'interval of 3 days'
     })
   })
 })

@@ -37,8 +37,8 @@ const importVisibility = defineModel<DeckVisibility>('importVisibility', { requi
   <section class="import-page">
     <div class="import-header">
       <div>
-        <p class="eyebrow">Pacote Anki</p>
-        <h2>Importar APKG</h2>
+        <p class="eyebrow">Anki Package</p>
+        <h2>Import APKG</h2>
       </div>
       <span v-if="selectedFile" class="muted">{{ selectedFile.name }}</span>
     </div>
@@ -47,21 +47,21 @@ const importVisibility = defineModel<DeckVisibility>('importVisibility', { requi
       <div class="panel wide">
         <label class="file-drop">
           <Upload :size="22" aria-hidden="true" />
-          <span>{{ selectedFile?.name ?? 'Selecionar arquivo .apkg' }}</span>
-          <input type="file" accept=".apkg" aria-label="Arquivo APKG" @change="$emit('file-change', $event)" />
+          <span>{{ selectedFile?.name ?? 'Select .apkg file' }}</span>
+          <input type="file" accept=".apkg" aria-label="APKG file" @change="$emit('file-change', $event)" />
         </label>
 
         <div v-if="loading && selectedFile && !importPreview" class="pending-card import-loading">
-          Lendo pacote e preparando previa...
+          Reading package and preparing preview...
         </div>
 
         <div v-if="importPreview" class="import-summary">
           <div>
             <strong>{{ importPreview.title }}</strong>
-            <span>{{ importPreview.notesFound }} notas encontradas · {{ importPreview.cardsReady }} cartas prontas · {{ importPreview.cardsSkipped }} ignoradas · {{ importPreview.mediaFound }} midias</span>
+            <span>{{ importPreview.notesFound }} notes found · {{ importPreview.cardsReady }} cards ready · {{ importPreview.cardsSkipped }} skipped · {{ importPreview.mediaFound }} media</span>
           </div>
           <p v-if="importPreview.mediaFound > 0" class="inline-alert">
-            Este pacote contem midia. A previa mostra marcadores; o estudo com imagens fica disponivel depois de salvar em Meus baralhos.
+            This package contains media. The preview shows placeholders; studying with images will be available after saving to My Decks.
           </p>
           <p v-for="warning in importPreview.warnings" :key="warning" class="muted">{{ warning }}</p>
         </div>
@@ -89,11 +89,11 @@ const importVisibility = defineModel<DeckVisibility>('importVisibility', { requi
                 @click="$emit('move-preview-card', -1)"
               >
                 <ChevronsLeft :size="16" aria-hidden="true" />
-                Anterior
+                Previous
               </button>
               <button class="ghost compact" type="button" @click="$emit('toggle-preview-face')">
                 <RotateCcw :size="16" aria-hidden="true" />
-                {{ previewFace === 'front' ? 'Ver verso' : 'Ver frente' }}
+                {{ previewFace === 'front' ? 'View back' : 'View front' }}
               </button>
               <button
                 class="ghost compact"
@@ -101,7 +101,7 @@ const importVisibility = defineModel<DeckVisibility>('importVisibility', { requi
                 :disabled="previewCardIndex >= importPreview.cards.length - 1"
                 @click="$emit('move-preview-card', 1)"
               >
-                Proxima
+                Next
                 <ChevronsRight :size="16" aria-hidden="true" />
               </button>
             </div>
@@ -116,8 +116,8 @@ const importVisibility = defineModel<DeckVisibility>('importVisibility', { requi
             @keydown.space.prevent="$emit('toggle-preview-face')"
           >
             <div class="card-meta">
-              <span>{{ previewFace === 'front' ? 'Frente' : 'Verso' }}</span>
-              <span>{{ currentPreviewCard.tags.length ? currentPreviewCard.tags.join(', ') : 'sem tags' }}</span>
+              <span>{{ previewFace === 'front' ? 'Front' : 'Back' }}</span>
+              <span>{{ currentPreviewCard.tags.length ? currentPreviewCard.tags.join(', ') : 'no tags' }}</span>
             </div>
             <div class="preview-study-face" v-html="currentPreviewHtml"></div>
           </article>
@@ -126,19 +126,19 @@ const importVisibility = defineModel<DeckVisibility>('importVisibility', { requi
 
       <form v-if="importPreview" class="panel import-save-panel" @submit.prevent="$emit('persist-import')">
         <div class="section-title">
-          <h2>{{ user ? 'Salvar em Meus baralhos' : 'Entrar para salvar' }}</h2>
+          <h2>{{ user ? 'Save to My Decks' : 'Log in to save' }}</h2>
         </div>
-        <input v-model="importTitle" type="text" placeholder="Titulo do baralho" aria-label="Titulo do baralho importado" />
-        <select v-model="importVisibility" aria-label="Visibilidade do baralho importado" :disabled="!user">
-          <option value="PRIVATE">Privado</option>
-          <option value="PUBLIC">Publico</option>
+        <input v-model="importTitle" type="text" placeholder="Deck title" aria-label="Imported deck title" />
+        <select v-model="importVisibility" aria-label="Imported deck visibility" :disabled="!user">
+          <option value="PRIVATE">Private</option>
+          <option value="PUBLIC">Public</option>
         </select>
         <button class="primary full" type="submit">
           <Check :size="16" aria-hidden="true" />
-          {{ user ? 'Salvar APKG' : 'Entrar para salvar' }}
+          {{ user ? 'Save APKG' : 'Log in to save' }}
         </button>
         <p class="muted">
-          {{ user ? 'O arquivo original sera enviado para preservar cartas e midias.' : 'A previa continua nesta tela enquanto voce entra na conta.' }}
+          {{ user ? 'The original file will be uploaded to preserve cards and media.' : 'The preview remains on this screen while you log in.' }}
         </p>
       </form>
     </div>

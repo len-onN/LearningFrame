@@ -56,7 +56,7 @@ export const useStudyStore = defineStore('study', () => {
   const statsStore = useStatsStore()
 
   const studyQueue = ref<StudyCard[]>([])
-  const sessionTitle = ref('Selecione um baralho ou inicie a prática intercalada.')
+  const sessionTitle = ref('Select a deck or start interleaved practice.')
   const answerVisible = ref(false)
   const studyInitialTotal = ref(0)
   const studyReviewedCount = ref(0)
@@ -131,7 +131,7 @@ export const useStudyStore = defineStore('study', () => {
 
   function resetStudySession() {
     studyQueue.value = []
-    sessionTitle.value = 'Selecione um baralho ou inicie a prática intercalada.'
+    sessionTitle.value = 'Select a deck or start interleaved practice.'
     answerVisible.value = false
     studyInitialTotal.value = 0
     studyReviewedCount.value = 0
@@ -193,7 +193,7 @@ export const useStudyStore = defineStore('study', () => {
 
     await feedbackStore.withFeedback(async () => {
       const metadata = await client.deckMetadata(deckId).catch(() => null)
-      sessionTitle.value = metadata?.title ?? 'Baralho'
+      sessionTitle.value = metadata?.title ?? 'Deck'
       let cards: StudyCard[]
       let emptyReason: StudyEmptyReason = metadata?.cardCount === 0 ? 'empty-deck' : 'no-due'
 
@@ -214,16 +214,16 @@ export const useStudyStore = defineStore('study', () => {
       setStudySessionCards(cards, emptyReason)
       if (cards.length === 0) {
         if (emptyReason === 'limit-reached') {
-          feedbackStore.showNotice('Voce atingiu o limite diario de estudos.')
+          feedbackStore.showNotice('You have reached your daily study limit.')
         } else {
-          feedbackStore.showNotice('Nenhum card vencido agora para esta sessao.')
+          feedbackStore.showNotice('No cards due right now for this session.')
         }
       }
     })
   }
 
   async function prepareInterleavedPracticeSelection(initialSelectedIds: number[] = []) {
-    sessionTitle.value = 'Pratica intercalada'
+    sessionTitle.value = 'Interleaved practice'
     answerVisible.value = false
     studyQueue.value = []
     studyInitialTotal.value = 0
@@ -265,11 +265,11 @@ export const useStudyStore = defineStore('study', () => {
   async function startInterleavedPracticeSession() {
     const selectedIds = interleavedSelection.value.selectedIds
     if (selectedIds.length === 0) {
-      feedbackStore.showNotice('Selecione pelo menos um baralho para iniciar.')
+      feedbackStore.showNotice('Select at least one deck to start.')
       return
     }
 
-    sessionTitle.value = 'Pratica intercalada'
+    sessionTitle.value = 'Interleaved practice'
     answerVisible.value = false
 
     await feedbackStore.withFeedback(async () => {
@@ -304,9 +304,9 @@ export const useStudyStore = defineStore('study', () => {
       setStudySessionCards(cards, emptyReason)
       if (cards.length === 0) {
         if (emptyReason === 'limit-reached') {
-          feedbackStore.showNotice('Voce atingiu o limite diario de estudos.')
+          feedbackStore.showNotice('You have reached your daily study limit.')
         } else {
-          feedbackStore.showNotice('Pratica intercalada sem cards vencidos agora.')
+          feedbackStore.showNotice('Interleaved practice has no cards due right now.')
         }
       }
     })

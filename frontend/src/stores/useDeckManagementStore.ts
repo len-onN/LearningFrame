@@ -56,7 +56,7 @@ export const useDeckManagementStore = defineStore('deckManagement', () => {
   const cardEditorInitial = ref(emptyCardEditorForm())
 
   const managedCardsHasMore = computed(() => managedCardsPage.value ? !managedCardsPage.value.last : false)
-  const managedCardsCountLabel = computed(() => deckPageCountLabel(managedCards.value.length, managedCardsPage.value, 'cartas'))
+  const managedCardsCountLabel = computed(() => deckPageCountLabel(managedCards.value.length, managedCardsPage.value, 'cards'))
   const selectedManagedCard = computed(() => managedCards.value.find((card) => card.id === selectedManagedCardId.value) ?? null)
   const selectedManagedCardsCount = computed(() => selectedManagedCardIds.value.size)
   const allVisibleManagedCardsSelected = computed(() => (
@@ -101,7 +101,7 @@ export const useDeckManagementStore = defineStore('deckManagement', () => {
     cardEditorForm.value.tags !== cardEditorInitial.value.tags
   ))
 
-  const cardEditorTitle = computed(() => cardEditorMode.value === 'edit' ? 'Editar carta' : 'Nova carta')
+  const cardEditorTitle = computed(() => cardEditorMode.value === 'edit' ? 'Edit card' : 'New card')
 
   const cardEditorFrontPreview = computed(() => managedDeck.value
     ? safeStudyHtml(cardEditorForm.value.frontHtml, managedDeck.value.id)
@@ -135,7 +135,7 @@ export const useDeckManagementStore = defineStore('deckManagement', () => {
   }
 
   function doCloseManagedDeck(force = false, confirmPrompt: (message: string) => boolean) {
-    if (!force && managedDeckDirty.value && !confirmPrompt('Descartar alteracoes do baralho?')) {
+    if (!force && managedDeckDirty.value && !confirmPrompt('Discard deck changes?')) {
       return false
     }
     doCloseCardEditor(true, confirmPrompt)
@@ -194,7 +194,7 @@ export const useDeckManagementStore = defineStore('deckManagement', () => {
     const deck = managedDeck.value
     if (!deck) return
     if (!managedDeckForm.value.title.trim()) {
-      feedbackStore.showError('Informe o titulo do baralho.')
+      feedbackStore.showError('Please enter a deck title.')
       return
     }
 
@@ -207,7 +207,7 @@ export const useDeckManagementStore = defineStore('deckManagement', () => {
       )
       setManagedDeck(updated)
       await libraryStore.loadMyDecks()
-      feedbackStore.showNotice('Baralho atualizado.')
+      feedbackStore.showNotice('Deck updated.')
     })
   }
 
@@ -217,7 +217,7 @@ export const useDeckManagementStore = defineStore('deckManagement', () => {
     confirmPrompt: (message: string) => boolean = (m) => window.confirm(m)
   ) {
     const deck = managedDeck.value
-    if (!deck || !confirmPrompt(`Excluir o baralho "${deck.title}" e todas as suas cartas?`)) {
+    if (!deck || !confirmPrompt(`Delete the deck "${deck.title}" and all of its cards?`)) {
       return
     }
 
@@ -227,7 +227,7 @@ export const useDeckManagementStore = defineStore('deckManagement', () => {
       await libraryStore.loadMyDecks()
       await statsStore.refreshStats()
       selectedManagedCardIds.value = new Set()
-      feedbackStore.showNotice('Baralho excluido.')
+      feedbackStore.showNotice('Deck deleted.')
     })
   }
 
@@ -254,7 +254,7 @@ export const useDeckManagementStore = defineStore('deckManagement', () => {
 
   function doCloseCardEditor(force = false, confirmPrompt: (message: string) => boolean = (m) => window.confirm(m)) {
     if (!cardEditorOpen.value) return
-    if (!force && cardEditorDirty.value && !confirmPrompt('Descartar alteracoes desta carta?')) {
+    if (!force && cardEditorDirty.value && !confirmPrompt('Discard changes to this card?')) {
       return
     }
     cardEditorOpen.value = false
@@ -271,7 +271,7 @@ export const useDeckManagementStore = defineStore('deckManagement', () => {
     const deck = managedDeck.value
     if (!deck) return
     if (!cardEditorForm.value.frontHtml.trim() || !cardEditorForm.value.backHtml.trim()) {
-      feedbackStore.showError('Preencha frente e verso da carta.')
+      feedbackStore.showError('Fill in both the front and back of the card.')
       return
     }
 
@@ -280,10 +280,10 @@ export const useDeckManagementStore = defineStore('deckManagement', () => {
       let savedCard: CardResponse
       if (cardEditorMode.value === 'edit' && cardEditorCardId.value) {
         savedCard = await client.updateCard(deck.id, cardEditorCardId.value, cardEditorForm.value.frontHtml, cardEditorForm.value.backHtml, tags)
-        feedbackStore.showNotice('Carta atualizada.')
+        feedbackStore.showNotice('Card updated.')
       } else {
         savedCard = await client.createCard(deck.id, cardEditorForm.value.frontHtml, cardEditorForm.value.backHtml, tags)
-        feedbackStore.showNotice('Carta adicionada.')
+        feedbackStore.showNotice('Card added.')
       }
       closeCardEditor(true)
       selectedManagedCardId.value = savedCard.id
@@ -296,7 +296,7 @@ export const useDeckManagementStore = defineStore('deckManagement', () => {
 
   async function deleteManagedCard(card: CardResponse, client: DeckManagementApi = api, pageSize = 20, confirmPrompt: (message: string) => boolean = (m) => window.confirm(m)) {
     const deck = managedDeck.value
-    if (!deck || !confirmPrompt('Excluir esta carta?')) return
+    if (!deck || !confirmPrompt('Delete this card?')) return
 
     await feedbackStore.withFeedback(async () => {
       await client.deleteCard(deck.id, card.id)
@@ -305,7 +305,7 @@ export const useDeckManagementStore = defineStore('deckManagement', () => {
         libraryStore.loadMyDecks()
       ])
       selectedManagedCardIds.value = new Set([...selectedManagedCardIds.value].filter((id) => id !== card.id))
-      feedbackStore.showNotice('Carta excluida.')
+      feedbackStore.showNotice('Card deleted.')
     })
   }
 
@@ -313,7 +313,7 @@ export const useDeckManagementStore = defineStore('deckManagement', () => {
     const deck = managedDeck.value
     const cardIds = [...selectedManagedCardIds.value]
     if (!deck || cardIds.length === 0) return
-    if (!confirmPrompt(`Excluir ${cardIds.length} ${cardIds.length === 1 ? 'carta selecionada' : 'cartas selecionadas'}?`)) {
+    if (!confirmPrompt(`Delete ${cardIds.length} ${cardIds.length === 1 ? 'selected card' : 'selected cards'}?`)) {
       return
     }
 
@@ -325,7 +325,7 @@ export const useDeckManagementStore = defineStore('deckManagement', () => {
         loadManagedCards(client, pageSize, true),
         libraryStore.loadMyDecks()
       ])
-      feedbackStore.showNotice('Cartas selecionadas excluidas.')
+      feedbackStore.showNotice('Selected cards deleted.')
     })
   }
 
@@ -363,13 +363,13 @@ export const useDeckManagementStore = defineStore('deckManagement', () => {
   async function uploadCardEditorMedia(file: File, kind: CardEditorMediaKind, client: DeckManagementApi = api) {
     const deck = managedDeck.value
     if (!deck) {
-      throw new Error('Abra um baralho antes de inserir midia.')
+      throw new Error('Open a deck before inserting media.')
     }
 
     const uploaded = await client.uploadMedia(deck.id, file)
     feedbackStore.showNotice(kind === 'image'
-      ? 'Imagem inserida na carta.'
-      : 'Audio inserido na carta.')
+      ? 'Image inserted into card.'
+      : 'Audio inserted into card.')
 
     return kind === 'image'
       ? `<img src="${uploaded.fileName}" alt="">`

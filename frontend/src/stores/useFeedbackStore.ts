@@ -69,9 +69,9 @@ export const useFeedbackStore = defineStore('feedback', () => {
     try {
       await task()
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : 'Erro inesperado.'
+      const message = caught instanceof Error ? caught.message : 'Unexpected error.'
       showError(message === 'Failed to fetch'
-        ? 'Backend indisponivel. Verifique se o Docker Compose esta ativo e tente novamente.'
+        ? 'Backend unavailable. Check if Docker Compose is running and try again.'
         : message)
     } finally {
       loading.value = false

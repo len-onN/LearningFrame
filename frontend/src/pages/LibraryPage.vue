@@ -103,7 +103,7 @@ function scrollToLibraryTop() {
   <section class="library-grid">
     <span ref="libraryTopRef" class="library-top-sentinel" aria-hidden="true"></span>
     <div class="library-shell">
-      <div class="library-tabs" role="tablist" aria-label="Tipos de baralho">
+      <div class="library-tabs" role="tablist" aria-label="Deck types">
         <button
           class="library-tab"
           :class="{ active: section === 'public' }"
@@ -112,7 +112,7 @@ function scrollToLibraryTop() {
           :aria-selected="section === 'public'"
           @click="$emit('go-public')"
         >
-          Baralhos públicos
+          Public decks
         </button>
         <button
           class="library-tab"
@@ -122,7 +122,7 @@ function scrollToLibraryTop() {
           :aria-selected="section === 'mine'"
           @click="$emit('go-mine')"
         >
-          Meus baralhos
+          My decks
         </button>
       </div>
 
@@ -136,7 +136,7 @@ function scrollToLibraryTop() {
           <input
             :value="search"
             type="search"
-            placeholder="Buscar baralhos"
+            placeholder="Search decks"
             @input="$emit('update:search', ($event.target as HTMLInputElement).value)"
           />
         </label>
@@ -144,14 +144,14 @@ function scrollToLibraryTop() {
           <span v-if="activeCountLabel" class="muted">{{ activeCountLabel }}</span>
           <template v-if="section === 'mine' && user">
             <span v-if="deckSelectionMode" class="selection-count">
-              {{ selectedMyDecksCount }} selecionado{{ selectedMyDecksCount === 1 ? '' : 's' }}
+              {{ selectedMyDecksCount }} selected
             </span>
             <button
               class="ghost compact"
               type="button"
               @click="$emit('toggle-deck-selection-mode')"
             >
-              {{ deckSelectionMode ? 'Concluir selecao' : 'Selecionar' }}
+              {{ deckSelectionMode ? 'Done selecting' : 'Select' }}
             </button>
             <button
               v-if="deckSelectionMode"
@@ -160,7 +160,7 @@ function scrollToLibraryTop() {
               :disabled="myDecks.length === 0"
               @click="$emit('toggle-visible-deck-selection')"
             >
-              {{ allVisibleMyDecksSelected ? 'Desmarcar visiveis' : 'Selecionar visiveis' }}
+              {{ allVisibleMyDecksSelected ? 'Deselect visible' : 'Select visible' }}
             </button>
             <button
               v-if="deckSelectionMode"
@@ -169,7 +169,7 @@ function scrollToLibraryTop() {
               :disabled="selectedMyDecksCount === 0"
               @click="$emit('clear-deck-selection')"
             >
-              Limpar
+              Clear
             </button>
             <button
               v-if="deckSelectionMode"
@@ -179,7 +179,7 @@ function scrollToLibraryTop() {
               @click="$emit('start-selected-study')"
             >
               <Shuffle :size="16" aria-hidden="true" />
-              Estudar selecionados
+              Study selected
             </button>
             <button
               v-if="deckSelectionMode"
@@ -189,12 +189,12 @@ function scrollToLibraryTop() {
               @click="$emit('delete-selected-decks')"
             >
               <Trash2 :size="16" aria-hidden="true" />
-              Excluir
+              Delete
             </button>
           </template>
           <button class="ghost compact" type="button" @click="$emit('refresh')">
             <RotateCcw :size="16" aria-hidden="true" />
-            Atualizar
+            Refresh
           </button>
         </div>
       </div>
@@ -203,7 +203,7 @@ function scrollToLibraryTop() {
         <DeckListPanel
           v-if="section === 'public'"
           :decks="publicDecks"
-          empty-message="Nenhum baralho público encontrado."
+          empty-message="No public decks found."
           :has-more="publicDecksHasMore"
           :loading-more="loadingMorePublic"
           show-save-action
@@ -216,7 +216,7 @@ function scrollToLibraryTop() {
         <DeckListPanel
           v-if="section === 'mine' && user"
           :decks="myDecks"
-          empty-message="Nenhum baralho seu encontrado."
+          empty-message="No decks found."
           :has-more="myDecksHasMore"
           :loading-more="loadingMoreMine"
           :highlighted-deck-id="highlightedDeckId"
@@ -233,11 +233,11 @@ function scrollToLibraryTop() {
 
         <div v-else-if="section === 'mine'" class="panel wide">
           <div class="empty-state compact-empty">
-            <h2>Entre para ver seus baralhos</h2>
-            <p>Baralhos criados, importados e publicados pela sua conta aparecem aqui.</p>
+            <h2>Log in to see your decks</h2>
+            <p>Decks created, imported, and published by your account appear here.</p>
             <button class="primary compact" type="button" @click="$emit('login')">
               <User :size="16" aria-hidden="true" />
-              Entrar
+              Log in
             </button>
           </div>
         </div>
@@ -273,8 +273,8 @@ function scrollToLibraryTop() {
       v-if="showBackToTop"
       class="icon-button library-back-top"
       type="button"
-      title="Voltar ao topo da biblioteca"
-      aria-label="Voltar ao topo da biblioteca"
+      title="Back to top of library"
+      aria-label="Back to top of library"
       @click="scrollToLibraryTop"
     >
       <ArrowUp :size="18" aria-hidden="true" />

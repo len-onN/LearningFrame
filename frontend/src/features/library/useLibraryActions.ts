@@ -80,7 +80,7 @@ export function useLibraryActions({
   async function savePublicDeck(deck: DeckSummary) {
     if (!user.value) {
       await authFlow.openAuth('login')
-      feedbackStore.showNotice('Entre para salvar este baralho em Meus baralhos.')
+      feedbackStore.showNotice('Sign in to save this deck to My decks.')
       return
     }
 
@@ -90,7 +90,7 @@ export function useLibraryActions({
       await loadMyDecks(true)
       await statsStore.refreshStats()
       await navigateToMyDecks()
-      feedbackStore.showNotice('Baralho salvo em Meus baralhos como copia privada.')
+      feedbackStore.showNotice('Deck saved to My decks as a private copy.')
       await highlightDeck(saved.id)
     })
   }
@@ -100,8 +100,9 @@ export function useLibraryActions({
     if (deckIds.length === 0) {
       return
     }
-    const label = deckIds.length === 1 ? '1 baralho selecionado' : `${deckIds.length} baralhos selecionados`
-    if (!confirm(`Excluir ${label} e todas as suas cartas?`)) {
+    const label = deckIds.length === 1 ? '1 selected deck' : `${deckIds.length} selected decks`
+    const cardsLabel = deckIds.length === 1 ? 'all of its cards' : 'all of their cards'
+    if (!confirm(`Delete ${label} and ${cardsLabel}?`)) {
       return
     }
 
@@ -112,7 +113,7 @@ export function useLibraryActions({
       if (user.value) {
         await statsStore.refreshStats()
       }
-      feedbackStore.showNotice(deckIds.length === 1 ? 'Baralho excluido.' : 'Baralhos selecionados excluidos.')
+      feedbackStore.showNotice(deckIds.length === 1 ? 'Deck deleted.' : 'Selected decks deleted.')
     })
   }
 

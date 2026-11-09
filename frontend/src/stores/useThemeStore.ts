@@ -14,7 +14,7 @@ function loadStoredThemePreference(): ThemePreference {
 
 export const useThemeStore = defineStore('theme', () => {
   const themePreference = ref<ThemePreference>(loadStoredThemePreference())
-  const nextThemeLabel = computed(() => themePreference.value === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro')
+  const nextThemeLabel = computed(() => themePreference.value === 'dark' ? 'Switch to light mode' : 'Switch to dark mode')
 
   function toggleThemePreference() {
     themePreference.value = themePreference.value === 'dark' ? 'light' : 'dark'

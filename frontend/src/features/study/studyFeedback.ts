@@ -34,20 +34,20 @@ export function studyFeedbackFromResult(rating: ReviewRating, nextDueAt: string,
 
 export function ratingLabel(rating: ReviewRating) {
   const labels: Record<ReviewRating, string> = {
-    AGAIN: 'De novo',
-    HARD: 'Dif\u00edcil',
-    GOOD: 'Bom',
-    EASY: 'F\u00e1cil'
+    AGAIN: 'Again',
+    HARD: 'Hard',
+    GOOD: 'Good',
+    EASY: 'Easy'
   }
   return labels[rating]
 }
 
 export function intervalLabel(intervalDays: number) {
   if (intervalDays <= 0) {
-    return 'intervalo menor que 1 dia'
+    return 'interval less than 1 day'
   }
   if (intervalDays === 1) {
-    return 'intervalo de 1 dia'
+    return 'interval of 1 day'
   }
-  return `intervalo de ${intervalDays} dias`
+  return `interval of ${intervalDays} days`
 }

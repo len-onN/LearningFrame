@@ -2,13 +2,13 @@ import type { ApkgCard } from '../../types/api'
 import { extractRelativeMediaSources } from '../../utils/html'
 
 export function previewCardTitle(index: number, total: number) {
-  return total ? `Carta ${index + 1} de ${total}` : `Carta ${index + 1}`
+  return total ? `Card ${index + 1} of ${total}` : `Card ${index + 1}`
 }
 
 export function previewCardOptionLabel(card: Pick<ApkgCard, 'frontHtml' | 'backHtml'>, index: number) {
   const text = htmlSummary(card.frontHtml) || htmlSummary(card.backHtml)
   if (!text) {
-    return `Carta ${index + 1}`
+    return `Card ${index + 1}`
   }
   return `${index + 1} - ${text}`
 }
@@ -20,7 +20,7 @@ export function previewCardSearchText(card: ApkgCard, index: number) {
   ]
   return normalizePreviewSearch([
     index + 1,
-    `carta ${index + 1}`,
+    `card ${index + 1}`,
     card.frontHtml,
     card.backHtml,
     card.tags.join(' '),
