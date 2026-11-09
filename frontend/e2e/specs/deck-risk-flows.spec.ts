@@ -14,10 +14,10 @@ test('edicao de metadata do baralho persiste ao reabrir gerenciamento', async ({
   await login(page, seed.users.primary.email, seed.users.primary.password)
   await page.goto(`/biblioteca/meus/${deckId}/gerenciar`)
 
-  await expect(page.getByRole('heading', { name: 'Dados do baralho' })).toBeVisible()
-  await page.getByLabel('Titulo').fill(updatedTitle)
-  await page.getByLabel('Descricao').fill(updatedDescription)
-  await page.getByLabel('Visibilidade').selectOption('PUBLIC')
+  await expect(page.getByRole('heading', { name: 'Deck details' })).toBeVisible()
+  await page.getByLabel('Title').fill(updatedTitle)
+  await page.getByLabel('Description').fill(updatedDescription)
+  await page.getByLabel('Visibility').selectOption('PUBLIC')
 
   await Promise.all([
     page.waitForResponse((response) =>
@@ -25,18 +25,18 @@ test('edicao de metadata do baralho persiste ao reabrir gerenciamento', async ({
       && response.request().method() === 'PUT'
       && response.ok()
     ),
-    page.getByRole('button', { name: 'Salvar' }).click()
+    page.getByRole('button', { name: 'Save' }).click()
   ])
-  await expect(page.getByText('Baralho atualizado.')).toBeVisible()
+  await expect(page.getByText('Deck updated.')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Voltar' }).click()
+  await page.getByRole('button', { name: 'Back' }).click()
   await expect(page).toHaveURL(/\/biblioteca\/meus/)
   await expect(page.getByText(updatedTitle)).toBeVisible()
 
   await page.goto(`/biblioteca/meus/${deckId}/gerenciar`)
-  await expect(page.getByLabel('Titulo')).toHaveValue(updatedTitle)
-  await expect(page.getByLabel('Descricao')).toHaveValue(updatedDescription)
-  await expect(page.getByLabel('Visibilidade')).toHaveValue('PUBLIC')
+  await expect(page.getByLabel('Title')).toHaveValue(updatedTitle)
+  await expect(page.getByLabel('Description')).toHaveValue(updatedDescription)
+  await expect(page.getByLabel('Visibility')).toHaveValue('PUBLIC')
 })
 
 test('selecao e exclusao em lote de cartas limpam lista e estado ativo', async ({ page, seed }) => {
@@ -46,8 +46,8 @@ test('selecao e exclusao em lote de cartas limpam lista e estado ativo', async (
   await page.goto(`/biblioteca/meus/${deckId}/gerenciar`)
 
   await expect(page.getByRole('button', { name: /E2E nervo femoral/ })).toBeVisible()
-  await page.getByRole('button', { name: 'Selecionar pagina' }).click()
-  await expect(page.getByRole('button', { name: /^Excluir 3$/ })).toBeEnabled()
+  await page.getByRole('button', { name: 'Select page' }).click()
+  await expect(page.getByRole('button', { name: /^Delete 3$/ })).toBeEnabled()
 
   page.once('dialog', (dialog) => dialog.accept())
   await Promise.all([
@@ -56,15 +56,15 @@ test('selecao e exclusao em lote de cartas limpam lista e estado ativo', async (
       && response.request().method() === 'POST'
       && response.ok()
     ),
-    page.getByRole('button', { name: /^Excluir 3$/ }).click()
+    page.getByRole('button', { name: /^Delete 3$/ }).click()
   ])
 
-  await expect(page.getByText('Cartas selecionadas excluidas.')).toBeVisible()
+  await expect(page.getByText('Selected cards deleted.')).toBeVisible()
   await expect(page.getByRole('button', { name: /E2E nervo femoral/ })).not.toBeVisible()
   await expect(page.getByRole('button', { name: /E2E musculo sartorio/ })).not.toBeVisible()
   await expect(page.getByRole('button', { name: /E2E patela/ })).not.toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Nenhuma carta ainda' })).toBeVisible()
-  await expect(page.getByRole('button', { name: /^Excluir$/ })).toBeDisabled()
+  await expect(page.getByRole('heading', { name: 'No cards yet' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Delete$/ })).toBeDisabled()
 })
 
 test('selecao e exclusao em lote de baralhos limpam selecao e lista propria', async ({ page, seed }) => {
@@ -74,9 +74,9 @@ test('selecao e exclusao em lote de baralhos limpam selecao e lista propria', as
   await expect(page.getByText(seed.decks.privateAnatomy.title)).toBeVisible()
   await expect(page.getByText(seed.decks.privateProgramming.title)).toBeVisible()
 
-  await page.getByRole('button', { name: 'Selecionar' }).click()
-  await page.getByRole('button', { name: 'Selecionar visiveis' }).click()
-  await expect(page.getByText('2 selecionados')).toBeVisible()
+  await page.getByRole('button', { name: 'Select' }).click()
+  await page.getByRole('button', { name: 'Select visible' }).click()
+  await expect(page.getByText('2 selected')).toBeVisible()
 
   page.once('dialog', (dialog) => dialog.accept())
   await Promise.all([
@@ -85,13 +85,13 @@ test('selecao e exclusao em lote de baralhos limpam selecao e lista propria', as
       && response.request().method() === 'POST'
       && response.ok()
     ),
-    page.getByRole('button', { name: /^Excluir$/ }).click()
+    page.getByRole('button', { name: /^Delete$/ }).click()
   ])
 
-  await expect(page.getByText('Baralhos selecionados excluidos.')).toBeVisible()
+  await expect(page.getByText('Selected decks deleted.')).toBeVisible()
   await expect(page.getByText(seed.decks.privateAnatomy.title)).not.toBeVisible()
   await expect(page.getByText(seed.decks.privateProgramming.title)).not.toBeVisible()
-  await expect(page.getByText('Nenhum baralho seu encontrado.')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Selecionar' })).toBeVisible()
-  await expect(page.getByText('2 selecionados')).not.toBeVisible()
+  await expect(page.getByText('No decks found.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Select' })).toBeVisible()
+  await expect(page.getByText('2 selected')).not.toBeVisible()
 })
