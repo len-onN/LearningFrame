@@ -1,50 +1,52 @@
 # LearningFrame
 
-LearningFrame é um MVP acadêmico para estudo com recordação ativa,
-repetição espaçada e prática intercalada.
+> **Note:** This is the English documentation. For the Portuguese (Brazil) version, see [README-ptbr.md](README-ptbr.md).
 
-O produto permite que visitantes estudem baralhos públicos sem conta, façam
-preview de arquivos Anki `.apkg` antes de salvar e usem uma conta opcional para
-persistir baralhos, cartas, mídias, revisões e progresso essencial.
+LearningFrame is an academic MVP for study leveraging active recall,
+spaced repetition, and interleaved practice.
 
-Como horizonte de produto, o LearningFrame pode ser entendido como uma aplicação
-gratuita de suporte ao aprendizado ofertada por uma instituição de ensino. A
-integração institucional real fica fora do MVP e é tratada no roadmap
-pós-MVP.
+The product allows visitors to study public decks without an account, preview
+Anki `.apkg` files before saving them, and use an optional account to persist
+decks, cards, media, reviews, and essential progress.
 
-## Status da Versão
+From a product horizon standpoint, LearningFrame can be understood as a free
+learning support application offered by an educational institution. Real
+institutional integration remains outside the scope of the MVP and is addressed
+in the post-MVP roadmap.
 
-Estado atual (v0.2.0):
+## Version Status
 
-- Aplicação funcional e validada com novas capacidades avançadas;
-- Editor de Cartas Avançado (WYSIWYG com TipTap);
-- Gravação nativa de áudio pelo microfone;
-- Gerenciamento completo de Perfil de Usuário com alteração segura de senhas;
-- Gestão global de estado migrada para **Pinia**;
-- Fluxo de login reformulado com redirecionamento na raiz;
-- QA manual finalizado e suites de testes mantidas.
+Current status (v0.2.0):
 
-## Stack
+- Functional, validated application with new advanced capabilities;
+- Advanced Card Editor (WYSIWYG with TipTap);
+- Native audio recording via microphone;
+- Complete User Profile management with secure password changes;
+- Global state management migrated to **Pinia**;
+- Refactored login flow with root redirection;
+- Manual QA finalized and test suites maintained.
 
-- Java 21, Spring Boot 4.0.x e Maven
+## Tech Stack
+
+- Java 21, Spring Boot 4.0.x, and Maven
 - MySQL 8.4 LTS
-- Vue 3, Vite, TypeScript e Vue Router
-- Playwright para testes end-to-end
-- Docker Compose para execução local e E2E
+- Vue 3, Vite, TypeScript, and Vue Router
+- Playwright for end-to-end tests
+- Docker Compose for local execution and E2E
 
-## Executar com Docker Compose
+## Running with Docker Compose
 
 ```powershell
 docker compose up --build
 ```
 
-Depois, abrir:
+Then open:
 
 - Frontend: http://localhost:8080
 - Backend API: http://localhost:8081
-- MySQL local: localhost:3307
+- Local MySQL: localhost:3307
 
-## Desenvolvimento Local
+## Local Development
 
 Backend:
 
@@ -61,9 +63,9 @@ npm install
 npm run dev
 ```
 
-## Validações
+## Validation & Tests
 
-Na raiz do repositório:
+At the repository root:
 
 ```powershell
 npm test
@@ -71,38 +73,38 @@ npm run build
 npm run e2e
 ```
 
-Testes backend via container Maven:
+Backend tests via Maven container:
 
 ```powershell
 docker run --rm -v C:\Users\lenon\OneDrive\Documentos\LearningFrame\backend:/workspace -w /workspace maven:3.9-eclipse-temurin-21 mvn test
 ```
 
-Observação: o comando acima usa o caminho local atual do projeto. Em outro
-ambiente, ajuste o caminho absoluto montado em `/workspace`.
+Note: The command above uses the current local project path. In another
+environment, adjust the absolute path mounted to `/workspace`.
 
-## Ambiente E2E
+## E2E Testing Environment
 
-A suite E2E usa um Compose dedicado:
+The E2E suite uses a dedicated Compose file:
 
 ```powershell
 npm run e2e
 ```
 
-Esse comando:
+This command:
 
-- sobe `db-e2e`, `backend-e2e` e `frontend-e2e`;
-- usa banco MySQL separado, `learningframe_e2e`;
-- usa portas separadas, incluindo frontend `18080`, backend `18081` e MySQL `3317`;
-- executa Playwright em Chromium;
-- derruba o ambiente com `docker compose down -v`, removendo o volume do banco E2E.
+- spins up `db-e2e`, `backend-e2e`, and `frontend-e2e`;
+- uses a dedicated MySQL database: `learningframe_e2e`;
+- uses dedicated ports, including frontend `18080`, backend `18081`, and MySQL `3317`;
+- executes Playwright in Chromium;
+- tears down the environment with `docker compose down -v`, removing the E2E database volume.
 
-Regras importantes:
+Important rules:
 
-- testes E2E não devem usar o banco dev;
-- reset/seed de teste passam pelo endpoint interno `POST /api/e2e/reset`;
-- o endpoint de reset existe apenas no profile backend `e2e` e exige `X-E2E-Token`.
+- E2E tests must never use the development database;
+- Test reset/seed requests go through the internal endpoint `POST /api/e2e/reset`;
+- The reset endpoint only exists in the `e2e` backend profile and requires `X-E2E-Token`.
 
-Comandos auxiliares para depuracao:
+Helper commands for debugging:
 
 ```powershell
 npm run e2e:up
@@ -110,62 +112,62 @@ npm run e2e:test
 npm run e2e:down
 ```
 
-## Escopo do MVP
+## MVP Scope
 
-Incluído:
+Included:
 
-- biblioteca pública com estudo anônimo;
-- conta opcional com login/cadastro;
-- criação, edição, exclusão e seleção de baralhos próprios;
-- gerenciamento paginado de cartas;
-- upload e renderização de mídia em baralhos persistidos;
-- importação `.apkg` básica com preview antes de salvar;
-- estudo por baralho e prática intercalada;
-- SRS simplificado próprio do LearningFrame;
-- progresso essencial para usuários autenticados;
-- rotas reais com guards de autenticação;
-- suite inicial E2E com banco dedicado.
+- Public library with anonymous study;
+- Optional account with sign up / log in;
+- Creation, editing, deletion, and selection of personal decks;
+- Paginated card management;
+- Media upload and rendering in persisted decks;
+- Basic `.apkg` import with preview before saving;
+- Deck-specific study and interleaved practice;
+- LearningFrame's own simplified SRS;
+- Essential progress tracking for authenticated users;
+- Real routes with authentication guards;
+- Initial E2E suite with a dedicated database.
 
-Fora do MVP imediato:
+Outside immediate MVP scope:
 
-- replicar o Anki por completo;
-- cloze avançado;
-- templates complexos do Anki;
-- preservar histórico ou configurações originais de agendamento do Anki;
-- `.colpkg`;
-- favoritos, marketplace ou colaboração multiusuário;
-- dashboard estatístico avançado;
-- storage externo para mídia.
+- Complete replication of Anki;
+- Advanced cloze deletions;
+- Complex Anki card templates;
+- Preserving original Anki scheduling history or settings;
+- `.colpkg` collections;
+- Bookmarks/favorites, marketplace, or multi-user collaboration;
+- Advanced statistics dashboard;
+- External cloud storage for media.
 
-## Limites e Decisões Técnicas
+## Technical Limits and Decisions
 
-- Arquivos `.apkg` são usados como interoperabilidade básica, mas o LearningFrame
-  inicia uma agenda própria de revisão.
-- O preview anônimo de APKG é temporário. Ao sair da rota de importação, arquivo,
-  preview, índice de mídia e object URLs devem ser limpos, exceto no fluxo
-  explícito de entrar para salvar.
-- Mídias persistidas ficam como BLOB no MySQL. Isso é aceitável para o MVP
-  acadêmico, mas não é a arquitetura recomendada para escala.
-- Tokens de sessão ficam em `localStorage`, aceitável para demonstração local do
-  MVP, mas exigiria hardening para produção sensível.
-- Mídias privadas podem usar token em query string para renderização por
-  `<img>`/`audio`, uma decisão pragmática do MVP que deve ser revisada em
-  produção.
+- `.apkg` files are used for basic interoperability, but LearningFrame initiates
+  its own review schedule.
+- Anonymous APKG preview is temporary. Upon navigating away from the import route,
+  the file, preview, media index, and object URLs must be cleaned up, except during
+  the explicit sign-in-to-save flow.
+- Persisted media is stored as BLOBs in MySQL. While acceptable for an academic
+  MVP, this is not the recommended architecture for high scale.
+- Session tokens are stored in `localStorage`, acceptable for local MVP
+  demonstration, but would require hardening for sensitive production use.
+- Private media may pass tokens in query strings for `<img>`/`audio` rendering, a
+  pragmatic MVP decision to be revisited in production.
 
-## Documentação de Projeto
+## Project Documentation
 
-Guias da Aplicação:
+Application Guides:
 
-- [Princípios e padrões](docs/principios-e-padroes.md)
-- [Guia de uso](docs/guia-de-uso.md)
-- [Guia de integração com Anki/APKG](docs/guia-anki-apkg.md)
-- [Guia de execução local](docs/guia-execucao-local.md)
-- [Roadmap de profissionalização pós-MVP](docs/roadmap-profissionalizacao-pos-mvp.md)
-- [Diário de bordo](docs/diario-de-bordo.md)
+- [Principles and Standards](docs/principles-and-standards.md)
+- [User Guide](docs/user-guide.md)
+- [Anki/APKG Integration Guide](docs/anki-apkg-guide.md)
+- [Local Execution Guide](docs/local-execution-guide.md)
+- [Post-MVP Professionalization Roadmap](docs/post-mvp-professionalization-roadmap.md)
+- [Logbook](docs/logbook.md)
 
-Contexto histórico e de desenvolvimento assistido:
+Historical Context and Assisted Development:
 
-- [README do contexto de IA](docs/ai_context/README.md)
-- [Linha do tempo](docs/ai_context/linha-do-tempo.md)
-- [Memória de decisões](docs/ai_context/memoria-de-decisoes.md)
-- [Arquitetura e decisões históricas](docs/ai_context/arquitetura-e-decisoes/)
+- [AI Context README](docs/ai_context/README.md)
+- [Timeline](docs/ai_context/timeline.md)
+- [Decision Log](docs/ai_context/decision-log.md)
+- [Historical Architecture and Decisions](docs/ai_context/architecture-and-decisions/)
+
