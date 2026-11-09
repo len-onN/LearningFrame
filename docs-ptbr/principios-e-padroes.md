@@ -182,11 +182,9 @@ Validações esperadas:
 ## 10. Documentação
 
 Documentação canônica atual:
-- [Guia de uso do MVP](guia-de-uso-mvp.md);
-- [Guia de integração com Anki/APKG](guia-anki-apkg-mvp.md);
-- [Guia de execução local](guia-execucao-local-mvp.md);
-- [Estado final do MVP](estado-final-mvp.md);
-- [Relatório de QA manual final](relatorio-qa-manual-final-mvp.md);
+- [Guia de uso](guia-de-uso.md);
+- [Guia de integração com Anki/APKG](guia-anki-apkg.md);
+- [Guia de execução local](guia-execucao-local.md);
 - [Roadmap de profissionalização pós-MVP](roadmap-profissionalizacao-pos-mvp.md);
 - [Diário de bordo](diario-de-bordo.md).
 

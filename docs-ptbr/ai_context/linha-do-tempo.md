@@ -86,6 +86,6 @@ Ao criar nova branch relevante:
 | Branch | Documento principal | Resultado |
 | --- | --- | --- |
 | `feature/profile-management` | `prompt-gestao-perfil.md` | Planejamento da Gestão de Perfil (alteração de dados e exclusão de conta) |
-| `feature/card-editor-wysiwyg` | `docs/diario-de-bordo.md` | Implementação do editor de texto rico com Tiptap e gravação nativa de áudio |
+| `feature/card-editor-wysiwyg` | `docs-ptbr/diario-de-bordo.md` | Implementação do editor de texto rico com Tiptap e gravação nativa de áudio |
 | `refactor/app-vue-architecture` | `implementation_plan.md` | Início do planejamento para descentralização do App.vue (Co-location de estado) |
-| `refactor/app-vue-architecture` | `docs/ai_context/memoria-de-decisoes.md` | Migração do estado global de feedback para Pinia (`useFeedbackStore`), isolamento no Vitest e fixação de Memory Leak (`onScopeDispose`). |
+| `refactor/app-vue-architecture` | `docs-ptbr/ai_context/memoria-de-decisoes.md` | Migração do estado global de feedback para Pinia (`useFeedbackStore`), isolamento no Vitest e fixação de Memory Leak (`onScopeDispose`). |

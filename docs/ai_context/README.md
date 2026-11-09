@@ -1,88 +1,79 @@
-# AI Context do LearningFrame
+# LearningFrame AI Context
 
-Esta pasta guarda o contexto de construção assistida do LearningFrame.
+This directory stores the context from the AI-assisted development of LearningFrame.
 
-Ela não substitui a documentação principal do MVP. A documentação atual para
-uso, execução e fechamento fica na raiz de `docs/`.
+It does not replace the primary MVP documentation. Current documentation for
+usage, local execution, and development resides at the root of `docs/`.
 
-## 1. Como usar esta pasta
+## 1. How to Use This Directory
 
-Use `docs/ai_context/` quando precisar entender:
-- por que uma decisão foi tomada;
-- quais alternativas foram descartadas;
-- como a arquitetura evoluiu;
-- qual foi a sequencia de branches e planejamentos;
-- quais prompts carregavam contexto entre chats;
-- quais documentos eram planos de etapa, e não necessariamente estado atual.
+Use `docs/ai_context/` whenever you need to understand:
+- Why an architectural or product decision was made;
+- Which design alternatives were discarded;
+- How the codebase architecture evolved;
+- The sequence of branches, planning milestones, and phases;
+- Prompts that transferred context between chat sessions;
+- Which documents were transitional plans rather than current states.
 
-Para entender o estado atual do MVP, comece por:
-- [Princípios e padrões do MVP](../principios-e-padroes-mvp.md);
-- [Estado final do MVP](../estado-final-mvp.md);
-- [Guia de uso do MVP](../guia-de-uso-mvp.md);
-- [Guia de integração com Anki/APKG](../guia-anki-apkg-mvp.md);
-- [Guia de execução local](../guia-execucao-local-mvp.md);
-- [Relatório de QA manual final](../relatorio-qa-manual-final-mvp.md).
+To understand the current state of the MVP, start with:
+- [MVP Principles and Standards](../principles-and-standards.md);
+- [MVP User Guide](../user-guide.md);
+- [Anki/APKG Integration Guide](../anki-apkg-guide.md);
+- [Local Execution Guide](../local-execution-guide.md);
+- [Post-MVP Professionalization Roadmap](../post-mvp-professionalization-roadmap.md);
+- [Logbook](../logbook.md).
 
-## 2. Estrutura
+## 2. Directory Structure
 
 ```txt
 docs/ai_context/
   README.md
-  linha-do-tempo.md
-  memoria-de-decisoes.md
-  prompts/
-  planos/
-  arquitetura-e-decisoes/
-  snapshots/
+  timeline.md
+  decision-log.md
+  test-coverage-status.md
+  architecture-and-decisions/
 ```
 
-### `prompts/`
+### `architecture-and-decisions/`
 
-Prompts usados para transferir contexto entre chats. Eles registram estado,
-condicoes de entrada, regras de branch e próximos passos previstos.
+Architecture, UX specifications, and pre-finalization retrospectives. They document
+the engineering rationale and directional changes leading to the current state.
 
-### `planos/`
+### `timeline.md`
 
-Planos de branches e momentos de desenvolvimento. Muitos foram executados e
-ficaram como registro histórico. Ao consultar um plano antigo, confirme o estado
-atual nos guias finais e no documento de princípios.
+Chronological mapping of repository branches, key artifacts, and development milestones.
 
-### `arquitetura-e-decisoes/`
+### `decision-log.md`
 
-Documentos de arquitetura, UX e pré-finalização. Eles explicam raciocinios e
-mudanças de direção que levaram ao estado atual.
+Consolidated record of key architectural, product, and testing decisions.
 
-### `snapshots/`
+### `test-coverage-status.md`
 
-Registros pontuais do projeto em determinado momento.
+Snapshot and tracking of test suite coverage, invariants, and automated verification.
 
-## 3. Regra de leitura para futuros chats
+## 3. Recommended Reading Order for Future Sessions
 
-Leitura recomendada:
-1. Primeiro leia [Princípios e padrões do MVP](../principios-e-padroes-mvp.md).
-2. Depois leia o guia relacionado ao trabalho:
-   - uso;
-   - APKG;
-   - execução;
-   - estado final.
-3. Use a [linha do tempo](linha-do-tempo.md) para localizar o plano histórico
-   relevante.
-4. Use a [memória de decisões](memoria-de-decisoes.md) para entender por que a
-   decisão atual existe.
-5. Consulte prompts antigos apenas quando precisar recuperar contexto de
-   passagem entre branches.
+1. Start by reading [MVP Principles and Standards](../principles-and-standards.md).
+2. Read the specific guide relevant to the current task:
+   - [User Guide](../user-guide.md);
+   - [Anki/APKG Guide](../anki-apkg-guide.md);
+   - [Local Execution Guide](../local-execution-guide.md);
+   - [Post-MVP Roadmap](../post-mvp-professionalization-roadmap.md).
+3. Consult the [Timeline](timeline.md) to locate historical branch context.
+4. Consult the [Decision Log](decision-log.md) to understand why architectural decisions were adopted.
 
-## 4. Cuidado importante
+## 4. Important Caution
 
-Documentos nesta pasta podem conter:
-- planos que foram alterados depois;
-- preocupacoes que já foram resolvidas;
-- caminhos descartados;
-- pendencias que deixaram de existir;
-- referências a caminhos antigos antes da reorganização documental.
+Documents in this directory may describe:
+- Plans that were subsequently revised;
+- Concerns that have since been addressed;
+- Discarded approaches;
+- Historical tasks that are no longer relevant;
+- References to legacy file paths prior to documentation reorganization.
 
-A fonte atual de verdade para novas implementações é
-[Princípios e padrões do MVP](../principios-e-padroes-mvp.md).
+The authoritative source of truth for ongoing implementation is
+[MVP Principles and Standards](../principles-and-standards.md).
 
-Quando houver conflito entre um plano antigo e os princípios atuais, siga os
-princípios atuais e consulte a memória de decisões para entender a razão.
+When conflict arises between an early development plan and the current principles,
+adhere to the current principles and consult the decision log for background context.
+
