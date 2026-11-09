@@ -24,10 +24,10 @@ const showPassword = ref(false)
 const showConfirmPassword = ref(false)
 
 const passwordRules = computed(() => [
-  { label: 'Mínimo de 8 caracteres', isValid: password.value.length >= 8 },
-  { label: 'Uma letra maiúscula', isValid: /[A-Z]/.test(password.value) },
-  { label: 'Um número', isValid: /\d/.test(password.value) },
-  { label: 'Um símbolo', isValid: /[^A-Za-z0-9\s]/.test(password.value) }
+  { label: 'At least 8 characters', isValid: password.value.length >= 8 },
+  { label: 'One uppercase letter', isValid: /[A-Z]/.test(password.value) },
+  { label: 'One number', isValid: /\d/.test(password.value) },
+  { label: 'One symbol', isValid: /[^A-Za-z0-9\s]/.test(password.value) }
 ])
 
 const passwordsMatch = computed(() => {
@@ -38,20 +38,20 @@ const passwordsMatch = computed(() => {
 <template>
   <section class="auth-page">
     <form class="auth-card" novalidate @submit.prevent="$emit('submit')">
-      <button class="auth-close" type="button" title="Continuar sem login" aria-label="Continuar sem login" @click="$emit('close')">
+      <button class="auth-close" type="button" title="Continue without logging in" aria-label="Continue without logging in" @click="$emit('close')">
         ×
       </button>
 
       <div>
-        <p class="eyebrow">Conta opcional</p>
-        <h2>{{ mode === 'login' ? 'Acesse seu progresso' : 'Crie sua conta' }}</h2>
+        <p class="eyebrow">Optional account</p>
+        <h2>{{ mode === 'login' ? 'Access your progress' : 'Create your account' }}</h2>
         <p class="muted">
-          Continue estudando sem login ou entre para salvar baralhos, publicar decks e acompanhar seu progresso.
+          Continue studying without logging in or log in to save decks, publish decks, and track your progress.
         </p>
       </div>
 
       <div v-if="mode === 'register'" class="form-field">
-        <label class="field-label" for="auth-display-name">Nome</label>
+        <label class="field-label" for="auth-display-name">Name</label>
         <input
           id="auth-display-name"
           v-model.trim="displayName"
@@ -59,7 +59,7 @@ const passwordsMatch = computed(() => {
           :class="{ invalid: Boolean(fieldError('displayName')) }"
           type="text"
           autocomplete="name"
-          placeholder="Seu nome"
+          placeholder="Your name"
           :aria-invalid="Boolean(fieldError('displayName'))"
           :aria-describedby="fieldError('displayName') ? 'auth-display-name-error' : undefined"
           @blur="$emit('touch-field', 'displayName')"
@@ -70,7 +70,7 @@ const passwordsMatch = computed(() => {
       </div>
 
       <div class="form-field">
-        <label class="field-label" for="auth-email">E-mail</label>
+        <label class="field-label" for="auth-email">Email</label>
         <input
           id="auth-email"
           v-model.trim="email"
@@ -78,7 +78,7 @@ const passwordsMatch = computed(() => {
           :class="{ invalid: Boolean(fieldError('email')) }"
           type="email"
           autocomplete="email"
-          placeholder="voce@email.com"
+          placeholder="you@email.com"
           :aria-invalid="Boolean(fieldError('email'))"
           :aria-describedby="fieldError('email') ? 'auth-email-error' : undefined"
           @blur="$emit('touch-field', 'email')"
@@ -89,7 +89,7 @@ const passwordsMatch = computed(() => {
       </div>
 
       <div class="form-field">
-        <label class="field-label" for="auth-password">Senha</label>
+        <label class="field-label" for="auth-password">Password</label>
         <div class="password-input-wrapper">
           <input
             id="auth-password"
@@ -98,12 +98,12 @@ const passwordsMatch = computed(() => {
             :class="{ invalid: Boolean(fieldError('password')) }"
             :type="showPassword ? 'text' : 'password'"
             :autocomplete="mode === 'login' ? 'current-password' : 'new-password'"
-            placeholder="Sua senha"
+            placeholder="Your password"
             :aria-invalid="Boolean(fieldError('password'))"
             :aria-describedby="fieldError('password') ? 'auth-password-error' : undefined"
             @blur="$emit('touch-field', 'password')"
           />
-          <button type="button" class="icon-button toggle-password" @click="showPassword = !showPassword" aria-label="Alternar visibilidade da senha">
+          <button type="button" class="icon-button toggle-password" @click="showPassword = !showPassword" aria-label="Toggle password visibility">
             <component :is="showPassword ? EyeOff : Eye" class="icon" />
           </button>
         </div>
@@ -120,7 +120,7 @@ const passwordsMatch = computed(() => {
       </div>
 
       <div v-if="mode === 'register'" class="form-field">
-        <label class="field-label" for="auth-confirm-password">Confirmar Senha</label>
+        <label class="field-label" for="auth-confirm-password">Confirm Password</label>
         <div class="password-input-wrapper">
           <input
             id="auth-confirm-password"
@@ -129,18 +129,18 @@ const passwordsMatch = computed(() => {
             :class="{ invalid: Boolean(fieldError('confirmPassword')) }"
             :type="showConfirmPassword ? 'text' : 'password'"
             autocomplete="new-password"
-            placeholder="Confirme sua senha"
+            placeholder="Confirm your password"
             :aria-invalid="Boolean(fieldError('confirmPassword'))"
             :aria-describedby="fieldError('confirmPassword') ? 'auth-confirm-password-error' : undefined"
             @blur="$emit('touch-field', 'confirmPassword')"
           />
-          <button type="button" class="icon-button toggle-password" @click="showConfirmPassword = !showConfirmPassword" aria-label="Alternar visibilidade da senha">
+          <button type="button" class="icon-button toggle-password" @click="showConfirmPassword = !showConfirmPassword" aria-label="Toggle password visibility">
             <component :is="showConfirmPassword ? EyeOff : Eye" class="icon" />
           </button>
         </div>
         <div v-if="confirmPassword" class="password-match-status" :class="passwordsMatch ? 'status-match' : 'status-mismatch'">
           <component :is="passwordsMatch ? Check : X" class="rule-icon" />
-          {{ passwordsMatch ? 'As senhas coincidem' : 'As senhas não coincidem' }}
+          {{ passwordsMatch ? 'Passwords match' : 'Passwords do not match' }}
         </div>
         <p v-else-if="fieldError('confirmPassword')" id="auth-confirm-password-error" class="field-error">
           {{ fieldError('confirmPassword') }}
@@ -149,12 +149,12 @@ const passwordsMatch = computed(() => {
 
       <button class="primary full" type="submit">
         <User :size="16" aria-hidden="true" />
-        {{ mode === 'login' ? 'Entrar' : 'Criar conta' }}
+        {{ mode === 'login' ? 'Log in' : 'Create account' }}
       </button>
 
       <div class="auth-actions">
         <button class="ghost compact" type="button" @click="$emit('toggle-mode')">
-          {{ mode === 'login' ? 'Criar conta' : 'Ja tenho conta' }}
+          {{ mode === 'login' ? 'Create account' : 'Already have an account' }}
         </button>
       </div>
     </form>

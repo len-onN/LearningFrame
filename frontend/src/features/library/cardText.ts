@@ -14,7 +14,7 @@ export function cardTextSummary(
 
 export function fallbackCardLabel(card: CardResponse, managedCards: CardResponse[]) {
   const index = managedCards.findIndex((managedCard) => managedCard.id === card.id)
-  return index >= 0 ? `Carta ${index + 1}` : 'Carta'
+  return index >= 0 ? `Card ${index + 1}` : 'Card'
 }
 
 export function mergeCardsPages(current: CardResponse[], incoming: CardResponse[]) {

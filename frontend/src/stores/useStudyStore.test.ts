@@ -116,7 +116,7 @@ describe('useStudyStore', () => {
     expect(store.sessionTitle).toBe('Deck 7')
     expect(store.studyQueue).toEqual([])
     expect(store.studyEmptyReason).toBe('no-due')
-    expect(showNotice).toHaveBeenCalledWith('Nenhum card vencido agora para esta sessao.')
+    expect(showNotice).toHaveBeenCalledWith('No cards due right now for this session.')
 
     await store.loadStudyDeck(7)
     expect(client.deck).toHaveBeenCalledTimes(1)
@@ -150,7 +150,7 @@ describe('useStudyStore', () => {
     await store.loadStudyDeck(9)
 
     expect(store.studyEmptyReason).toBe('empty-deck')
-    expect(showNotice).toHaveBeenCalledWith('Nenhum card vencido agora para esta sessao.')
+    expect(showNotice).toHaveBeenCalledWith('No cards due right now for this session.')
   })
 
   it('prepara selecao anonima com baralhos publicos carregados', async () => {
@@ -168,7 +168,7 @@ describe('useStudyStore', () => {
     expect(loadPublicDecks).not.toHaveBeenCalled()
     expect(client.due).not.toHaveBeenCalled()
     expect(client.deck).not.toHaveBeenCalled()
-    expect(store.sessionTitle).toBe('Pratica intercalada')
+    expect(store.sessionTitle).toBe('Interleaved practice')
     expect(store.interleavedSelection.active).toBe(true)
     expect(store.interleavedSelection.options.map((deck) => deck.id)).toEqual([1, 2, 3, 4, 5])
     expect(store.interleavedSelection.selectedIds).toEqual([])
@@ -288,7 +288,7 @@ describe('useStudyStore', () => {
     store.toggleInterleavedDeckSelection(1)
     await store.startInterleavedPracticeSession()
 
-    expect(showNotice).toHaveBeenCalledWith('Selecione pelo menos um baralho para iniciar.')
+    expect(showNotice).toHaveBeenCalledWith('Select at least one deck to start.')
     expect(client.due).not.toHaveBeenCalled()
     expect(client.deck).not.toHaveBeenCalled()
     expect(withFeedback).toHaveBeenCalledTimes(1)
@@ -305,7 +305,7 @@ describe('useStudyStore', () => {
 
     expect(store.studyEmptyReason).toBe('no-due')
     expect(store.interleavedSelection.active).toBe(false)
-    expect(showNotice).toHaveBeenCalledWith('Pratica intercalada sem cards vencidos agora.')
+    expect(showNotice).toHaveBeenCalledWith('Interleaved practice has no cards due right now.')
   })
 
   it('intercala grupos de cartas por baralho', () => {

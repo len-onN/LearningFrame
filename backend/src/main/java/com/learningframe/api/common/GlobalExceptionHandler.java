@@ -29,21 +29,21 @@ public class GlobalExceptionHandler {
         }
         return ResponseEntity
                 .badRequest()
-                .body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(), "Dados invalidos.", Instant.now(), fields));
+                .body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(), "Invalid data.", Instant.now(), fields));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     ResponseEntity<ErrorResponse> handleUploadSizeExceeded(MaxUploadSizeExceededException exception) {
         return ResponseEntity
                 .badRequest()
-                .body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(), "Arquivo .apkg excede o limite de upload configurado.", Instant.now(), Map.of()));
+                .body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(), ".apkg file exceeds the configured upload limit.", Instant.now(), Map.of()));
     }
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Erro inesperado.", Instant.now(), Map.of()));
+                .body(new ErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Unexpected error.", Instant.now(), Map.of()));
     }
 
     public record ErrorResponse(int status, String message, Instant timestamp, Map<String, String> fields) {

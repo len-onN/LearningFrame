@@ -101,43 +101,43 @@ onBeforeUnmount(() => {
 <template>
   <div class="rich-text-editor">
     <div v-if="editor" class="toolbar">
-      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor.chain().focus().toggleBold().run()" :class="{ 'is-active': editor.isActive('bold') }" title="Negrito">
+      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor.chain().focus().toggleBold().run()" :class="{ 'is-active': editor.isActive('bold') }" title="Bold">
         <Bold :size="16" />
       </button>
-      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor.chain().focus().toggleItalic().run()" :class="{ 'is-active': editor.isActive('italic') }" title="Itálico">
+      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor.chain().focus().toggleItalic().run()" :class="{ 'is-active': editor.isActive('italic') }" title="Italic">
         <Italic :size="16" />
       </button>
-      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor.chain().focus().toggleUnderline().run()" :class="{ 'is-active': editor.isActive('underline') }" title="Sublinhado">
+      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor.chain().focus().toggleUnderline().run()" :class="{ 'is-active': editor.isActive('underline') }" title="Underline">
         <UnderlineIcon :size="16" />
       </button>
       <div class="divider"></div>
-      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor.chain().focus().toggleHeading({ level: 1 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 1 }) }" title="Título 1">
+      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor.chain().focus().toggleHeading({ level: 1 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 1 }) }" title="Heading 1">
         <Heading1 :size="16" />
       </button>
-      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor.chain().focus().toggleHeading({ level: 2 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 2 }) }" title="Título 2">
+      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor.chain().focus().toggleHeading({ level: 2 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 2 }) }" title="Heading 2">
         <Heading2 :size="16" />
       </button>
-      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor.chain().focus().toggleHeading({ level: 3 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 3 }) }" title="Título 3">
+      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor.chain().focus().toggleHeading({ level: 3 }).run()" :class="{ 'is-active': editor.isActive('heading', { level: 3 }) }" title="Heading 3">
         <Heading3 :size="16" />
       </button>
       <div class="divider"></div>
-      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor?.chain().focus().toggleBulletList().run()" :class="{ 'is-active': editor?.isActive('bulletList') }" title="Lista com marcadores">
+      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor?.chain().focus().toggleBulletList().run()" :class="{ 'is-active': editor?.isActive('bulletList') }" title="Bullet list">
         <List :size="16" />
       </button>
-      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor?.chain().focus().toggleOrderedList().run()" :class="{ 'is-active': editor?.isActive('orderedList') }" title="Lista numerada">
+      <button type="button" :disabled="uploadingMedia || isRecording" @click="editor?.chain().focus().toggleOrderedList().run()" :class="{ 'is-active': editor?.isActive('orderedList') }" title="Numbered list">
         <ListOrdered :size="16" />
       </button>
       <div class="divider"></div>
-      <button type="button" :disabled="uploadingMedia || isRecording" @click="$emit('upload-media', 'image')" title="Inserir Imagem">
+      <button type="button" :disabled="uploadingMedia || isRecording" @click="$emit('upload-media', 'image')" title="Insert Image">
         <ImageIcon :size="16" />
       </button>
-      <button type="button" :disabled="uploadingMedia || isRecording" @click="$emit('upload-media', 'audio')" title="Fazer Upload de Áudio">
+      <button type="button" :disabled="uploadingMedia || isRecording" @click="$emit('upload-media', 'audio')" title="Upload Audio">
         <Volume2 :size="16" />
       </button>
-      <button v-if="!isRecording" type="button" :disabled="uploadingMedia" @click="handleStartRecording" title="Gravar Áudio (Microfone)">
+      <button v-if="!isRecording" type="button" :disabled="uploadingMedia" @click="handleStartRecording" title="Record Audio (Microphone)">
         <Mic :size="16" />
       </button>
-      <button v-else type="button" class="recording-active" @click="handleStopRecording" title="Parar e Inserir Gravação">
+      <button v-else type="button" class="recording-active" @click="handleStopRecording" title="Stop and Insert Recording">
         <Square :size="14" fill="currentColor" />
         <span class="recording-time">00:{{ recordingTime.toString().padStart(2, '0') }}</span>
       </button>

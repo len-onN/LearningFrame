@@ -21,10 +21,10 @@ defineEmits<{
 
 <template>
   <div class="preview-picker">
-    <label class="field-label" for="preview-card-search">Carta</label>
+    <label class="field-label" for="preview-card-search">Card</label>
     <button class="preview-picker-trigger" type="button" @click="$emit('toggle')">
       <span>{{ cardTitle }}</span>
-      <span>{{ face === 'front' ? 'Frente' : 'Verso' }}</span>
+      <span>{{ face === 'front' ? 'Front' : 'Back' }}</span>
     </button>
     <div v-if="open" class="preview-picker-menu">
       <label class="library-search preview-search">
@@ -33,7 +33,7 @@ defineEmits<{
           id="preview-card-search"
           :value="search"
           type="search"
-          placeholder="Buscar carta"
+          placeholder="Search card"
           @input="$emit('update:search', ($event.target as HTMLInputElement).value)"
           @keydown.esc="$emit('close')"
         />
@@ -49,7 +49,7 @@ defineEmits<{
         >
           {{ option.label }}
         </button>
-        <p v-if="options.length === 0" class="muted empty-copy">Nenhuma carta encontrada.</p>
+        <p v-if="options.length === 0" class="muted empty-copy">No cards found.</p>
       </div>
     </div>
   </div>

@@ -18,8 +18,8 @@ test('login e logout limpam acesso a dados privados', async ({ page, seed }) => 
   await loginViaUi(page, seed.users.primary.email, seed.users.primary.password)
   await page.goto(`/biblioteca/meus/${seed.decks.privateAnatomy.id}/gerenciar`)
 
-  await expect(page.getByRole('heading', { name: 'Dados do baralho' })).toBeVisible()
-  await expect(page.getByLabel('Titulo')).toHaveValue(seed.decks.privateAnatomy.title)
+  await expect(page.getByRole('heading', { name: 'Deck details' })).toBeVisible()
+  await expect(page.getByLabel('Title')).toHaveValue(seed.decks.privateAnatomy.title)
 
   await logoutViaUi(page)
   await expect(page.getByText(seed.decks.privateAnatomy.title)).not.toBeVisible()

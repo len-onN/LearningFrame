@@ -20,8 +20,8 @@ describe('cardText', () => {
 
     expect(cardTextSummary(cards[2], cards, summarizeHtml)).toBe('Frente')
     expect(cardTextSummary(cards[1], cards, summarizeHtml)).toBe('Verso')
-    expect(cardTextSummary(cards[0], cards, summarizeHtml)).toBe('Carta 1')
-    expect(fallbackCardLabel(card(99, '', ''), cards)).toBe('Carta')
+    expect(cardTextSummary(cards[0], cards, summarizeHtml)).toBe('Card 1')
+    expect(fallbackCardLabel(card(99, '', ''), cards)).toBe('Card')
   })
 
   it('mescla paginas de cartas sem duplicar pelo id', () => {

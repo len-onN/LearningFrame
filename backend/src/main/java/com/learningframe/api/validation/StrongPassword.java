@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
 @Target({ElementType.FIELD, ElementType.PARAMETER})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface StrongPassword {
-    String message() default "Inclua pelo menos uma letra maiuscula, um numero e um simbolo.";
+    String message() default "Include at least one uppercase letter, one number, and one symbol.";
 
     Class<?>[] groups() default {};
 

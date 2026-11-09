@@ -46,7 +46,7 @@ describe('useCreateDeckFlow', () => {
     expect(libraryStore.loadMyDecks).toHaveBeenCalledWith(true)
     expect(deckManagementStore.setManagedDeck).toHaveBeenCalledWith(created)
     expect(mockRouter.push).toHaveBeenCalledWith({ name: 'library-deck-manage', params: { deckId: 42 } })
-    expect(feedbackStore.showNotice).toHaveBeenCalledWith('Baralho criado. Adicione as primeiras cartas.')
+    expect(feedbackStore.showNotice).toHaveBeenCalledWith('Deck created. Add the first cards.')
   })
 })
 

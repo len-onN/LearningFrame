@@ -36,8 +36,8 @@ describe('useDeckLibrary', () => {
   })
 
   it('formata labels de pagina quando ha pagina carregada', () => {
-    expect(deckPageCountLabel(8, page([], 0, 20))).toBe('8 de 20 baralhos')
-    expect(deckPageCountLabel(4, page([], 0, 12), 'cartas')).toBe('4 de 12 cartas')
+    expect(deckPageCountLabel(8, page([], 0, 20))).toBe('8 of 20 decks')
+    expect(deckPageCountLabel(4, page([], 0, 12), 'cards')).toBe('4 of 12 cards')
     expect(deckPageCountLabel(0, null)).toBe('')
   })
 
@@ -94,7 +94,7 @@ describe('useDeckLibrary', () => {
     const library = useDeckLibrary({ librarySection, client })
 
     await library.loadPublicDecks(true)
-    expect(library.activeLibraryCountLabel.value).toBe('1 de 3 baralhos')
+    expect(library.activeLibraryCountLabel.value).toBe('1 of 3 decks')
 
     librarySection.value = 'mine'
     expect(library.activeLibraryCountLabel.value).toBe('')
@@ -105,7 +105,7 @@ describe('useDeckLibrary', () => {
       email: 'ada@example.com'
     }
     await library.loadMyDecks(true)
-    expect(library.activeLibraryCountLabel.value).toBe('1 de 2 baralhos')
+    expect(library.activeLibraryCountLabel.value).toBe('1 of 2 decks')
   })
 
   it('alterna selecao individual de meus baralhos', async () => {

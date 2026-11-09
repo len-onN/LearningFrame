@@ -58,7 +58,7 @@ describe('useApkgImport', () => {
     flow.previewCardSearch.value = 'anatomia'
     expect(flow.previewCardOptions.value.map((option) => option.index)).toEqual([1])
     expect(input.value).toBe('')
-    expect(showNotice).toHaveBeenCalledWith('APKG analisado. A midia sera exibida na previa enquanto este arquivo estiver selecionado.')
+    expect(showNotice).toHaveBeenCalledWith('APKG analyzed. Media will be displayed in the preview while this file is selected.')
   })
 
   it('preserva preview ao pedir login para salvar APKG', async () => {
@@ -75,7 +75,7 @@ describe('useApkgImport', () => {
     expect(client.importApkg).not.toHaveBeenCalled()
     expect(flow.selectedFile.value).toEqual(file)
     expect(flow.importPreview.value?.title).toBe('Importado')
-    expect(showNotice).toHaveBeenLastCalledWith('Entre para salvar o APKG com midia em Meus baralhos.')
+    expect(showNotice).toHaveBeenLastCalledWith('Sign in to save the APKG with media to My decks.')
     expect(flow.consumeReturnToImportAfterAuth()).toBe(true)
     expect(flow.consumeReturnToImportAfterAuth()).toBe(false)
   })
@@ -111,7 +111,7 @@ describe('useApkgImport', () => {
     expect(flow.importSaving.value).toBe(false)
     expect(revokeObjectUrl).toHaveBeenCalledWith('blob:1')
     expect(router.push).toHaveBeenCalledWith({ name: 'library-mine', query: { highlight: 42 } })
-    expect(showNotice).toHaveBeenLastCalledWith('Baralho APKG salvo com 3 cartas e 1 midias.')
+    expect(showNotice).toHaveBeenLastCalledWith('APKG deck saved with 3 cards and 1 media files.')
   })
 
   it('limpa arquivo, preview e object URLs ao sair da importacao fora do fluxo preservado', async () => {

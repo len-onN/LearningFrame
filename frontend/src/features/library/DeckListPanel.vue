@@ -70,7 +70,7 @@ function handleSelectionKey(event: KeyboardEvent, deckId: number) {
         <label
           v-if="selectable && selectionMode"
           class="deck-selection"
-          :aria-label="`Selecionar ${deck.title}`"
+          :aria-label="`Select ${deck.title}`"
           @click.stop
         >
           <input
@@ -92,7 +92,7 @@ function handleSelectionKey(event: KeyboardEvent, deckId: number) {
             @click="$emit('start', deck)"
           >
             <Brain :size="16" aria-hidden="true" />
-            Estudar
+            Study
           </button>
           <button
             v-if="showSaveAction"
@@ -102,7 +102,7 @@ function handleSelectionKey(event: KeyboardEvent, deckId: number) {
             @click="$emit('save', deck)"
           >
             <Save :size="16" aria-hidden="true" />
-            Salvar para mim
+            Save for me
           </button>
           <button
             v-if="showManageAction"
@@ -112,7 +112,7 @@ function handleSelectionKey(event: KeyboardEvent, deckId: number) {
             @click="$emit('manage', deck)"
           >
             <Pencil :size="16" aria-hidden="true" />
-            Gerenciar
+            Manage
           </button>
         </div>
       </article>
@@ -126,7 +126,7 @@ function handleSelectionKey(event: KeyboardEvent, deckId: number) {
       @click.prevent="!loadingMore && $emit('load-more')"
     >
       <Loader2 v-if="loadingMore" :size="16" aria-hidden="true" class="icon-spin" />
-      {{ loadingMore ? 'Carregando...' : 'Carregar mais baralhos...' }}
+      {{ loadingMore ? 'Loading...' : 'Load more decks...' }}
     </a>
   </div>
 </template>

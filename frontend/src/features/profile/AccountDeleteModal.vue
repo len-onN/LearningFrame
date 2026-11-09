@@ -29,7 +29,7 @@ async function confirmDeletion() {
     await api.deleteAccount()
     emit('deleted')
   } catch (err: any) {
-    error.value = err.message || 'Erro ao excluir a conta.'
+    error.value = err.message || 'Failed to delete account.'
   } finally {
     loading.value = false
   }
@@ -40,9 +40,9 @@ async function confirmDeletion() {
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal-content danger-modal">
       <header class="modal-header">
-        <h3>Excluir Conta</h3>
-        <button class="icon-button" @click="$emit('close')" aria-label="Fechar" :disabled="loading">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <h3>Delete Account</h3>
+        <button class="icon-button" @click="$emit('close')" aria-label="Close" :disabled="loading">
+          <svg width="24" height="24" viewBox="24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 6L6 18M6 6l12 12"/>
           </svg>
         </button>
@@ -50,8 +50,8 @@ async function confirmDeletion() {
 
       <div class="modal-body">
         <p class="warning-text">
-          Você está prestes a excluir permanentemente sua conta.
-          <strong>Isso apagará todos os seus baralhos, cartas, mídias e progresso. Esta ação não pode ser desfeita.</strong>
+          You are about to permanently delete your account.
+          <strong>This will delete all of your decks, cards, media, and progress. This action cannot be undone.</strong>
         </p>
 
         <div v-if="error" class="status error">
@@ -59,13 +59,13 @@ async function confirmDeletion() {
         </div>
 
         <div class="form-group">
-          <label for="confirm-email">Digite seu e-mail (<strong>{{ user?.email }}</strong>) para confirmar:</label>
+          <label for="confirm-email">Enter your email (<strong>{{ user?.email }}</strong>) to confirm:</label>
           <input
             id="confirm-email"
             v-model="confirmationEmail"
             type="email"
             class="input-control"
-            placeholder="Seu e-mail..."
+            placeholder="Your email..."
             :disabled="loading"
           />
         </div>
@@ -73,7 +73,7 @@ async function confirmDeletion() {
 
       <footer class="modal-footer">
         <button type="button" class="secondary" @click="$emit('close')" :disabled="loading">
-          Cancelar
+          Cancel
         </button>
         <button
           type="button"
@@ -81,7 +81,7 @@ async function confirmDeletion() {
           :disabled="!isEmailMatch || loading"
           @click="confirmDeletion"
         >
-          {{ loading ? 'Excluindo...' : 'Sim, excluir minha conta' }}
+          {{ loading ? 'Deleting...' : 'Yes, delete my account' }}
         </button>
       </footer>
     </div>

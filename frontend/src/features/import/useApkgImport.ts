@@ -139,8 +139,8 @@ export function useApkgImport({
         importPreview.value = preview
         importTitle.value = preview.title
         feedbackStore.showNotice(preview.mediaFound > 0
-          ? 'APKG analisado. A midia sera exibida na previa enquanto este arquivo estiver selecionado.'
-          : 'APKG analisado. Revise a previa e salve em Meus baralhos.')
+          ? 'APKG analyzed. Media will be displayed in the preview while this file is selected.'
+          : 'APKG analyzed. Review the preview and save to My decks.')
       } finally {
         input.value = ''
       }
@@ -149,14 +149,14 @@ export function useApkgImport({
 
   async function persistImport() {
     if (!selectedFile.value) {
-      feedbackStore.showError('Selecione o arquivo .apkg novamente.')
+      feedbackStore.showError('Select the .apkg file again.')
       return
     }
 
     if (!user.value) {
       returnToImportAfterAuth.value = true
       await router.push({ name: 'login', query: { redirect: '/importar' } })
-      feedbackStore.showNotice('Entre para salvar o APKG com midia em Meus baralhos.')
+      feedbackStore.showNotice('Sign in to save the APKG with media to My decks.')
       return
     }
 
@@ -170,8 +170,8 @@ export function useApkgImport({
         selectedFile.value = null
         
         feedbackStore.showNotice(result.mediaImported > 0
-          ? `Baralho APKG salvo com ${result.cardsImported} cartas e ${result.mediaImported} midias.`
-          : 'Baralho APKG salvo em Meus baralhos.')
+          ? `APKG deck saved with ${result.cardsImported} cards and ${result.mediaImported} media files.`
+          : 'APKG deck saved to My decks.')
           
         await libraryStore.loadMyDecks(api, 8, true)
           

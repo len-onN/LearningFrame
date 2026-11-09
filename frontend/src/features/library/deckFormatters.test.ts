@@ -7,12 +7,12 @@ describe('deckFormatters', () => {
   beforeEach(() => { setActivePinia(createPinia()) })
 
   it('formata quantidade de cartas no singular e plural', () => {
-    expect(cardCountLabel(1)).toBe('1 carta')
-    expect(cardCountLabel(2)).toBe('2 cartas')
+    expect(cardCountLabel(1)).toBe('1 card')
+    expect(cardCountLabel(2)).toBe('2 cards')
   })
 
   it('exibe disponibilidade imediata para usuario anonimo sem agenda', () => {
-    expect(deckDueLabel(deck({ dueCount: null, nextDueAt: null }), false)).toBe('disponivel agora')
+    expect(deckDueLabel(deck({ dueCount: null, nextDueAt: null }), false)).toBe('available now')
   })
 
   it('delega agenda para decks com usuario autenticado ou dueCount definido', () => {

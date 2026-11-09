@@ -48,7 +48,7 @@ const studyFontStyle = computed(() => ({
 }))
 const interleavedSelectedCount = computed(() => props.interleavedSelection.selectedIds.length)
 const interleavedSelectedIds = computed(() => new Set(props.interleavedSelection.selectedIds))
-const isInterleavedMode = computed(() => props.interleavedSelection.active || props.sessionTitle === 'Pratica intercalada')
+const isInterleavedMode = computed(() => props.interleavedSelection.active || props.sessionTitle === 'Pratica intercalada' || props.sessionTitle === 'Interleaved practice')
 
 function adjustStudyFont(delta: number) {
   studyFontLevel.value = Math.min(
@@ -59,31 +59,31 @@ function adjustStudyFont(delta: number) {
 
 function emptyTitle(reason: StudyEmptyReason) {
   if (reason === 'completed') {
-    return 'Sessão concluída'
+    return 'Session completed'
   }
   if (reason === 'limit-reached') {
-    return 'Limite diário atingido'
+    return 'Daily limit reached'
   }
   if (reason === 'empty-deck') {
-    return 'Baralho sem cartas'
+    return 'Deck has no cards'
   }
   if (reason === 'no-due') {
-    return 'Nada vencido agora'
+    return 'Nothing due right now'
   }
-  return 'Nenhuma sessão ativa'
+  return 'No active session'
 }
 
 function emptyCopy(reason: StudyEmptyReason) {
   if (reason === 'empty-deck') {
-    return 'Adicione cartas ao baralho ou escolha outro material para estudar.'
+    return 'Add cards to the deck or choose other material to study.'
   }
   if (reason === 'limit-reached') {
-    return 'Você atingiu seu limite diário. Volte amanhã ou ajuste seus limites nas configurações.'
+    return 'You reached your daily limit. Come back tomorrow or adjust your limits in settings.'
   }
   if (reason === 'no-due') {
-    return 'Sua agenda deste recorte está em dia. Volte depois ou use a prática intercalada.'
+    return 'Your schedule for this scope is up to date. Come back later or use interleaved practice.'
   }
-  return 'Escolha um baralho público, um baralho salvo ou use a prática intercalada.'
+  return 'Choose a public deck, a saved deck, or use interleaved practice.'
 }
 function isInterleavedDeckDisabled(deckId: number) {
   return !interleavedSelectedIds.value.has(deckId)
@@ -91,17 +91,17 @@ function isInterleavedDeckDisabled(deckId: number) {
 }
 
 function interleavedSourceLabel(source: InterleavedSelectionState['options'][number]['source']) {
-  return source === 'mine' ? 'Meu baralho' : 'Publico'
+  return source === 'mine' ? 'My deck' : 'Public'
 }
 
 function interleavedDueLabel(dueCount: number | null) {
   if (dueCount === null) {
-    return 'Agenda local'
+    return 'Local schedule'
   }
   if (dueCount === 1) {
-    return '1 vencida'
+    return '1 due'
   }
-  return `${dueCount} vencidas`
+  return `${dueCount} due`
 }
 </script>
 
@@ -110,19 +110,19 @@ function interleavedDueLabel(dueCount: number | null) {
     <div class="study-header">
       <div>
         <p class="eyebrow">{{ sessionTitle }}</p>
-        <h2 v-if="summary">Sessão concluída</h2>
-        <h2 v-else-if="progress.initialTotal > 0">{{ progress.reviewed }} de {{ progress.initialTotal }} revisadas</h2>
+        <h2 v-if="summary">Session completed</h2>
+        <h2 v-else-if="progress.initialTotal > 0">{{ progress.reviewed }} of {{ progress.initialTotal }} reviewed</h2>
         <h2 v-else>{{ emptyTitle(emptyReason) }}</h2>
-        <p v-if="progress.initialTotal > 0" class="study-progress-copy">{{ progress.remaining }} restantes</p>
+        <p v-if="progress.initialTotal > 0" class="study-progress-copy">{{ progress.remaining }} remaining</p>
       </div>
       <div class="study-header-actions">
-        <div class="font-size-control" aria-label="Tamanho da fonte">
+        <div class="font-size-control" aria-label="Font size">
           <ALargeSmall :size="16" aria-hidden="true" />
           <button
             class="font-size-option"
             type="button"
-            title="Fonte menor"
-            aria-label="Diminuir tamanho da fonte"
+            title="Smaller font"
+            aria-label="Decrease font size"
             :disabled="studyFontLevel === STUDY_FONT_LEVEL_MIN"
             @click="adjustStudyFont(-1)"
           >
@@ -131,8 +131,8 @@ function interleavedDueLabel(dueCount: number | null) {
           <button
             class="font-size-option"
             type="button"
-            title="Fonte maior"
-            aria-label="Aumentar tamanho da fonte"
+            title="Larger font"
+            aria-label="Increase font size"
             :disabled="studyFontLevel === STUDY_FONT_LEVEL_MAX"
             @click="adjustStudyFont(1)"
           >
@@ -147,7 +147,7 @@ function interleavedDueLabel(dueCount: number | null) {
         >
           <Minimize2 v-if="fitMediaToScreen" :size="16" aria-hidden="true" />
           <Maximize2 v-else :size="16" aria-hidden="true" />
-          {{ fitMediaToScreen ? 'Mídia natural' : 'Ajustar mídia' }}
+          {{ fitMediaToScreen ? 'Natural media' : 'Fit media' }}
         </button>
         <button
           :class="[{ 'primary': isInterleavedMode, 'ghost': !isInterleavedMode }, 'compact']"
@@ -155,7 +155,7 @@ function interleavedDueLabel(dueCount: number | null) {
           @click="isInterleavedMode ? null : $emit('start-interleaved')"
         >
           <Shuffle :size="16" aria-hidden="true" />
-          Prática intercalada
+          Interleaved practice
         </button>
       </div>
     </div>
@@ -167,7 +167,7 @@ function interleavedDueLabel(dueCount: number | null) {
       :aria-valuenow="progress.percent"
       aria-valuemin="0"
       aria-valuemax="100"
-      :aria-label="`${progress.reviewed} de ${progress.initialTotal} cartas revisadas`"
+      :aria-label="`${progress.reviewed} of ${progress.initialTotal} cards reviewed`"
     >
       <span :style="{ width: `${progress.percent}%` }"></span>
     </div>
@@ -176,10 +176,10 @@ function interleavedDueLabel(dueCount: number | null) {
       <div class="interleaved-selector-heading">
         <Shuffle :size="28" aria-hidden="true" />
         <div>
-          <p class="eyebrow">Pratica intercalada</p>
-          <h2>Escolha os baralhos</h2>
+          <p class="eyebrow">Interleaved practice</p>
+          <h2>Choose decks</h2>
           <p class="study-progress-copy">
-            {{ interleavedSelectedCount }} de {{ interleavedSelection.maxSelected }} selecionados
+            {{ interleavedSelectedCount }} of {{ interleavedSelection.maxSelected }} selected
           </p>
         </div>
       </div>
@@ -207,7 +207,7 @@ function interleavedDueLabel(dueCount: number | null) {
               <strong>{{ deck.title }}</strong>
             </div>
             <span class="interleaved-deck-meta">
-              {{ interleavedSourceLabel(deck.source) }} · {{ deck.cardCount }} cartas · {{ interleavedDueLabel(deck.dueCount) }}
+              {{ interleavedSourceLabel(deck.source) }} · {{ deck.cardCount }} cards · {{ interleavedDueLabel(deck.dueCount) }}
             </span>
             <div v-if="deck.description" class="interleaved-deck-desc-wrapper">
               <small class="interleaved-deck-desc">{{ deck.description }}</small>
@@ -219,14 +219,14 @@ function interleavedDueLabel(dueCount: number | null) {
 
       <div v-else class="compact-empty">
         <Brain :size="32" aria-hidden="true" />
-        <h2>Nenhum baralho disponivel</h2>
-        <p>Abra a Biblioteca para carregar ou criar baralhos.</p>
+        <h2>No decks available</h2>
+        <p>Open Library to load or create decks.</p>
       </div>
 
       <div class="study-summary-actions">
         <button class="ghost compact" type="button" @click="$emit('go-library')">
           <BookOpen :size="16" aria-hidden="true" />
-          Biblioteca
+          Library
         </button>
         <button
           class="primary compact"
@@ -235,7 +235,7 @@ function interleavedDueLabel(dueCount: number | null) {
           @click="$emit('start-selected-interleaved')"
         >
           <Shuffle :size="16" aria-hidden="true" />
-          Iniciar pratica
+          Start practice
         </button>
       </div>
     </article>
@@ -243,11 +243,11 @@ function interleavedDueLabel(dueCount: number | null) {
     <article v-else-if="currentCard" :class="['study-card', { 'media-fit': fitMediaToScreen }]" :style="studyFontStyle">
       <div class="card-meta">
         <span>{{ currentCard.deckTitle }}</span>
-        <span>{{ currentCard.newCard ? 'Novo' : `${currentCard.intervalDays} dias` }} · volta {{ currentDueLabel }}</span>
+        <span>{{ currentCard.newCard ? 'New' : `${currentCard.intervalDays} days` }} · due {{ currentDueLabel }}</span>
       </div>
 
       <div v-if="lastFeedback" class="study-feedback" role="status">
-        <strong>{{ lastFeedback.ratingLabel }} registrado</strong>
+        <strong>{{ lastFeedback.ratingLabel }} recorded</strong>
         <span>{{ lastFeedback.nextDueLabel }} · {{ lastFeedback.intervalLabel }}</span>
       </div>
 
@@ -256,36 +256,36 @@ function interleavedDueLabel(dueCount: number | null) {
       <div v-if="!answerVisible" class="study-card-actions">
         <button class="primary reveal" type="button" @click="$emit('reveal-answer')">
           <Eye :size="18" aria-hidden="true" />
-          Revelar resposta
+          Reveal answer
         </button>
         <button
           v-if="progress.remaining > 1"
           class="ghost compact"
           type="button"
           @click="$emit('skip')"
-          title="Colocar no final da fila"
+          title="Send to back of queue"
         >
-          Pular carta
+          Skip card
         </button>
       </div>
 
       <template v-else>
         <div class="answer" v-html="backHtml"></div>
-        <div class="ratings" aria-label="Avaliar resposta">
+        <div class="ratings" aria-label="Rate answer">
           <button class="rating again" type="button" @click="$emit('review', 'AGAIN')">
-            De novo
+            Again
             <small v-if="predictedIntervals">{{ predictedIntervals.AGAIN }}</small>
           </button>
           <button class="rating hard" type="button" @click="$emit('review', 'HARD')">
-            Difícil
+            Hard
             <small v-if="predictedIntervals">{{ predictedIntervals.HARD }}</small>
           </button>
           <button class="rating good" type="button" @click="$emit('review', 'GOOD')">
-            Bom
+            Good
             <small v-if="predictedIntervals">{{ predictedIntervals.GOOD }}</small>
           </button>
           <button class="rating easy" type="button" @click="$emit('review', 'EASY')">
-            Fácil
+            Easy
             <small v-if="predictedIntervals">{{ predictedIntervals.EASY }}</small>
           </button>
         </div>
@@ -295,28 +295,28 @@ function interleavedDueLabel(dueCount: number | null) {
     <article v-else-if="summary" class="study-summary">
       <Brain :size="34" aria-hidden="true" />
       <div>
-        <p class="eyebrow">Resumo da sessão</p>
-        <h2>{{ summary.reviewed }} {{ summary.reviewed === 1 ? 'carta revisada' : 'cartas revisadas' }}</h2>
+        <p class="eyebrow">Session summary</p>
+        <h2>{{ summary.reviewed }} {{ summary.reviewed === 1 ? 'card reviewed' : 'cards reviewed' }}</h2>
         <p v-if="summary.lastFeedback" class="study-progress-copy">
-          Última revisão: {{ summary.lastFeedback.ratingLabel }} · {{ summary.lastFeedback.nextDueLabel }}
+          Last review: {{ summary.lastFeedback.ratingLabel }} · {{ summary.lastFeedback.nextDueLabel }}
         </p>
       </div>
 
-      <div class="study-rating-summary" aria-label="Distribuição por rating">
+      <div class="study-rating-summary" aria-label="Rating distribution">
         <div class="rating-count again">
-          <span>De novo</span>
+          <span>Again</span>
           <strong>{{ summary.ratingCounts.AGAIN }}</strong>
         </div>
         <div class="rating-count hard">
-          <span>Difícil</span>
+          <span>Hard</span>
           <strong>{{ summary.ratingCounts.HARD }}</strong>
         </div>
         <div class="rating-count good">
-          <span>Bom</span>
+          <span>Good</span>
           <strong>{{ summary.ratingCounts.GOOD }}</strong>
         </div>
         <div class="rating-count easy">
-          <span>Fácil</span>
+          <span>Easy</span>
           <strong>{{ summary.ratingCounts.EASY }}</strong>
         </div>
       </div>
@@ -324,11 +324,11 @@ function interleavedDueLabel(dueCount: number | null) {
       <div class="study-summary-actions">
         <button class="ghost compact" type="button" @click="$emit('go-library')">
           <BookOpen :size="16" aria-hidden="true" />
-          Biblioteca
+          Library
         </button>
         <button class="primary compact" type="button" @click="$emit('start-interleaved')">
           <Shuffle :size="16" aria-hidden="true" />
-          Prática intercalada
+          Interleaved practice
         </button>
       </div>
     </article>
@@ -340,11 +340,11 @@ function interleavedDueLabel(dueCount: number | null) {
       <div class="study-summary-actions">
         <button class="ghost compact" type="button" @click="$emit('go-library')">
           <BookOpen :size="16" aria-hidden="true" />
-          Biblioteca
+          Library
         </button>
         <button class="primary compact" type="button" @click="$emit('start-interleaved')">
           <Shuffle :size="16" aria-hidden="true" />
-          Prática intercalada
+          Interleaved practice
         </button>
       </div>
     </div>
