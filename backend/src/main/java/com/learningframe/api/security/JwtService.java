@@ -72,7 +72,7 @@ public class JwtService {
                     payload.get("name").toString()
             );
         } catch (Exception exception) {
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "Token invalido ou expirado.");
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "Invalid or expired token.");
         }
     }
 

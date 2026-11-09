@@ -20,7 +20,7 @@ class AuthDtosTest {
         assertThat(validator.validate(request))
                 .anySatisfy(violation -> {
                     assertThat(violation.getPropertyPath()).hasToString("password");
-                    assertThat(violation.getMessage()).isEqualTo("Inclua pelo menos uma letra maiuscula, um numero e um simbolo.");
+                    assertThat(violation.getMessage()).isEqualTo("Include at least one uppercase letter, one number, and one symbol.");
                 });
     }
 
@@ -32,7 +32,7 @@ class AuthDtosTest {
         assertThat(validator.validate(request))
                 .anySatisfy(violation -> {
                     assertThat(violation.getPropertyPath()).hasToString("password");
-                    assertThat(violation.getMessage()).isEqualTo("Inclua pelo menos uma letra maiuscula, um numero e um simbolo.");
+                    assertThat(violation.getMessage()).isEqualTo("Include at least one uppercase letter, one number, and one symbol.");
                 });
     }
 
